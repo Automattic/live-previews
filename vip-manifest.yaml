@@ -1,11 +1,10 @@
 # yaml-language-server: $schema=./vip-manifest.schema.json
 #
-# Handoff manifest for the Live Previews.
+# Handoff manifest for Live Previews.
 #
-# This is the single file WordPress VIP reads to register and load your
-# integration — VIP never sees your repo. `composer setup` (or `vip-integration
-# init`) rewrites the example names below to yours. Fill in the rest, then check
-# it with `npx @automattic/vip-integration validate`.
+# This is the single file WordPress VIP reads to register and load the
+# integration — VIP never sees the repo. Keep it in sync with the plugin, then
+# check it with `npx @automattic/vip-integration validate`.
 #
 # See docs/manifest.md for a field-by-field guide, and vip-manifest.schema.json
 # for the full schema (fields, types, and constraints).
@@ -16,14 +15,14 @@ manifest_kind: vip-integration-handoff
 integration:
   slug: live-previews
   display_name: Live Previews
-  summary: Reference integration built from the VIP Integrations Starter Kit.
+  summary: Safe-to-share, time- and usage-limited preview links that let reviewers without a WordPress account view a draft.
   partner:
     name: Automattic
-    support_contact: support@example.com
+    support_contact: support@wpvip.com
 
 documentation:
-  public_url: https://example.com/docs/live-previews
-  support_url: https://example.com/docs/live-previews/support
+  public_url: https://wpvip.com/features/live-previews/
+  support_url: https://wpvip.com/support/
 
 runtime:
   wordpress_plugin:
@@ -67,4 +66,4 @@ release:
   plugin_version: 1.0.0
   version_strategy: latest
   migration_required: false
-  changelog: Initial VIP integration starter kit example.
+  changelog: Initial release.

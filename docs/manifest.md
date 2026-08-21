@@ -5,7 +5,7 @@ integration. VIP reads it, so everything VIP needs to wire up
 the plugin loader, the config form, and secret storage has to be declared here,
 correctly.
 
-This kit ships a filled-in example ([`vip-manifest.yaml`](../vip-manifest.yaml))
+This repository ships the manifest ([`vip-manifest.yaml`](../vip-manifest.yaml))
 and the schema it is validated against
 ([`vip-manifest.schema.json`](../vip-manifest.schema.json)).
 
@@ -13,10 +13,9 @@ and the schema it is validated against
 npx @automattic/vip-integration validate
 ```
 
-`composer setup` (or `vip-integration init`) rewrites the example names in the
-manifest to yours — slug, folder, entry file, namespace, and config constant —
-so most of the plumbing fields are filled in for you. You own the identity
-fields and the config schema.
+The runtime fields — slug, folder, entry file, namespace, and config constant —
+identify how VIP loads the plugin and rarely change. The identity fields and the
+config schema are the parts you actively maintain.
 
 ## Fields
 
@@ -48,7 +47,7 @@ Links to documentation hosted on a website. Don't use a local Markdown path as t
 
 ### `runtime.wordpress_plugin` — how VIP loads the plugin
 
-Set by `composer setup` — you rarely edit these by hand.
+These identify how VIP loads the plugin and rarely change.
 
 | Field           | Required | Notes                                                                       |
 | --------------- | -------- | --------------------------------------------------------------------------- |
