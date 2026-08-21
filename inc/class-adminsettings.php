@@ -1,9 +1,9 @@
 <?php
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 final class AdminSettings {
-	const OPTION_GROUP = 'example_integration_settings';
+	const OPTION_GROUP = 'live_previews_settings';
 
 	/** @var self|null */
 	private static $instance;
@@ -46,14 +46,14 @@ final class AdminSettings {
 		$settings_section = 'general-settings';
 		add_settings_section(
 			$settings_section,
-			__( 'General Settings', 'example-integration' ),
+			__( 'General Settings', 'live-previews' ),
 			'__return_empty_string', // NOSONAR
 			Admin::OPTIONS_MENU_SLUG
 		);
 
 		add_settings_field(
 			'enabled',
-			__( 'Enable plugin', 'example-integration' ),
+			__( 'Enable plugin', 'live-previews' ),
 			[ $this->input_factory, 'checkbox' ],
 			Admin::OPTIONS_MENU_SLUG,
 			$settings_section,
@@ -64,7 +64,7 @@ final class AdminSettings {
 
 		add_settings_field(
 			'message',
-			__( 'Message', 'example-integration' ),
+			__( 'Message', 'live-previews' ),
 			[ $this->input_factory, 'input' ],
 			Admin::OPTIONS_MENU_SLUG,
 			$settings_section,
@@ -73,7 +73,7 @@ final class AdminSettings {
 				'required'  => true,
 				'help'      => __(
 					'Help text goes here.',
-					'example-integration'
+					'live-previews'
 				),
 			]
 		);

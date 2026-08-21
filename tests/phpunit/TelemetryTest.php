@@ -1,13 +1,13 @@
 <?php
 declare(strict_types = 1);
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 use Automattic\VIP\Telemetry\Telemetry as VIP_Telemetry;
 use WP_UnitTestCase;
 
 /**
- * @covers \ExampleVendor\ExampleIntegration\Telemetry
+ * @covers \Automattic\LivePreviews\Telemetry
  */
 class TelemetryTest extends WP_UnitTestCase {
 	public function test_record_event_forwards_to_the_vip_client(): void {

@@ -60,7 +60,7 @@ jobs:
         run: vip dev-env create --wordpress ${{ matrix.wordpress }} < /dev/null
 
       - name: Start development environment
-        run: vip dev-env start --slug example-integration --skip-wp-versions-check
+        run: vip dev-env start --slug live-previews --skip-wp-versions-check
 
       - name: Update user password
         run: vip dev-env exec -- wp user update vipgo --user_pass=password
@@ -68,7 +68,7 @@ jobs:
       - name: Run E2E tests
         run: npm test
         env:
-          E2E_URL: http://example-integration.vipdev.lndo.site/
+          E2E_URL: http://live-previews.vipdev.lndo.site/
 
       - name: Archive test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

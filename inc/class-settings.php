@@ -1,6 +1,6 @@
 <?php
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 use ArrayAccess;
 use LogicException;
@@ -15,7 +15,7 @@ use LogicException;
  */
 final class Settings implements ArrayAccess {
 	/** @var string  */
-	const OPTIONS_KEY = 'example_integration_settings';
+	const OPTIONS_KEY = 'live_previews_settings';
 
 	/** @var self|null */
 	private static $instance;
