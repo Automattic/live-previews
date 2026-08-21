@@ -1,5 +1,5 @@
 {
-  "name": "example-vendor/example-integration",
+  "name": "automattic/live-previews",
   "type": "wordpress-plugin",
   "license": "MIT",
   "require": {

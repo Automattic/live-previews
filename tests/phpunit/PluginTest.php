@@ -1,16 +1,16 @@
 <?php
 declare(strict_types = 1);
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
-use ExampleVendor\ExampleIntegration\Config;
-use ExampleVendor\ExampleIntegration\Plugin;
-use ExampleVendor\ExampleIntegration\REST_Controller;
+use Automattic\LivePreviews\Config;
+use Automattic\LivePreviews\Plugin;
+use Automattic\LivePreviews\REST_Controller;
 use ReflectionProperty;
 use WP_UnitTestCase;
 
 /**
- * @covers \ExampleVendor\ExampleIntegration\Plugin
+ * @covers \Automattic\LivePreviews\Plugin
 */
 class PluginTest extends WP_UnitTestCase {
 	public function tear_down(): void {
@@ -35,7 +35,7 @@ class PluginTest extends WP_UnitTestCase {
 		$plugin->wp_footer();
 		$actual = ob_get_clean();
 
-		static::assertStringContainsString( '<p class="example-integration-signature">Example Integration (dev)</p>', $actual );
+		static::assertStringContainsString( '<p class="live-previews-signature">Live Previews (dev)</p>', $actual );
 	}
 
 	public function test_config_notice_lists_missing_fields(): void {

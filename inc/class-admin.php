@@ -1,9 +1,9 @@
 <?php
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 final class Admin {
-	const OPTIONS_MENU_SLUG = 'example-integration-settings';
+	const OPTIONS_MENU_SLUG = 'live-previews-settings';
 
 	/** @var self|null */
 	private static $instance;
@@ -30,12 +30,12 @@ final class Admin {
 	}
 
 	public function admin_init(): void {
-		$plugin = plugin_basename( 'example-integration/example-integration.php' );
+		$plugin = plugin_basename( 'live-previews/live-previews.php' );
 		add_filter( 'plugin_action_links_' . $plugin, [ $this, 'plugin_action_links' ] );
 	}
 
 	public function admin_menu(): void {
-		add_options_page( __( 'Example Integration Settings', 'example-integration' ), __( 'Example Integration Settings', 'example-integration' ), 'manage_options', self::OPTIONS_MENU_SLUG, [ AdminSettings::class, 'settings_page' ] );
+		add_options_page( __( 'Live Previews Settings', 'live-previews' ), __( 'Live Previews Settings', 'live-previews' ), 'manage_options', self::OPTIONS_MENU_SLUG, [ AdminSettings::class, 'settings_page' ] );
 	}
 
 	/**
@@ -44,7 +44,7 @@ final class Admin {
 	 */
 	public function plugin_action_links( array $links ): array {
 		$url               = esc_url( admin_url( 'options-general.php?page=' . self::OPTIONS_MENU_SLUG ) );
-		$link              = '<a href="' . $url . '">' . __( 'Settings', 'example-integration' ) . '</a>';
+		$link              = '<a href="' . $url . '">' . __( 'Settings', 'live-previews' ) . '</a>';
 		$links['settings'] = $link;
 		return $links;
 	}

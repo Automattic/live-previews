@@ -1,18 +1,18 @@
 <?php
 declare(strict_types = 1);
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 use WP_UnitTest_Factory;
 use WP_UnitTestCase;
 
 /**
- * @covers \ExampleVendor\ExampleIntegration\Admin
+ * @covers \Automattic\LivePreviews\Admin
  */
 class AdminTest extends WP_UnitTestCase {
 	protected static int $admin_id = 0;
 
-	const PLUGIN_FILE = 'example-integration/example-integration.php';
+	const PLUGIN_FILE = 'live-previews/live-previews.php';
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ): void {
 		static::$admin_id = $factory->user->create( [ 'role' => 'administrator' ] );

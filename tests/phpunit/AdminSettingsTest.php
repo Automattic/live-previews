@@ -1,15 +1,15 @@
 <?php
 declare(strict_types = 1);
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 use WP_UnitTestCase;
 
 /**
- * @covers \ExampleVendor\ExampleIntegration\AdminSettings
- * @uses \ExampleVendor\ExampleIntegration\InputFactory
- * @uses \ExampleVendor\ExampleIntegration\Settings
- * @uses \ExampleVendor\ExampleIntegration\SettingsValidator::ensure_data_shape
+ * @covers \Automattic\LivePreviews\AdminSettings
+ * @uses \Automattic\LivePreviews\InputFactory
+ * @uses \Automattic\LivePreviews\Settings
+ * @uses \Automattic\LivePreviews\SettingsValidator::ensure_data_shape
  */
 class AdminSettingsTest extends WP_UnitTestCase {
 	public static function setUpBeforeClass(): void {

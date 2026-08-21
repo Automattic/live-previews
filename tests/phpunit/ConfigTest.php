@@ -1,12 +1,12 @@
 <?php
 declare(strict_types = 1);
 
-namespace ExampleVendor\ExampleIntegration;
+namespace Automattic\LivePreviews;
 
 use WP_UnitTestCase;
 
 /**
- * @covers \ExampleVendor\ExampleIntegration\Config
+ * @covers \Automattic\LivePreviews\Config
  */
 class ConfigTest extends WP_UnitTestCase {
 	private const FIXTURES_DIR = __DIR__ . '/../../fixtures';
