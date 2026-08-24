@@ -12,7 +12,6 @@ import { useSelect } from '@wordpress/data';
 import { useState } from '@wordpress/element';
 import {
 	Button,
-	CheckboxControl,
 	Modal,
 	Notice,
 	SelectControl,
@@ -32,18 +31,26 @@ const expirationOptions = ( settings.expirationOptions || [] ).map( ( option ) =
 } ) );
 
 function GeneratePreviewLink() {
-	const postId = useSelect(
-		( select ) => select( editorStore ).getCurrentPostId(),
-		[]
-	);
+	const { postId, status } = useSelect( ( select ) => {
+		const editor = select( editorStore );
+		return {
+			postId: editor.getCurrentPostId(),
+			status: editor.getEditedPostAttribute( 'status' ),
+		};
+	}, [] );
 
 	const [ isOpen, setOpen ] = useState( false );
 	const [ expiration, setExpiration ] = useState( String( settings.defaultExpiration ) );
-	const [ oneTimeUse, setOneTimeUse ] = useState( false );
+	const [ maxUses, setMaxUses ] = useState( '' );
 	const [ url, setUrl ] = useState( '' );
 	const [ isBusy, setBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const [ copied, setCopied ] = useState( false );
+
+	// A published post is already public, so a preview link is meaningless.
+	if ( 'publish' === status ) {
+		return null;
+	}
 
 	const openModal = () => {
 		setUrl( '' );
@@ -63,7 +70,7 @@ function GeneratePreviewLink() {
 				data: {
 					post_id: postId,
 					expiration: parseInt( expiration, 10 ),
-					one_time_use: oneTimeUse,
+					max_uses: '' === maxUses ? null : parseInt( maxUses, 10 ),
 				},
 			} );
 
@@ -112,14 +119,19 @@ function GeneratePreviewLink() {
 						value={ expiration }
 						options={ expirationOptions }
 						onChange={ setExpiration }
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 					/>
 
-					<CheckboxControl
-						label={ __( 'One-time use', 'live-previews' ) }
-						help={ __( 'The link will expire after one visit.', 'live-previews' ) }
-						checked={ oneTimeUse }
-						onChange={ setOneTimeUse }
+					<TextControl
+						type="number"
+						min={ 1 }
+						step={ 1 }
+						label={ __( 'Maximum uses', 'live-previews' ) }
+						help={ __( 'Number of distinct viewers. Leave empty for unlimited.', 'live-previews' ) }
+						value={ maxUses }
+						onChange={ setMaxUses }
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 					/>
 

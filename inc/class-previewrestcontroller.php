@@ -19,6 +19,12 @@ final class PreviewRestController {
 	public const NAMESPACE = 'live-previews/v1';
 	public const ROUTE     = '/preview-links';
 
+	/**
+	 * Upper bound on a link's viewer cap, guarding against absurd values. The
+	 * editor offers a free number input, so this is validated server-side.
+	 */
+	public const MAX_USES_LIMIT = 1000;
+
 	private PreviewLinkService $service;
 
 	public function __construct( PreviewLinkService $service ) {
@@ -61,18 +67,22 @@ final class PreviewRestController {
 				'callback'            => [ $this, 'create_link' ],
 				'permission_callback' => [ $this, 'can_create_link' ],
 				'args'                => [
-					'post_id'      => [
+					'post_id'    => [
 						'required' => true,
 						'type'     => 'integer',
 					],
-					'expiration'   => [
+					'expiration' => [
 						'required' => true,
 						'type'     => 'integer',
 						'enum'     => self::allowed_expirations(),
 					],
-					'one_time_use' => [
-						'type'    => 'boolean',
-						'default' => false,
+					'max_uses'   => [
+						// Null (or omitted) means unlimited; otherwise a positive
+						// integer up to the guard limit.
+						'type'    => [ 'integer', 'null' ],
+						'default' => null,
+						'minimum' => 1,
+						'maximum' => self::MAX_USES_LIMIT,
 					],
 				],
 			]
@@ -100,10 +110,13 @@ final class PreviewRestController {
 			);
 		}
 
-		$expiration   = (int) $request->get_param( 'expiration' );
-		$one_time_use = (bool) $request->get_param( 'one_time_use' );
+		$expiration = (int) $request->get_param( 'expiration' );
 
-		$token = $this->service->mint( $post_id, $expiration, $one_time_use, get_current_user_id() );
+		/** @var mixed $max_uses_param */
+		$max_uses_param = $request->get_param( 'max_uses' );
+		$max_uses       = null === $max_uses_param ? null : (int) $max_uses_param;
+
+		$token = $this->service->mint( $post_id, $expiration, $max_uses, get_current_user_id() );
 
 		// Reuse WordPress's own preview URL (adds preview=true) and carry the
 		// token on it, so the gate can unlock the draft for a logged-out visitor.
@@ -113,8 +126,8 @@ final class PreviewRestController {
 		Telemetry::get_instance()->record_event(
 			'preview_link_created',
 			[
-				'expiration'   => $expiration,
-				'one_time_use' => $one_time_use,
+				'expiration' => $expiration,
+				'max_uses'   => $max_uses,
 			]
 		);
 
