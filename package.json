@@ -8,10 +8,12 @@
   "description": "",
   "devDependencies": {
     "@playwright/test": "^1.45.3",
-    "@types/node": "^26.1.2"
+    "@types/node": "^26.1.2",
+    "@wordpress/scripts": "^30.0.0"
   },
   "scripts": {
-    "build": "echo 'build: not applicable — this integration ships no compiled assets (see docs/vip-integration.md)'",
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
     "test": "playwright test",
     "test:ui": "playwright test --ui"
   }

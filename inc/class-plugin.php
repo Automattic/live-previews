@@ -29,35 +29,28 @@ final class Plugin {
 	}
 
 	public function init(): void {
-		if ( Config::get_instance()->is_ready() ) {
-			add_action( 'rest_api_init', [ REST_Controller::class, 'register' ] );
-		} else {
-			// Missing or incomplete runtime config must never fatal: disable the
-			// config-dependent behavior and surface a diagnostic instead.
-			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
-		}
-
-		$this->register_preview_gate();
-
-		add_action( 'wp_footer', [ $this, 'wp_footer' ] );
-	}
-
-	/**
-	 * Composition root for the preview feature.
-	 *
-	 * Assembles the domain object graph explicitly (no container) and hands it to
-	 * the request-time gate. Swapping storage, clock, or policy is a one-line
-	 * change here, and every collaborator is constructor-injected so the domain is
-	 * unit-tested without WordPress.
-	 */
-	private function register_preview_gate(): void {
+		// Composition root: assemble the domain graph once (no container) and
+		// share it between minting (REST) and enforcement (the gate). Swapping
+		// storage, clock, or policy is a one-line change here.
 		$service = new PreviewLinkService(
 			new PostMetaTokenRepository(),
 			new AccessPolicy(),
 			new SystemClock()
 		);
 
+		$rest_controller = new PreviewRestController( $service );
+		add_action( 'rest_api_init', [ $rest_controller, 'register_routes' ] );
+
 		( new PreviewGate( $service ) )->register();
+		( new EditorAssets() )->register();
+
+		if ( ! Config::get_instance()->is_ready() ) {
+			// An incomplete runtime config must never fatal; surface a diagnostic.
+			// The preview feature itself needs no external config, so it stays on.
+			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
+		}
+
+		add_action( 'wp_footer', [ $this, 'wp_footer' ] );
 	}
 	// @codeCoverageIgnoreEnd
 
@@ -84,7 +77,7 @@ final class Plugin {
 			esc_html(
 				sprintf(
 					/* translators: %s: reason the configuration is incomplete */
-					__( 'Live Previews setup is incomplete (%s). Its REST API endpoints are disabled until the configuration is completed in the VIP Dashboard.', 'live-previews' ),
+					__( 'Live Previews setup is incomplete (%s). Complete the configuration in the VIP Dashboard.', 'live-previews' ),
 					$details
 				)
 			)
