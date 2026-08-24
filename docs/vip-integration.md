@@ -76,6 +76,6 @@ environments without VIP MU plugins no-op. Event names are prefixed with
 `live_previews_`. Never include secrets, raw content, email addresses,
 or customer credentials in event properties.
 
-| Name                                | Type   | Trigger                                    | Properties                         | Notes                                    |
-| ----------------------------------- | ------ | ------------------------------------------ | ---------------------------------- | ---------------------------------------- |
-| `live_previews_sum_requested` | Tracks | The REST `/sum` endpoint serves a request. | `route`, `plugin_version` (global) | Usage metadata only; no request payload. |
+| Name                            | Type   | Trigger                              | Properties                                             | Notes                                             |
+| ------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
+| `live_previews_preview_link_created` | Tracks | A preview link is minted via REST.   | `expiration`, `one_time_use`, `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |

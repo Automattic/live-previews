@@ -5,7 +5,6 @@ namespace Automattic\LivePreviews;
 
 use Automattic\LivePreviews\Config;
 use Automattic\LivePreviews\Plugin;
-use Automattic\LivePreviews\REST_Controller;
 use ReflectionProperty;
 use WP_UnitTestCase;
 
@@ -24,8 +23,13 @@ class PluginTest extends WP_UnitTestCase {
 		$plugin = Plugin::get_instance();
 
 		static::assertEquals( 10, has_action( 'init', [ $plugin, 'init' ] ) );
-		static::assertEquals( 10, has_action( 'rest_api_init', [ REST_Controller::class, 'register' ] ) );
 		static::assertEquals( 10, has_action( 'wp_footer', [ $plugin, 'wp_footer' ] ) );
+
+		// The composition root wires these with injected instances, so assert a
+		// callback is present rather than a specific static callable.
+		static::assertNotFalse( has_action( 'rest_api_init' ) );
+		static::assertNotFalse( has_action( 'posts_results' ) );
+		static::assertNotFalse( has_action( 'enqueue_block_editor_assets' ) );
 	}
 
 	public function test_wp_footer(): void {
