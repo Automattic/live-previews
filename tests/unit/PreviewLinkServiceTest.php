@@ -104,4 +104,47 @@ final class PreviewLinkServiceTest extends TestCase {
 		static::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 		static::assertTrue( $this->service->authorize( self::POST_ID, $token, true )->is_allowed() );
 	}
+
+	public function test_revoking_a_link_denies_it(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
+		$hash  = $this->repository->all_for_post( self::POST_ID )[0]->token_hash();
+
+		static::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
+
+		$decision = $this->service->authorize( self::POST_ID, $token );
+		static::assertFalse( $decision->is_allowed() );
+		static::assertSame( AccessDecision::REASON_REVOKED, $decision->reason() );
+	}
+
+	public function test_revoking_is_reported_false_when_nothing_matches(): void {
+		static::assertFalse( $this->service->revoke( self::POST_ID, str_repeat( 'a', 64 ) ) );
+	}
+
+	public function test_revoking_an_already_revoked_link_is_reported_false(): void {
+		$this->service->mint( self::POST_ID, 3600, null, 1 );
+		$hash = $this->repository->all_for_post( self::POST_ID )[0]->token_hash();
+
+		static::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
+		static::assertFalse( $this->service->revoke( self::POST_ID, $hash ) );
+	}
+
+	public function test_minting_prunes_dead_links(): void {
+		// A short link that will be expired by the time the next one is minted.
+		$this->service->mint( self::POST_ID, 10, null, 1 );
+		$this->clock->advance( 20 );
+
+		$this->service->mint( self::POST_ID, 3600, null, 1 );
+
+		// The expired one is gone; only the fresh link remains.
+		static::assertCount( 1, $this->repository->all_for_post( self::POST_ID ) );
+	}
+
+	public function test_discard_all_forgets_every_link(): void {
+		$this->service->mint( self::POST_ID, 3600, null, 1 );
+		$this->service->mint( self::POST_ID, 3600, null, 1 );
+
+		$this->service->discard_all( self::POST_ID );
+
+		static::assertCount( 0, $this->repository->all_for_post( self::POST_ID ) );
+	}
 }

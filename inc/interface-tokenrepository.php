@@ -39,4 +39,30 @@ interface TokenRepository {
 	 * PreviewLink::with_recorded_use()} form.
 	 */
 	public function record_use( PreviewLink $link ): void;
+
+	/**
+	 * The link on this post whose token hash matches, or null. Unlike {@see find()}
+	 * this takes the hash directly, so the editor can address a link it never sees
+	 * the secret for.
+	 */
+	public function find_by_hash( int $post_id, string $token_hash ): ?PreviewLink;
+
+	/**
+	 * Persist the revocation of an existing link. The passed link is the
+	 * pre-revocation state; implementations store its {@see
+	 * PreviewLink::with_revoked()} form.
+	 */
+	public function revoke( PreviewLink $link, int $revoked_at ): void;
+
+	/**
+	 * Delete dead rows (revoked, or expired at $now) for a post, so storage does
+	 * not grow without bound as links are issued and retired.
+	 */
+	public function prune( int $post_id, int $now ): void;
+
+	/**
+	 * Delete every link for a post, live or not. Used when a post is published and
+	 * its preview links become meaningless.
+	 */
+	public function delete_all_for_post( int $post_id ): void;
 }

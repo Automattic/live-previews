@@ -59,41 +59,105 @@ final class PreviewRestController {
 	}
 
 	public function register_routes(): void {
+		$post_id_arg = [
+			'post_id' => [
+				'required' => true,
+				'type'     => 'integer',
+			],
+		];
+
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE,
 			[
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ $this, 'create_link' ],
-				'permission_callback' => [ $this, 'can_create_link' ],
-				'args'                => [
-					'post_id'    => [
-						'required' => true,
-						'type'     => 'integer',
-					],
-					'expiration' => [
-						'required' => true,
-						'type'     => 'integer',
-						'enum'     => self::allowed_expirations(),
-					],
-					'max_uses'   => [
-						// Null (or omitted) means unlimited; otherwise a positive
-						// integer up to the guard limit.
-						'type'    => [ 'integer', 'null' ],
-						'default' => null,
-						'minimum' => 1,
-						'maximum' => self::MAX_USES_LIMIT,
+				[
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => [ $this, 'create_link' ],
+					'permission_callback' => [ $this, 'can_manage_links' ],
+					'args'                => $post_id_arg + [
+						'expiration' => [
+							'required' => true,
+							'type'     => 'integer',
+							'enum'     => self::allowed_expirations(),
+						],
+						'max_uses'   => [
+							// Null (or omitted) means unlimited; otherwise a positive
+							// integer up to the guard limit.
+							'type'    => [ 'integer', 'null' ],
+							'default' => null,
+							'minimum' => 1,
+							'maximum' => self::MAX_USES_LIMIT,
+						],
 					],
 				],
+				[
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => [ $this, 'list_links' ],
+					'permission_callback' => [ $this, 'can_manage_links' ],
+					'args'                => $post_id_arg,
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			self::ROUTE . '/(?P<id>[a-f0-9]{64})',
+			[
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => [ $this, 'revoke_link' ],
+				'permission_callback' => [ $this, 'can_manage_links' ],
+				'args'                => $post_id_arg,
 			]
 		);
 	}
 
 	/**
-	 * A link may be minted only by someone who can edit the target post.
+	 * Links may be managed only by someone who can edit the target post.
 	 */
-	public function can_create_link( WP_REST_Request $request ): bool {
+	public function can_manage_links( WP_REST_Request $request ): bool {
 		return current_user_can( 'edit_post', (int) $request->get_param( 'post_id' ) );
+	}
+
+	public function list_links( WP_REST_Request $request ): WP_REST_Response {
+		$post_id = (int) $request->get_param( 'post_id' );
+		$now     = time();
+
+		$links = [];
+		foreach ( $this->service->list_for_post( $post_id ) as $link ) {
+			// Expired and revoked links are dead clutter; show only live ones.
+			if ( $link->is_expired( $now ) || $link->is_revoked() ) {
+				continue;
+			}
+
+			$links[] = [
+				'id'         => $link->token_hash(),
+				'created_at' => $link->created_at(),
+				'expires_at' => $link->expires_at(),
+				'max_uses'   => $link->max_uses(),
+				'use_count'  => $link->use_count(),
+				'exhausted'  => $link->is_exhausted(),
+			];
+		}
+
+		return rest_ensure_response( $links );
+	}
+
+	/**
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function revoke_link( WP_REST_Request $request ) {
+		$post_id    = (int) $request->get_param( 'post_id' );
+		$token_hash = (string) $request->get_param( 'id' );
+
+		if ( ! $this->service->revoke( $post_id, $token_hash ) ) {
+			return new WP_Error(
+				'live_previews_link_not_found',
+				__( 'No matching preview link to revoke.', 'live-previews' ),
+				[ 'status' => 404 ]
+			);
+		}
+
+		return rest_ensure_response( [ 'revoked' => true ] );
 	}
 
 	/**

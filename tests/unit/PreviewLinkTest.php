@@ -66,4 +66,15 @@ final class PreviewLinkTest extends TestCase {
 		static::assertSame( 2, $link->use_count(), 'Original is unchanged.' );
 		static::assertSame( 3, $next->use_count() );
 	}
+
+	public function test_revoking_stamps_a_copy(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 2 );
+
+		$revoked = $link->with_revoked( 1500 );
+
+		static::assertFalse( $link->is_revoked(), 'Original is unchanged.' );
+		static::assertTrue( $revoked->is_revoked() );
+		static::assertSame( 1500, $revoked->revoked_at() );
+		static::assertSame( 2, $revoked->use_count(), 'Other fields are preserved.' );
+	}
 }

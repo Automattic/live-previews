@@ -143,4 +143,21 @@ final class PreviewLink {
 			$this->revoked_at
 		);
 	}
+
+	/**
+	 * A copy of this link revoked at the given moment. Immutable: the caller
+	 * persists the returned instance.
+	 */
+	public function with_revoked( int $revoked_at ): self {
+		return new self(
+			$this->post_id,
+			$this->token_hash,
+			$this->expires_at,
+			$this->max_uses,
+			$this->created_by,
+			$this->created_at,
+			$this->use_count,
+			$revoked_at
+		);
+	}
 }
