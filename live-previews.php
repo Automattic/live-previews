@@ -1,11 +1,13 @@
 <?php
 /**
  * Plugin Name: Live Previews
- * Description: Reference implementation of a WordPress VIP partner integration, built from the VIP Integrations Starter Kit.
+ * Plugin URI: https://wpvip.com
+ * Description: Generate safe-to-share, time- and usage-limited preview links so reviewers without a WordPress account can review a draft. Hardens the existing Preview Links.
  * Version: 1.0.0
  * Requires at least: 6.9
  * Requires PHP: 8.2
  * Author: Automattic
+ * Author URI: https://wpvip.com
  * License: MIT
  * Text Domain: live-previews
  */

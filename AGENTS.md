@@ -6,36 +6,33 @@ matches your task.
 
 ## What this repo is
 
-The **WordPress VIP Integration Starter Kit**: a complete, runnable WordPress VIP
-plugin that a partner clones to build an integration for the VIP Integration
-Center. It doubles as the reference implementation of the VIP integration
-requirements. The example integration exposes a small REST endpoint and reads
-its settings from a single VIP-provided config constant.
+**Live Previews**: a WordPress VIP integration that generates safe-to-share, time-
+and usage-limited preview links so reviewers without a WordPress account can
+review a draft. It runs as a WordPress plugin, is registered with the VIP
+Integration Center through `vip-manifest.yaml`, and reads its settings from a
+single VIP-provided config constant.
 
-A partner runs `composer setup` (or `vip-integration init`) to rewrite the
-example names to theirs, writes their code under `inc/`, fills in
-`vip-manifest.yaml`, and validates with `vip-integration validate` before
-submitting.
+Write runtime code under `inc/`, keep `vip-manifest.yaml` in sync with it, and
+validate with `vip-integration validate` before shipping.
 
 ## Map
 
 | Path                                              | What lives here                                                                                            |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader. Renamed on setup.                                |
+| `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
 | `inc/`                                            | Runtime code (autoloaded via Composer classmap). `class-config.php`, `class-telemetry.php`, REST handlers. |
 | `views/`                                          | Admin page templates.                                                                                      |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
 | `tests/phpunit/`, `tests/e2e/`                    | PHPUnit and Playwright tests.                                                                              |
 | `vip-manifest.yaml`                               | The handoff manifest VIP registers the integration from.                                                   |
 | `vip-manifest.schema.json`                        | JSON Schema the manifest is validated against.                                                             |
-| `bin/setup.php`                                   | The `composer setup` prefix-rewrite scaffolder.                                                            |
 | `docs/`                                           | Human docs. Start with `docs/vip-integration.md`.                                                          |
 | `.wpvip/`, `.devcontainer/`, `.github/workflows/` | VIP dev-env, Codespaces, and CI.                                                                           |
 
 ## Non-negotiables
 
 - **Do not delete the app folders.** Every top-level directory is part of a
-  complete VIP application (`docs/directories.md`). Removing them breaks the kit.
+  complete VIP application (`docs/directories.md`). Removing them breaks the plugin.
 - **One config constant.** All runtime config comes from a single VIP-defined
   constant read through `inc/class-config.php`. Never read `$_ENV`, hardcode
   secrets, or add a second config source.
@@ -44,9 +41,10 @@ submitting.
 - **Tracks-only telemetry.** Telemetry goes through `inc/class-telemetry.php`
   (VIP Tracks API, `class_exists`-guarded). No Stats/Pixel. Never put secrets,
   raw content, emails, or credentials in event properties.
-- **Match the prefix set.** Slug, namespace, constant, and telemetry prefix all
-  derive from one vendor+name pair (see `docs/vip-integration.md`). Keep them in
-  sync — `composer setup` is the source of that mapping.
+- **Match the prefix set.** Slug (`live-previews`), namespace
+  (`Automattic\LivePreviews`), constant (`VIP_LIVE_PREVIEWS_*`), and telemetry
+  prefix (`live_previews_`) are one consistent set. Keep them in sync if you
+  rename anything.
 
 ## Conventions
 
@@ -113,13 +111,6 @@ Details live in `docs/vip-integration.md`.
 ```sh
 composer install        # PHP dependencies
 npm ci                  # Node dependencies (Playwright)
-composer setup          # rewrite the example prefix set to your names (one-shot)
-```
-
-`composer setup` is interactive; non-interactively:
-
-```sh
-composer setup -- --vendor="Acme" --name="Content Sync"
 ```
 
 ### Local environment

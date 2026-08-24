@@ -1,10 +1,9 @@
 # VIP Integration
 
-Live Previews is the reference implementation of a WordPress VIP partner
-integration, built from the [VIP Integrations Starter Kit](https://github.com/Automattic/vip-integrations-starter-kit).
-It demonstrates the patterns WordPress VIP requires of partner integrations: a single runtime config constant read through a central `Config`
-class, graceful degradation when required config is missing, and Tracks-only
-telemetry through the VIP Telemetry API.
+Live Previews is a WordPress VIP integration. It follows the patterns WordPress
+VIP requires of integrations: a single runtime config constant read through a
+central `Config` class, graceful degradation when required config is missing, and
+Tracks-only telemetry through the VIP Telemetry API.
 
 ## Running and testing locally
 
@@ -15,7 +14,7 @@ telemetry through the VIP Telemetry API.
 > **Prerequisite:** `composer test` runs PHPUnit **and** the Playwright e2e
 > suite. The e2e half needs the `vip dev-env` from step 2 up and reachable —
 > without it, `composer test` fails on the e2e stage. That is an environment
-> gap, not a broken kit; run `composer test:unit` for PHPUnit alone.
+> gap, not a broken plugin; run `composer test:unit` for PHPUnit alone.
 
 PHPUnit also needs the WordPress test library (`WP_TESTS_DIR`); inside the
 dev-env container (`vip dev-env shell`) it is preconfigured.
@@ -80,19 +79,3 @@ or customer credentials in event properties.
 | Name                                | Type   | Trigger                                    | Properties                         | Notes                                    |
 | ----------------------------------- | ------ | ------------------------------------------ | ---------------------------------- | ---------------------------------------- |
 | `live_previews_sum_requested` | Tracks | The REST `/sum` endpoint serves a request. | `route`, `plugin_version` (global) | Usage metadata only; no request payload. |
-
-## Making it your own
-
-`composer setup` rewrites the example prefix set to your integration's names
-via plain string replacement:
-
-| Token                                                                         | Becomes                             |
-| ----------------------------------------------------------------------------- | ----------------------------------- |
-| `example-integration` (slug, folder, text domain, entry file, REST namespace) | your integration slug               |
-| `ExampleVendor\ExampleIntegration` (PHP namespace)                            | your vendor + integration namespace |
-| `VIP_EXAMPLE_INTEGRATION_*` (constants)                                       | `VIP_<YOUR_NAME>_*`                 |
-| `example_integration_` (telemetry prefix, option keys)                        | `<your_name>_`                      |
-| `example-vendor/example-integration` (Composer name)                          | `<your-vendor>/<your-slug>`         |
-
-Run it interactively (`composer setup`) or non-interactively
-(`composer setup -- --vendor="Acme" --name="Content Sync"`).
