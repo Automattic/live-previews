@@ -33,4 +33,13 @@ final class InMemoryTokenRepository implements TokenRepository {
 	public function all_for_post( int $post_id ): array {
 		return $this->links[ $post_id ] ?? [];
 	}
+
+	public function record_use( PreviewLink $link ): void {
+		foreach ( $this->links[ $link->post_id() ] ?? [] as $index => $stored ) {
+			if ( hash_equals( $stored->token_hash(), $link->token_hash() ) ) {
+				$this->links[ $link->post_id() ][ $index ] = $link->with_recorded_use();
+				return;
+			}
+		}
+	}
 }

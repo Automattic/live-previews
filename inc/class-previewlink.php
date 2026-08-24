@@ -4,8 +4,8 @@ namespace Automattic\LivePreviews;
 
 /**
  * An issued preview link: the record that lets an unauthenticated visitor view a
- * single non-public post, subject to expiry (and, later, one-time use and
- * revocation).
+ * single non-public post, subject to expiry, a cap on the number of distinct
+ * viewers, and (later) revocation.
  *
  * Holds only the token *hash*, never the plaintext. All the questions the access
  * rules need to ask are pure methods here, so {@see AccessPolicy} can be tested
@@ -15,12 +15,15 @@ final class PreviewLink {
 	private int $post_id;
 	private string $token_hash;
 	private int $expires_at;
-	private bool $one_time_use;
+
+	/** @var int|null Maximum distinct viewers, or null for unlimited. */
+	private ?int $max_uses;
+
 	private int $created_by;
 	private int $created_at;
 
-	/** @var int|null Unix timestamp of first use, or null if never visited. */
-	private ?int $used_at;
+	/** @var int Distinct viewers counted so far. */
+	private int $use_count;
 
 	/** @var int|null Unix timestamp of revocation, or null if still live. */
 	private ?int $revoked_at;
@@ -29,30 +32,32 @@ final class PreviewLink {
 		int $post_id,
 		string $token_hash,
 		int $expires_at,
-		bool $one_time_use,
+		?int $max_uses,
 		int $created_by,
 		int $created_at,
-		?int $used_at = null,
+		int $use_count = 0,
 		?int $revoked_at = null
 	) {
-		$this->post_id      = $post_id;
-		$this->token_hash   = $token_hash;
-		$this->expires_at   = $expires_at;
-		$this->one_time_use = $one_time_use;
-		$this->created_by   = $created_by;
-		$this->created_at   = $created_at;
-		$this->used_at      = $used_at;
-		$this->revoked_at   = $revoked_at;
+		$this->post_id    = $post_id;
+		$this->token_hash = $token_hash;
+		$this->expires_at = $expires_at;
+		$this->max_uses   = $max_uses;
+		$this->created_by = $created_by;
+		$this->created_at = $created_at;
+		$this->use_count  = $use_count;
+		$this->revoked_at = $revoked_at;
 	}
 
 	/**
 	 * Issue a brand-new link for a freshly generated token.
+	 *
+	 * @param int|null $max_uses Maximum distinct viewers, or null for unlimited.
 	 */
 	public static function issue(
 		int $post_id,
 		Token $token,
 		int $expires_at,
-		bool $one_time_use,
+		?int $max_uses,
 		int $created_by,
 		int $created_at
 	): self {
@@ -60,7 +65,7 @@ final class PreviewLink {
 			$post_id,
 			$token->hash(),
 			$expires_at,
-			$one_time_use,
+			$max_uses,
 			$created_by,
 			$created_at
 		);
@@ -78,8 +83,8 @@ final class PreviewLink {
 		return $this->expires_at;
 	}
 
-	public function is_one_time_use(): bool {
-		return $this->one_time_use;
+	public function max_uses(): ?int {
+		return $this->max_uses;
 	}
 
 	public function created_by(): int {
@@ -90,8 +95,8 @@ final class PreviewLink {
 		return $this->created_at;
 	}
 
-	public function used_at(): ?int {
-		return $this->used_at;
+	public function use_count(): int {
+		return $this->use_count;
 	}
 
 	public function revoked_at(): ?int {
@@ -114,7 +119,28 @@ final class PreviewLink {
 		return null !== $this->revoked_at;
 	}
 
-	public function is_used(): bool {
-		return null !== $this->used_at;
+	/**
+	 * Whether every allowed viewer slot has been spent. Always false for an
+	 * unlimited link.
+	 */
+	public function is_exhausted(): bool {
+		return null !== $this->max_uses && $this->use_count >= $this->max_uses;
+	}
+
+	/**
+	 * A copy of this link with one more viewer counted. Immutable: the caller
+	 * persists the returned instance.
+	 */
+	public function with_recorded_use(): self {
+		return new self(
+			$this->post_id,
+			$this->token_hash,
+			$this->expires_at,
+			$this->max_uses,
+			$this->created_by,
+			$this->created_at,
+			$this->use_count + 1,
+			$this->revoked_at
+		);
 	}
 }

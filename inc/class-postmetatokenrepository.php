@@ -52,19 +52,30 @@ final class PostMetaTokenRepository implements TokenRepository {
 		return $links;
 	}
 
+	public function record_use( PreviewLink $link ): void {
+		// Replace this exact row with its incremented form. Passing the old value
+		// targets the single matching meta row, leaving other links untouched.
+		update_post_meta(
+			$link->post_id(),
+			self::META_KEY,
+			$this->to_array( $link->with_recorded_use() ),
+			$this->to_array( $link )
+		);
+	}
+
 	/**
 	 * @return array<string, mixed>
 	 */
 	private function to_array( PreviewLink $link ): array {
 		return [
-			'version'      => self::VERSION,
-			'token_hash'   => $link->token_hash(),
-			'expires_at'   => $link->expires_at(),
-			'one_time_use' => $link->is_one_time_use(),
-			'created_by'   => $link->created_by(),
-			'created_at'   => $link->created_at(),
-			'used_at'      => $link->used_at(),
-			'revoked_at'   => $link->revoked_at(),
+			'version'    => self::VERSION,
+			'token_hash' => $link->token_hash(),
+			'expires_at' => $link->expires_at(),
+			'max_uses'   => $link->max_uses(),
+			'created_by' => $link->created_by(),
+			'created_at' => $link->created_at(),
+			'use_count'  => $link->use_count(),
+			'revoked_at' => $link->revoked_at(),
 		];
 	}
 
@@ -79,10 +90,10 @@ final class PostMetaTokenRepository implements TokenRepository {
 			$post_id,
 			isset( $row['token_hash'] ) && is_string( $row['token_hash'] ) ? $row['token_hash'] : '',
 			isset( $row['expires_at'] ) ? (int) $row['expires_at'] : 0,
-			! empty( $row['one_time_use'] ),
+			isset( $row['max_uses'] ) && null !== $row['max_uses'] ? (int) $row['max_uses'] : null,
 			isset( $row['created_by'] ) ? (int) $row['created_by'] : 0,
 			isset( $row['created_at'] ) ? (int) $row['created_at'] : 0,
-			isset( $row['used_at'] ) ? (int) $row['used_at'] : null,
+			isset( $row['use_count'] ) ? (int) $row['use_count'] : 0,
 			isset( $row['revoked_at'] ) ? (int) $row['revoked_at'] : null
 		);
 	}

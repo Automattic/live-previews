@@ -61,23 +61,41 @@ final class AccessPolicyTest extends TestCase {
 		static::assertSame( AccessDecision::REASON_REVOKED, $decision->reason() );
 	}
 
-	public function test_a_used_one_time_link_is_denied(): void {
-		$link = $this->link(
-			[ 'expires_at' => self::NOW + 100, 'one_time_use' => true, 'used_at' => self::NOW - 10 ]
-		);
+	public function test_an_exhausted_link_is_denied(): void {
+		$link = $this->link( [ 'expires_at' => self::NOW + 100, 'max_uses' => 3, 'use_count' => 3 ] );
 
 		$decision = $this->policy->decide( $link, self::NOW );
 
 		static::assertFalse( $decision->is_allowed() );
-		static::assertSame( AccessDecision::REASON_USED, $decision->reason() );
+		static::assertSame( AccessDecision::REASON_EXHAUSTED, $decision->reason() );
 	}
 
-	public function test_a_used_multi_visit_link_is_still_allowed(): void {
-		$link = $this->link(
-			[ 'expires_at' => self::NOW + 100, 'one_time_use' => false, 'used_at' => self::NOW - 10 ]
-		);
+	public function test_a_below_cap_link_is_allowed(): void {
+		$link = $this->link( [ 'expires_at' => self::NOW + 100, 'max_uses' => 3, 'use_count' => 2 ] );
 
 		static::assertTrue( $this->policy->decide( $link, self::NOW )->is_allowed() );
+	}
+
+	public function test_an_unlimited_link_is_allowed_however_many_uses(): void {
+		$link = $this->link( [ 'expires_at' => self::NOW + 100, 'max_uses' => null, 'use_count' => 999 ] );
+
+		static::assertTrue( $this->policy->decide( $link, self::NOW )->is_allowed() );
+	}
+
+	public function test_an_already_counted_viewer_is_not_locked_out_by_exhaustion(): void {
+		$link = $this->link( [ 'expires_at' => self::NOW + 100, 'max_uses' => 3, 'use_count' => 3 ] );
+
+		// A returning viewer holds one of the spent slots, so must still get in.
+		static::assertTrue( $this->policy->decide( $link, self::NOW, true )->is_allowed() );
+	}
+
+	public function test_an_expired_link_is_denied_even_for_a_counted_viewer(): void {
+		$link = $this->link( [ 'expires_at' => self::NOW - 1, 'max_uses' => 3, 'use_count' => 1 ] );
+
+		static::assertSame(
+			AccessDecision::REASON_EXPIRED,
+			$this->policy->decide( $link, self::NOW, true )->reason()
+		);
 	}
 
 	public function test_revocation_takes_precedence_over_expiry(): void {
@@ -90,17 +108,17 @@ final class AccessPolicyTest extends TestCase {
 	}
 
 	/**
-	 * @param array{expires_at?: int, one_time_use?: bool, used_at?: int|null, revoked_at?: int|null} $overrides
+	 * @param array{expires_at?: int, max_uses?: int|null, use_count?: int, revoked_at?: int|null} $overrides
 	 */
 	private function link( array $overrides ): PreviewLink {
 		return new PreviewLink(
 			13,
 			Token::generate()->hash(),
 			$overrides['expires_at'] ?? self::NOW + 100,
-			$overrides['one_time_use'] ?? false,
+			array_key_exists( 'max_uses', $overrides ) ? $overrides['max_uses'] : null,
 			1,
 			self::NOW - 100,
-			$overrides['used_at'] ?? null,
+			$overrides['use_count'] ?? 0,
 			$overrides['revoked_at'] ?? null
 		);
 	}

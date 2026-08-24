@@ -78,4 +78,4 @@ or customer credentials in event properties.
 
 | Name                            | Type   | Trigger                              | Properties                                             | Notes                                             |
 | ------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
-| `live_previews_preview_link_created` | Tracks | A preview link is minted via REST.   | `expiration`, `one_time_use`, `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
+| `live_previews_preview_link_created` | Tracks | A preview link is minted via REST.   | `expiration`, `max_uses` (null = unlimited), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |

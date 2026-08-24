@@ -32,4 +32,11 @@ interface TokenRepository {
 	 * @return list<PreviewLink>
 	 */
 	public function all_for_post( int $post_id ): array;
+
+	/**
+	 * Persist the recorded-use increment for an existing link. The passed link is
+	 * the pre-increment state; implementations store its {@see
+	 * PreviewLink::with_recorded_use()} form.
+	 */
+	public function record_use( PreviewLink $link ): void;
 }

@@ -13,7 +13,7 @@ final class AccessDecision {
 	public const REASON_TOKEN_MISMATCH = 'token_mismatch';
 	public const REASON_EXPIRED        = 'expired';
 	public const REASON_REVOKED        = 'revoked';
-	public const REASON_USED           = 'used';
+	public const REASON_EXHAUSTED      = 'exhausted';
 
 	private bool $allowed;
 	private string $reason;

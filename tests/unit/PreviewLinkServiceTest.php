@@ -34,13 +34,13 @@ final class PreviewLinkServiceTest extends TestCase {
 	}
 
 	public function test_a_minted_token_authorizes_its_post(): void {
-		$token = $this->service->mint( self::POST_ID, 3600, false, 1 );
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 	}
 
 	public function test_the_minted_secret_is_not_persisted_in_plaintext(): void {
-		$token = $this->service->mint( self::POST_ID, 3600, false, 1 );
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		$stored = $this->repository->all_for_post( self::POST_ID );
 
@@ -50,7 +50,7 @@ final class PreviewLinkServiceTest extends TestCase {
 	}
 
 	public function test_an_unknown_token_is_denied(): void {
-		$this->service->mint( self::POST_ID, 3600, false, 1 );
+		$this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		$decision = $this->service->authorize( self::POST_ID, Token::from_string( 'not-the-token' ) );
 
@@ -59,13 +59,13 @@ final class PreviewLinkServiceTest extends TestCase {
 	}
 
 	public function test_a_token_does_not_authorize_a_different_post(): void {
-		$token = $this->service->mint( self::POST_ID, 3600, false, 1 );
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		static::assertFalse( $this->service->authorize( 99, $token )->is_allowed() );
 	}
 
 	public function test_a_link_stops_working_once_its_ttl_elapses(): void {
-		$token = $this->service->mint( self::POST_ID, 3600, false, 1 );
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		$this->clock->advance( 3600 );
 
@@ -76,10 +76,32 @@ final class PreviewLinkServiceTest extends TestCase {
 	}
 
 	public function test_authorize_does_not_consume_the_link(): void {
-		$token = $this->service->mint( self::POST_ID, 3600, true, 1 );
+		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
 
-		// Two visits in the same instant: a pure decision must not burn the link.
+		// Two decisions in the same instant: a pure query must not burn the link.
 		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+	}
+
+	public function test_recording_visits_exhausts_a_capped_link(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 2, 1 );
+
+		$this->service->record_visit( self::POST_ID, $token );
+		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+
+		$this->service->record_visit( self::POST_ID, $token );
+		$decision = $this->service->authorize( self::POST_ID, $token );
+
+		static::assertFalse( $decision->is_allowed() );
+		static::assertSame( AccessDecision::REASON_EXHAUSTED, $decision->reason() );
+	}
+
+	public function test_a_counted_viewer_still_gets_in_after_exhaustion(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
+
+		$this->service->record_visit( self::POST_ID, $token );
+
+		static::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		static::assertTrue( $this->service->authorize( self::POST_ID, $token, true )->is_allowed() );
 	}
 }

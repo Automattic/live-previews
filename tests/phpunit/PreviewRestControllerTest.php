@@ -55,7 +55,7 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
-		$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, false );
+		$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS );
 
 		static::assertSame( 200, $response->get_status() );
 		$data = (array) $response->get_data();
@@ -68,7 +68,7 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
 
-		static::assertSame( 403, $this->create_link( $post_id, HOUR_IN_SECONDS, false )->get_status() );
+		static::assertSame( 403, $this->create_link( $post_id, HOUR_IN_SECONDS )->get_status() );
 	}
 
 	public function test_an_unlisted_expiration_is_rejected(): void {
@@ -76,16 +76,30 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
 		// 42 seconds is not one of the offered options.
-		static::assertSame( 400, $this->create_link( $post_id, 42, false )->get_status() );
+		static::assertSame( 400, $this->create_link( $post_id, 42 )->get_status() );
 	}
 
-	private function create_link( int $post_id, int $expiration, bool $one_time_use ): \WP_REST_Response {
+	public function test_a_capped_link_is_accepted(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		static::assertSame( 200, $this->create_link( $post_id, HOUR_IN_SECONDS, 5 )->get_status() );
+	}
+
+	public function test_a_zero_use_cap_is_rejected(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		static::assertSame( 400, $this->create_link( $post_id, HOUR_IN_SECONDS, 0 )->get_status() );
+	}
+
+	private function create_link( int $post_id, int $expiration, ?int $max_uses = null ): \WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', self::ROUTE );
 		$request->set_body_params(
 			[
-				'post_id'      => $post_id,
-				'expiration'   => $expiration,
-				'one_time_use' => $one_time_use,
+				'post_id'    => $post_id,
+				'expiration' => $expiration,
+				'max_uses'   => $max_uses,
 			]
 		);
 
