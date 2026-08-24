@@ -1,0 +1,13 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/wp-env.json",
+	"plugins": [ "." ],
+	"mappings": {
+		"wp-content/mu-plugins/live-previews-config.php": "./.wp-env/mu-live-previews-config.php"
+	},
+	"config": {
+		"WP_DEBUG": true,
+		"WP_DEBUG_LOG": true,
+		"WP_DEBUG_DISPLAY": false,
+		"SCRIPT_DEBUG": true
+	}
+}

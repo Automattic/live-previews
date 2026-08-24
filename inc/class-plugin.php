@@ -37,7 +37,27 @@ final class Plugin {
 			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
 		}
 
+		$this->register_preview_gate();
+
 		add_action( 'wp_footer', [ $this, 'wp_footer' ] );
+	}
+
+	/**
+	 * Composition root for the preview feature.
+	 *
+	 * Assembles the domain object graph explicitly (no container) and hands it to
+	 * the request-time gate. Swapping storage, clock, or policy is a one-line
+	 * change here, and every collaborator is constructor-injected so the domain is
+	 * unit-tested without WordPress.
+	 */
+	private function register_preview_gate(): void {
+		$service = new PreviewLinkService(
+			new PostMetaTokenRepository(),
+			new AccessPolicy(),
+			new SystemClock()
+		);
+
+		( new PreviewGate( $service ) )->register();
 	}
 	// @codeCoverageIgnoreEnd
 

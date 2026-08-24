@@ -34,15 +34,18 @@
     "phpcbf": "phpcbf",
     "psalm": "psalm",
     "test": [
+      "@test:domain",
       "@test:unit",
       "@test:e2e"
     ],
+    "test:domain": "phpunit -c phpunit-unit.xml.dist",
     "test:unit": "phpunit",
     "test:e2e": "npm test",
     "test:coverage": "phpunit --coverage-html=coverage --coverage-text"
   },
   "scripts-descriptions": {
     "test": "Run PHPUnit and Playwright e2e tests (e2e needs a running vip dev-env)",
+    "test:domain": "Run the fast domain unit suite (pure PHP, no WordPress)",
     "test:unit": "Run PHPUnit tests only",
     "test:e2e": "Run Playwright e2e tests only (needs a running vip dev-env)"
   }
