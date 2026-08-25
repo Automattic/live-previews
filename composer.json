@@ -34,19 +34,19 @@
     "phpcbf": "phpcbf",
     "psalm": "psalm",
     "test": [
-      "@test:domain",
       "@test:unit",
+      "@test:integration",
       "@test:e2e"
     ],
-    "test:domain": "phpunit -c phpunit-unit.xml.dist",
-    "test:unit": "phpunit",
+    "test:unit": "phpunit -c phpunit-unit.xml.dist",
+    "test:integration": "phpunit -c phpunit.xml.dist",
     "test:e2e": "npm test",
-    "test:coverage": "phpunit --coverage-html=coverage --coverage-text"
+    "test:coverage": "phpunit -c phpunit.xml.dist --coverage-html=coverage --coverage-text"
   },
   "scripts-descriptions": {
-    "test": "Run PHPUnit and Playwright e2e tests (e2e needs a running vip dev-env)",
-    "test:domain": "Run the fast domain unit suite (pure PHP, no WordPress)",
-    "test:unit": "Run PHPUnit tests only",
+    "test": "Run PHPUnit (unit + integration) and Playwright e2e tests (e2e needs a running vip dev-env)",
+    "test:unit": "Run the fast unit suite (pure PHP, no WordPress)",
+    "test:integration": "Run the integration suite (boots a real WordPress test environment)",
     "test:e2e": "Run Playwright e2e tests only (needs a running vip dev-env)"
   }
 }

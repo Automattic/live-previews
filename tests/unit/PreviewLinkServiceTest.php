@@ -36,7 +36,7 @@ final class PreviewLinkServiceTest extends TestCase {
 	public function test_a_minted_token_authorizes_its_post(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
-		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 	}
 
 	public function test_the_minted_secret_is_not_persisted_in_plaintext(): void {
@@ -44,9 +44,9 @@ final class PreviewLinkServiceTest extends TestCase {
 
 		$stored = $this->repository->all_for_post( self::POST_ID );
 
-		static::assertCount( 1, $stored );
-		static::assertNotSame( $token->value(), $stored[0]->token_hash() );
-		static::assertSame( $token->hash(), $stored[0]->token_hash() );
+		self::assertCount( 1, $stored );
+		self::assertNotSame( $token->value(), $stored[0]->token_hash() );
+		self::assertSame( $token->hash(), $stored[0]->token_hash() );
 	}
 
 	public function test_an_unknown_token_is_denied(): void {
@@ -54,14 +54,14 @@ final class PreviewLinkServiceTest extends TestCase {
 
 		$decision = $this->service->authorize( self::POST_ID, Token::from_string( 'not-the-token' ) );
 
-		static::assertFalse( $decision->is_allowed() );
-		static::assertSame( AccessDecision::REASON_NOT_FOUND, $decision->reason() );
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_NOT_FOUND, $decision->reason() );
 	}
 
 	public function test_a_token_does_not_authorize_a_different_post(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 
-		static::assertFalse( $this->service->authorize( 99, $token )->is_allowed() );
+		self::assertFalse( $this->service->authorize( 99, $token )->is_allowed() );
 	}
 
 	public function test_a_link_stops_working_once_its_ttl_elapses(): void {
@@ -71,29 +71,29 @@ final class PreviewLinkServiceTest extends TestCase {
 
 		$decision = $this->service->authorize( self::POST_ID, $token );
 
-		static::assertFalse( $decision->is_allowed() );
-		static::assertSame( AccessDecision::REASON_EXPIRED, $decision->reason() );
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_EXPIRED, $decision->reason() );
 	}
 
 	public function test_authorize_does_not_consume_the_link(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
 
 		// Two decisions in the same instant: a pure query must not burn the link.
-		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
-		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 	}
 
 	public function test_recording_visits_exhausts_a_capped_link(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, 2, 1 );
 
 		$this->service->record_visit( self::POST_ID, $token );
-		static::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 
 		$this->service->record_visit( self::POST_ID, $token );
 		$decision = $this->service->authorize( self::POST_ID, $token );
 
-		static::assertFalse( $decision->is_allowed() );
-		static::assertSame( AccessDecision::REASON_EXHAUSTED, $decision->reason() );
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_EXHAUSTED, $decision->reason() );
 	}
 
 	public function test_a_counted_viewer_still_gets_in_after_exhaustion(): void {
@@ -101,31 +101,31 @@ final class PreviewLinkServiceTest extends TestCase {
 
 		$this->service->record_visit( self::POST_ID, $token );
 
-		static::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
-		static::assertTrue( $this->service->authorize( self::POST_ID, $token, true )->is_allowed() );
+		self::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token, true )->is_allowed() );
 	}
 
 	public function test_revoking_a_link_denies_it(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 		$hash  = $this->repository->all_for_post( self::POST_ID )[0]->token_hash();
 
-		static::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
+		self::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
 
 		$decision = $this->service->authorize( self::POST_ID, $token );
-		static::assertFalse( $decision->is_allowed() );
-		static::assertSame( AccessDecision::REASON_REVOKED, $decision->reason() );
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_REVOKED, $decision->reason() );
 	}
 
 	public function test_revoking_is_reported_false_when_nothing_matches(): void {
-		static::assertFalse( $this->service->revoke( self::POST_ID, str_repeat( 'a', 64 ) ) );
+		self::assertFalse( $this->service->revoke( self::POST_ID, str_repeat( 'a', 64 ) ) );
 	}
 
 	public function test_revoking_an_already_revoked_link_is_reported_false(): void {
 		$this->service->mint( self::POST_ID, 3600, null, 1 );
 		$hash = $this->repository->all_for_post( self::POST_ID )[0]->token_hash();
 
-		static::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
-		static::assertFalse( $this->service->revoke( self::POST_ID, $hash ) );
+		self::assertTrue( $this->service->revoke( self::POST_ID, $hash ) );
+		self::assertFalse( $this->service->revoke( self::POST_ID, $hash ) );
 	}
 
 	public function test_minting_prunes_dead_links(): void {
@@ -136,7 +136,7 @@ final class PreviewLinkServiceTest extends TestCase {
 		$this->service->mint( self::POST_ID, 3600, null, 1 );
 
 		// The expired one is gone; only the fresh link remains.
-		static::assertCount( 1, $this->repository->all_for_post( self::POST_ID ) );
+		self::assertCount( 1, $this->repository->all_for_post( self::POST_ID ) );
 	}
 
 	public function test_discard_all_forgets_every_link(): void {
@@ -145,6 +145,6 @@ final class PreviewLinkServiceTest extends TestCase {
 
 		$this->service->discard_all( self::POST_ID );
 
-		static::assertCount( 0, $this->repository->all_for_post( self::POST_ID ) );
+		self::assertCount( 0, $this->repository->all_for_post( self::POST_ID ) );
 	}
 }

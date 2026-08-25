@@ -11,13 +11,16 @@ Tracks-only telemetry through the VIP Telemetry API.
 2. `vip dev-env create && vip dev-env start`
 3. `composer test`
 
-> **Prerequisite:** `composer test` runs PHPUnit **and** the Playwright e2e
-> suite. The e2e half needs the `vip dev-env` from step 2 up and reachable —
-> without it, `composer test` fails on the e2e stage. That is an environment
-> gap, not a broken plugin; run `composer test:unit` for PHPUnit alone.
+> **Prerequisite:** `composer test` runs the PHPUnit unit **and** integration
+> suites plus the Playwright e2e suite. The e2e half needs the `vip dev-env`
+> from step 2 up and reachable — without it, `composer test` fails on the e2e
+> stage. That is an environment gap, not a broken plugin; run `composer
+> test:unit` (pure PHP, no dev-env needed) or `composer test:integration` for
+> the WordPress-backed suite.
 
-PHPUnit also needs the WordPress test library (`WP_TESTS_DIR`); inside the
-dev-env container (`vip dev-env shell`) it is preconfigured.
+The integration suite also needs the WordPress test library (`WP_TESTS_DIR`);
+inside the dev-env container (`vip dev-env shell`) it is preconfigured. The unit
+suite needs neither WordPress nor a database.
 
 ## Build, Test, And Validate Commands
 

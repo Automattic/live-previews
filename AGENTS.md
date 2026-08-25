@@ -23,7 +23,7 @@ validate with `vip-integration validate` before shipping.
 | `inc/`                                            | Runtime code (autoloaded via Composer classmap). `class-config.php`, `class-telemetry.php`, REST handlers. |
 | `views/`                                          | Admin page templates.                                                                                      |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
-| `tests/phpunit/`, `tests/e2e/`                    | PHPUnit and Playwright tests.                                                                              |
+| `tests/unit/`, `tests/integration/`, `tests/e2e/` | PHPUnit unit (pure PHP) and integration (boot WordPress) tests, plus Playwright e2e.                       |
 | `vip-manifest.yaml`                               | The handoff manifest VIP registers the integration from.                                                   |
 | `vip-manifest.schema.json`                        | JSON Schema the manifest is validated against.                                                             |
 | `docs/`                                           | Human docs. Start with `docs/vip-integration.md`.                                                          |
@@ -89,7 +89,8 @@ event in the `telemetry` section of `vip-manifest.yaml`.
 
 ### Tests
 
-- Unit tests in `tests/phpunit/`, e2e in `tests/e2e/` (Playwright). Add tests
+- Unit tests (pure PHP, no WordPress) in `tests/unit/`, integration tests (boot
+  WordPress) in `tests/integration/`, e2e in `tests/e2e/` (Playwright). Add tests
   with the code that needs them; mirror the structure of the existing suites.
 - The graceful-degradation behavior above is behavioral — prove it with a test,
   not just a static guard.
@@ -125,9 +126,10 @@ vip dev-env start
 ### Test, lint, analyze
 
 ```sh
-composer test           # PHPUnit + Playwright e2e (e2e needs the dev-env above)
-composer test:unit      # PHPUnit only
-composer test:e2e       # Playwright only
+composer test            # unit + integration + Playwright e2e (e2e needs the dev-env above)
+composer test:unit       # fast unit suite only (pure PHP, no WordPress)
+composer test:integration # integration suite only (boots WordPress)
+composer test:e2e        # Playwright only
 composer phpcs          # WordPress VIP coding standards
 composer phpcbf         # auto-fix what PHPCS can
 composer psalm          # static analysis

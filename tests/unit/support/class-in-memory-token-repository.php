@@ -65,10 +65,15 @@ final class InMemoryTokenRepository implements TokenRepository {
 		unset( $this->links[ $post_id ] );
 	}
 
-	private function replace( PreviewLink $old, PreviewLink $new ): void {
-		foreach ( $this->links[ $old->post_id() ] ?? [] as $index => $stored ) {
+	private function replace( PreviewLink $old, PreviewLink $replacement ): void {
+		$post_id = $old->post_id();
+
+		foreach ( $this->links[ $post_id ] ?? [] as $index => $stored ) {
 			if ( hash_equals( $stored->token_hash(), $old->token_hash() ) ) {
-				$this->links[ $old->post_id() ][ $index ] = $new;
+				$links           = $this->links[ $post_id ];
+				$links[ $index ] = $replacement;
+				// Rebuild via array_values so the property keeps its list<> shape.
+				$this->links[ $post_id ] = array_values( $links );
 				return;
 			}
 		}
