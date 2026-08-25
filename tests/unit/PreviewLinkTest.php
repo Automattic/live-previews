@@ -67,6 +67,12 @@ final class PreviewLinkTest extends TestCase {
 		self::assertSame( 3, $next->use_count() );
 	}
 
+	public function test_issue_captures_the_token_tail_as_a_hint(): void {
+		$link = PreviewLink::issue( 13, Token::from_string( 'abcdefgh0000wxyz' ), 2000, null, 1, 1000 );
+
+		self::assertSame( 'wxyz', $link->token_hint() );
+	}
+
 	public function test_revoking_stamps_a_copy(): void {
 		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 2 );
 

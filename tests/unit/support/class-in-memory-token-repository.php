@@ -52,15 +52,6 @@ final class InMemoryTokenRepository implements TokenRepository {
 		$this->replace( $link, $link->with_revoked( $revoked_at ) );
 	}
 
-	public function prune( int $post_id, int $now ): void {
-		$this->links[ $post_id ] = array_values(
-			array_filter(
-				$this->links[ $post_id ] ?? [],
-				static fn ( PreviewLink $link ): bool => ! $link->is_revoked() && ! $link->is_expired( $now )
-			)
-		);
-	}
-
 	public function delete_all_for_post( int $post_id ): void {
 		unset( $this->links[ $post_id ] );
 	}

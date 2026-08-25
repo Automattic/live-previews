@@ -128,15 +128,15 @@ final class PreviewLinkServiceTest extends TestCase {
 		self::assertFalse( $this->service->revoke( self::POST_ID, $hash ) );
 	}
 
-	public function test_minting_prunes_dead_links(): void {
-		// A short link that will be expired by the time the next one is minted.
+	public function test_minting_keeps_expired_links(): void {
+		// An expired link is deliberately retained so the gate can still explain
+		// it. Cleanup happens on publish, not on every mint.
 		$this->service->mint( self::POST_ID, 10, null, 1 );
 		$this->clock->advance( 20 );
 
 		$this->service->mint( self::POST_ID, 3600, null, 1 );
 
-		// The expired one is gone; only the fresh link remains.
-		self::assertCount( 1, $this->repository->all_for_post( self::POST_ID ) );
+		self::assertCount( 2, $this->repository->all_for_post( self::POST_ID ) );
 	}
 
 	public function test_discard_all_forgets_every_link(): void {

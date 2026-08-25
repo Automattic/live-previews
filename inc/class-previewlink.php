@@ -28,6 +28,9 @@ final class PreviewLink {
 	/** @var int|null Unix timestamp of revocation, or null if still live. */
 	private ?int $revoked_at;
 
+	/** @var string Last few characters of the token, to identify a link in the UI. */
+	private string $token_hint;
+
 	public function __construct(
 		int $post_id,
 		string $token_hash,
@@ -36,7 +39,8 @@ final class PreviewLink {
 		int $created_by,
 		int $created_at,
 		int $use_count = 0,
-		?int $revoked_at = null
+		?int $revoked_at = null,
+		string $token_hint = ''
 	) {
 		$this->post_id    = $post_id;
 		$this->token_hash = $token_hash;
@@ -46,6 +50,7 @@ final class PreviewLink {
 		$this->created_at = $created_at;
 		$this->use_count  = $use_count;
 		$this->revoked_at = $revoked_at;
+		$this->token_hint = $token_hint;
 	}
 
 	/**
@@ -67,7 +72,10 @@ final class PreviewLink {
 			$expires_at,
 			$max_uses,
 			$created_by,
-			$created_at
+			$created_at,
+			0,
+			null,
+			substr( $token->value(), -4 )
 		);
 	}
 
@@ -101,6 +109,14 @@ final class PreviewLink {
 
 	public function revoked_at(): ?int {
 		return $this->revoked_at;
+	}
+
+	/**
+	 * The last few characters of the token, safe to show in the editor so an
+	 * author can tell one link from another and match it to a URL they shared.
+	 */
+	public function token_hint(): string {
+		return $this->token_hint;
 	}
 
 	/**
@@ -140,7 +156,8 @@ final class PreviewLink {
 			$this->created_by,
 			$this->created_at,
 			$this->use_count + 1,
-			$this->revoked_at
+			$this->revoked_at,
+			$this->token_hint
 		);
 	}
 
@@ -157,7 +174,8 @@ final class PreviewLink {
 			$this->created_by,
 			$this->created_at,
 			$this->use_count,
-			$revoked_at
+			$revoked_at,
+			$this->token_hint
 		);
 	}
 }

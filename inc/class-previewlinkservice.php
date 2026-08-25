@@ -53,10 +53,6 @@ final class PreviewLinkService {
 			)
 		);
 
-		// Opportunistic cleanup: retiring dead rows whenever a link is issued keeps
-		// a post's stored links bounded without a scheduled task.
-		$this->repository->prune( $post_id, $now );
-
 		return $token;
 	}
 

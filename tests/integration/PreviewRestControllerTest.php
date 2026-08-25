@@ -109,6 +109,30 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertSame( 5, $data[0]['max_uses'] );
 		static::assertSame( 0, $data[0]['use_count'] );
 		static::assertArrayHasKey( 'id', $data[0] );
+		static::assertSame( 4, strlen( (string) $data[0]['token_hint'] ), 'A 4-char token hint identifies the link.' );
+	}
+
+	public function test_expiration_options_are_filterable(): void {
+		$callback = static fn (): array => [
+			[
+				'seconds' => 123,
+				'label'   => 'Custom',
+			],
+		];
+		add_filter( 'live_previews_expiration_options', $callback );
+		$options  = PreviewRestController::expiration_options();
+		remove_filter( 'live_previews_expiration_options', $callback );
+
+		static::assertSame( 123, $options[0]['seconds'] );
+	}
+
+	public function test_default_expiration_is_filterable(): void {
+		$callback = static fn (): int => 42;
+		add_filter( 'live_previews_default_expiration', $callback );
+		$default  = PreviewRestController::default_expiration();
+		remove_filter( 'live_previews_default_expiration', $callback );
+
+		static::assertSame( 42, $default );
 	}
 
 	public function test_a_link_can_be_revoked_and_then_denied(): void {

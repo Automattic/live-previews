@@ -35,10 +35,14 @@ final class PreviewRestController {
 	 * Allowed link lifetimes, shown in the editor dropdown and enforced here.
 	 * Source of truth for both the UI and validation.
 	 *
+	 * The default set is deliberately time-limited; a site that wants longer or
+	 * never-expiring links can add options through the filter (e.g. a very large
+	 * number of seconds for an effectively indefinite link).
+	 *
 	 * @return list<array{seconds: int, label: string}>
 	 */
 	public static function expiration_options(): array {
-		return [
+		$options = [
 			[
 				'seconds' => HOUR_IN_SECONDS,
 				'label'   => __( '1 hour', 'live-previews' ),
@@ -56,6 +60,34 @@ final class PreviewRestController {
 				'label'   => __( '7 days', 'live-previews' ),
 			],
 		];
+
+		/**
+		 * Filters the link-lifetime options offered in the editor and accepted by
+		 * the endpoint.
+		 *
+		 * @param list<array{seconds: int, label: string}> $options Ordered options.
+		 */
+		/** @var mixed $filtered */
+		$filtered = apply_filters( 'live_previews_expiration_options', $options );
+
+		if ( ! is_array( $filtered ) || [] === $filtered ) {
+			return $options;
+		}
+
+		/** @var list<array{seconds: int, label: string}> $filtered */
+		return $filtered;
+	}
+
+	/**
+	 * The lifetime pre-selected in the editor, in seconds.
+	 */
+	public static function default_expiration(): int {
+		/**
+		 * Filters the preview link lifetime pre-selected in the editor.
+		 *
+		 * @param int $default Default lifetime in seconds (8 hours).
+		 */
+		return (int) apply_filters( 'live_previews_default_expiration', 8 * HOUR_IN_SECONDS );
 	}
 
 	public function register_routes(): void {
@@ -131,6 +163,7 @@ final class PreviewRestController {
 
 			$links[] = [
 				'id'         => $link->token_hash(),
+				'token_hint' => $link->token_hint(),
 				'created_at' => $link->created_at(),
 				'expires_at' => $link->expires_at(),
 				'max_uses'   => $link->max_uses(),
