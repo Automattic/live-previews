@@ -10,9 +10,9 @@ The repository ships fully configured VIP local and cloud development environmen
 
 These are the tools we use on a day-to-day basis to ensure code quality on the WordPress VIP platform.
 
-### Unit tests
+### Unit and integration tests
 
-We use [PHPUnit 9](https://phpunit.de/index.html) for unit tests. The suite lives in [/tests/phpunit](tests/phpunit/).
+We use [PHPUnit 9](https://phpunit.de/index.html) for both suites. The fast unit tests (pure PHP, no WordPress) live in [/tests/unit](tests/unit/), and the WordPress-booting integration tests live in [/tests/integration](tests/integration/).
 
 ### End-to-end tests
 
@@ -32,7 +32,8 @@ CI runs on every push and pull request:
 
 | Workflow                               | What it does                                                                                                |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `unit-tests.yml`                       | PHPUnit across the VIP platform baseline (PHP 8.2–8.5 × WordPress 6.9.x/latest, single site and multisite). |
+| `unit-tests.yml`                       | Fast PHPUnit unit suite (pure PHP, no WordPress) across the PHP baseline (8.2–8.5).                         |
+| `integration-tests.yml`                | PHPUnit integration suite across the VIP platform baseline (PHP 8.2–8.5 × WordPress 6.9.x/latest, single site and multisite). |
 | `e2e.yml`                              | Playwright end-to-end tests against a real `vip dev-env` (WordPress 6.9 and 7.0).                           |
 | `lint.yml`                             | PHPCS with the WordPress VIP rulesets.                                                                      |
 | `static-code-analysis.yml`             | Psalm static analysis.                                                                                      |

@@ -33,7 +33,7 @@ commit.
   `config-valid.php`, before loading the plugin — mirroring how VIP injects
   config in production. Swap the fixture there to observe other states
   (e.g. the incomplete-setup admin notice).
-- **Unit tests:** [`tests/phpunit/bootstrap.php`](../tests/phpunit/bootstrap.php)
+- **Integration tests:** [`tests/integration/bootstrap.php`](../tests/integration/bootstrap.php)
   defines the constant from `config-valid.php`; `ConfigTest` constructs
   `Config` directly from each fixture to cover every state.
 
