@@ -53,7 +53,44 @@ final class PreviewLinkService {
 			)
 		);
 
+		// Opportunistic cleanup: retiring dead rows whenever a link is issued keeps
+		// a post's stored links bounded without a scheduled task.
+		$this->repository->prune( $post_id, $now );
+
 		return $token;
+	}
+
+	/**
+	 * Every link issued for a post, for listing in the editor.
+	 *
+	 * @return list<PreviewLink>
+	 */
+	public function list_for_post( int $post_id ): array {
+		return $this->repository->all_for_post( $post_id );
+	}
+
+	/**
+	 * Revoke a link by its token hash. Returns false if no live link matched, so
+	 * the caller can distinguish "revoked" from "nothing to revoke".
+	 */
+	public function revoke( int $post_id, string $token_hash ): bool {
+		$link = $this->repository->find_by_hash( $post_id, $token_hash );
+
+		if ( null === $link || $link->is_revoked() ) {
+			return false;
+		}
+
+		$this->repository->revoke( $link, $this->clock->now() );
+
+		return true;
+	}
+
+	/**
+	 * Forget every link for a post. Called when a post is published and its
+	 * preview links no longer mean anything.
+	 */
+	public function discard_all( int $post_id ): void {
+		$this->repository->delete_all_for_post( $post_id );
 	}
 
 	/**

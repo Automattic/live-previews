@@ -35,9 +35,40 @@ final class InMemoryTokenRepository implements TokenRepository {
 	}
 
 	public function record_use( PreviewLink $link ): void {
-		foreach ( $this->links[ $link->post_id() ] ?? [] as $index => $stored ) {
-			if ( hash_equals( $stored->token_hash(), $link->token_hash() ) ) {
-				$this->links[ $link->post_id() ][ $index ] = $link->with_recorded_use();
+		$this->replace( $link, $link->with_recorded_use() );
+	}
+
+	public function find_by_hash( int $post_id, string $token_hash ): ?PreviewLink {
+		foreach ( $this->links[ $post_id ] ?? [] as $link ) {
+			if ( hash_equals( $link->token_hash(), $token_hash ) ) {
+				return $link;
+			}
+		}
+
+		return null;
+	}
+
+	public function revoke( PreviewLink $link, int $revoked_at ): void {
+		$this->replace( $link, $link->with_revoked( $revoked_at ) );
+	}
+
+	public function prune( int $post_id, int $now ): void {
+		$this->links[ $post_id ] = array_values(
+			array_filter(
+				$this->links[ $post_id ] ?? [],
+				static fn ( PreviewLink $link ): bool => ! $link->is_revoked() && ! $link->is_expired( $now )
+			)
+		);
+	}
+
+	public function delete_all_for_post( int $post_id ): void {
+		unset( $this->links[ $post_id ] );
+	}
+
+	private function replace( PreviewLink $old, PreviewLink $new ): void {
+		foreach ( $this->links[ $old->post_id() ] ?? [] as $index => $stored ) {
+			if ( hash_equals( $stored->token_hash(), $old->token_hash() ) ) {
+				$this->links[ $old->post_id() ][ $index ] = $new;
 				return;
 			}
 		}

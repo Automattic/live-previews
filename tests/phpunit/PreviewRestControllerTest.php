@@ -93,6 +93,61 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertSame( 400, $this->create_link( $post_id, HOUR_IN_SECONDS, 0 )->get_status() );
 	}
 
+	public function test_listing_returns_live_links_only(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$this->create_link( $post_id, HOUR_IN_SECONDS, 5 );
+
+		$request = new WP_REST_Request( 'GET', self::ROUTE );
+		$request->set_query_params( [ 'post_id' => $post_id ] );
+		$response = rest_do_request( $request );
+
+		static::assertSame( 200, $response->get_status() );
+		$data = (array) $response->get_data();
+		static::assertCount( 1, $data );
+		static::assertSame( 5, $data[0]['max_uses'] );
+		static::assertSame( 0, $data[0]['use_count'] );
+		static::assertArrayHasKey( 'id', $data[0] );
+	}
+
+	public function test_a_link_can_be_revoked_and_then_denied(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->create_link( $post_id, HOUR_IN_SECONDS );
+
+		$id = ( new PostMetaTokenRepository() )->all_for_post( $post_id )[0]->token_hash();
+
+		$revoke = new WP_REST_Request( 'DELETE', self::ROUTE . '/' . $id );
+		$revoke->set_query_params( [ 'post_id' => $post_id ] );
+		static::assertSame( 200, rest_do_request( $revoke )->get_status() );
+
+		// It no longer appears in the live list.
+		$list = new WP_REST_Request( 'GET', self::ROUTE );
+		$list->set_query_params( [ 'post_id' => $post_id ] );
+		static::assertCount( 0, (array) rest_do_request( $list )->get_data() );
+	}
+
+	public function test_revoking_an_unknown_link_is_a_404(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$request = new WP_REST_Request( 'DELETE', self::ROUTE . '/' . str_repeat( 'a', 64 ) );
+		$request->set_query_params( [ 'post_id' => $post_id ] );
+
+		static::assertSame( 404, rest_do_request( $request )->get_status() );
+	}
+
+	public function test_listing_is_forbidden_without_edit_rights(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+
+		$request = new WP_REST_Request( 'GET', self::ROUTE );
+		$request->set_query_params( [ 'post_id' => $post_id ] );
+
+		static::assertSame( 403, rest_do_request( $request )->get_status() );
+	}
+
 	private function create_link( int $post_id, int $expiration, ?int $max_uses = null ): \WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', self::ROUTE );
 		$request->set_body_params(

@@ -63,6 +63,37 @@ final class PostMetaTokenRepository implements TokenRepository {
 		);
 	}
 
+	public function find_by_hash( int $post_id, string $token_hash ): ?PreviewLink {
+		foreach ( $this->all_for_post( $post_id ) as $link ) {
+			if ( hash_equals( $link->token_hash(), $token_hash ) ) {
+				return $link;
+			}
+		}
+
+		return null;
+	}
+
+	public function revoke( PreviewLink $link, int $revoked_at ): void {
+		update_post_meta(
+			$link->post_id(),
+			self::META_KEY,
+			$this->to_array( $link->with_revoked( $revoked_at ) ),
+			$this->to_array( $link )
+		);
+	}
+
+	public function prune( int $post_id, int $now ): void {
+		foreach ( $this->all_for_post( $post_id ) as $link ) {
+			if ( $link->is_revoked() || $link->is_expired( $now ) ) {
+				delete_post_meta( $post_id, self::META_KEY, $this->to_array( $link ) );
+			}
+		}
+	}
+
+	public function delete_all_for_post( int $post_id ): void {
+		delete_post_meta( $post_id, self::META_KEY );
+	}
+
 	/**
 	 * @return array<string, mixed>
 	 */

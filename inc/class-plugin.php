@@ -42,6 +42,7 @@ final class Plugin {
 		add_action( 'rest_api_init', [ $rest_controller, 'register_routes' ] );
 
 		( new PreviewGate( $service ) )->register();
+		( new PublishCleanup( $service ) )->register();
 		( new EditorAssets() )->register();
 
 		if ( ! Config::get_instance()->is_ready() ) {
