@@ -43,6 +43,7 @@ final class Plugin {
 
 		( new PreviewGate( $service ) )->register();
 		( new PublishCleanup( $service ) )->register();
+		( new LinkGarbageCollector( $service ) )->register();
 		( new EditorAssets() )->register();
 
 		if ( ! Config::get_instance()->is_ready() ) {

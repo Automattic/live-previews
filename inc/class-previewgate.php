@@ -15,24 +15,35 @@ use WP_Query;
  * and, for a valid token, mark that one post public for the current query. Every
  * other request is untouched. Approach borrowed from vip-workflow-plugin PR #19.
  *
- * When a link caps the number of viewers, the gate counts one use per distinct
- * human. "Human" is approximated by a per-link cookie (so refreshes and asset
- * requests in the same browser do not re-count) and by excluding known link
- * unfurlers and crawlers (so pasting a link into chat does not silently spend a
- * use). A separate browser or a private window has its own cookie jar and so
- * counts as a new viewer, which is the intended behaviour.
+ * When a link caps the number of viewers, the gate spends one slot per distinct
+ * browser. The slot ID is minted by the server and handed back in a cookie, so a
+ * visitor cannot fabricate one: the previous scheme derived the cookie from the
+ * token's SHA-256 hash, which every link holder can compute, and so let anyone
+ * with the URL walk past a spent cap. A separate browser or a private window has
+ * its own cookie jar and so claims a new slot, which is the intended behaviour.
+ *
+ * Automated clients (crawlers, chat-link unfurlers) are served a contentless stub
+ * instead of the draft. Exempting them from the cap by user agent alone would be
+ * worthless — the header is attacker-controlled — so instead the exemption is
+ * made worthless to abuse: spoofing a crawler gets you less, not more.
  */
 final class PreviewGate {
 	public const TOKEN_QUERY_VAR = 'lp-token';
 
-	private const COOKIE_PREFIX = 'lp_seen_';
+	private const COOKIE_PREFIX = 'lp_viewer_';
+
+	/** Marks a request that was withheld because the client looks automated. */
+	private const REASON_AUTOMATED = 'automated_client';
 
 	private PreviewLinkService $service;
 
-	/** Ensures a single request counts at most one use, however many queries run. */
-	private bool $counted_this_request = false;
+	/** The slot ID this visitor holds, once resolved or claimed. */
+	private ?string $viewer_id = null;
 
-	/** Reason the main query's preview was denied, for the friendly notice. */
+	/** Ensures a single request claims at most one slot, however many queries run. */
+	private bool $claimed_this_request = false;
+
+	/** Reason the main query's preview was withheld, for the friendly notice. */
 	private ?string $denial_reason = null;
 
 	public function __construct( PreviewLinkService $service ) {
@@ -41,7 +52,7 @@ final class PreviewGate {
 
 	public function register(): void {
 		add_filter( 'posts_results', [ $this, 'unlock_valid_previews' ], 10, 2 );
-		add_action( 'template_redirect', [ $this, 'maybe_render_expired_notice' ] );
+		add_action( 'template_redirect', [ $this, 'maybe_render_notice' ] );
 	}
 
 	/**
@@ -59,8 +70,11 @@ final class PreviewGate {
 			return $posts;
 		}
 
-		$token           = Token::from_string( $token_value );
-		$already_counted = $this->viewer_already_counted( $token );
+		$token = Token::from_string( $token_value );
+
+		if ( null === $this->viewer_id ) {
+			$this->viewer_id = $this->viewer_id_from_request( $token );
+		}
 
 		foreach ( $posts as $post ) {
 			if ( ! $post instanceof WP_Post ) {
@@ -80,7 +94,8 @@ final class PreviewGate {
 				continue;
 			}
 
-			$decision = $this->service->authorize( (int) $post->ID, $token, $already_counted );
+			$post_id  = (int) $post->ID;
+			$decision = $this->service->authorize( $post_id, $token, $this->viewer_id );
 
 			if ( ! $decision->is_allowed() ) {
 				// Remember a dead-but-real link so template_redirect can explain
@@ -90,26 +105,71 @@ final class PreviewGate {
 				continue;
 			}
 
+			// The token checks out, but an automated client never gets the draft
+			// itself — only a stub, and without spending a slot.
+			if ( $this->is_automated_client() ) {
+				$this->remember_denial( self::REASON_AUTOMATED );
+				continue;
+			}
+
+			if ( ! $this->ensure_slot( $post_id, $token ) ) {
+				// A concurrent visitor took the last slot between the decision
+				// above and the write. Deny rather than let both in.
+				$this->remember_denial( AccessDecision::REASON_EXHAUSTED );
+				continue;
+			}
+
+			$this->send_preview_headers();
+
 			// Marking the post published for this query alone lets it survive
 			// WP_Query's "logged-out users cannot see non-public posts" check.
 			$post->post_status = 'publish';
-
-			$this->count_new_viewer( (int) $post->ID, $token, $already_counted );
 		}
 
 		return $posts;
 	}
 
 	/**
-	 * Record why the main preview was denied, but only for links that once
-	 * existed. An unknown or wrong token is left to 404 exactly as a missing
-	 * post would, so nobody can probe which draft IDs exist.
+	 * Make sure this visitor holds a slot on the link, claiming one if needed.
+	 *
+	 * Returns false only when there was no slot left to claim, which the caller
+	 * must treat as a denial.
+	 */
+	private function ensure_slot( int $post_id, Token $token ): bool {
+		if ( $this->claimed_this_request ) {
+			return true;
+		}
+
+		// A cookie that merely looks like a slot ID is not one. Only the link
+		// knows which IDs it issued, so ask it rather than trusting the shape.
+		if ( $this->service->holds_slot( $post_id, $token, $this->viewer_id ) ) {
+			return true;
+		}
+
+		$viewer_id = $this->service->claim_slot( $post_id, $token );
+
+		if ( null === $viewer_id ) {
+			return false;
+		}
+
+		$this->claimed_this_request = true;
+		$this->viewer_id            = $viewer_id;
+		$this->remember_viewer( $token, $viewer_id );
+
+		return true;
+	}
+
+	/**
+	 * Record why the main preview was withheld, but only for reasons that are
+	 * safe to state. An unknown or wrong token is left to 404 exactly as a
+	 * missing post would, so nobody can probe which draft IDs exist.
 	 */
 	private function remember_denial( string $reason ): void {
 		$explainable = [
 			AccessDecision::REASON_EXPIRED,
 			AccessDecision::REASON_REVOKED,
 			AccessDecision::REASON_EXHAUSTED,
+			self::REASON_AUTOMATED,
 		];
 
 		if ( in_array( $reason, $explainable, true ) ) {
@@ -118,11 +178,23 @@ final class PreviewGate {
 	}
 
 	/**
-	 * Show a friendly page when a real preview link is no longer usable.
+	 * Show a friendly page when a real preview link could not be served.
 	 */
-	public function maybe_render_expired_notice(): void {
+	public function maybe_render_notice(): void {
 		if ( null === $this->denial_reason ) {
 			return;
+		}
+
+		$this->send_preview_headers();
+
+		if ( self::REASON_AUTOMATED === $this->denial_reason ) {
+			// A neutral 200 so a chat unfurl renders a tidy card, with none of
+			// the draft's title, excerpt, or image in it.
+			wp_die(
+				esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ),
+				esc_html__( 'Private preview link', 'live-previews' ),
+				[ 'response' => 200 ]
+			);
 		}
 
 		$messages = [
@@ -145,17 +217,24 @@ final class PreviewGate {
 	}
 
 	/**
-	 * Count this viewer once, unless they have already been counted, are a known
-	 * bot, or a use has already been counted earlier in the same request.
+	 * Keep an unlocked draft out of caches, search indexes, and Referer headers.
+	 *
+	 * The gate hands non-public content to an anonymous visitor, so none of the
+	 * defaults WordPress applies to a published post are right here. Without
+	 * `X-Robots-Tag` a crawler that finds a shared URL can index the draft;
+	 * without the referrer policy the token itself leaks in the Referer of every
+	 * cross-origin asset the page loads.
 	 */
-	private function count_new_viewer( int $post_id, Token $token, bool $already_counted ): void {
-		if ( $already_counted || $this->counted_this_request || $this->is_bot() ) {
+	private function send_preview_headers(): void {
+		add_filter( 'wp_robots', 'wp_robots_no_robots' );
+
+		if ( headers_sent() ) {
 			return;
 		}
 
-		$this->counted_this_request = true;
-		$this->service->record_visit( $post_id, $token );
-		$this->remember_viewer( $token );
+		nocache_headers();
+		header( 'X-Robots-Tag: noindex, nofollow, noarchive, nosnippet', true );
+		header( 'Referrer-Policy: no-referrer', true );
 	}
 
 	/**
@@ -175,27 +254,60 @@ final class PreviewGate {
 		return '' === $raw ? null : $raw;
 	}
 
+	/**
+	 * The cookie that carries a slot ID for this link.
+	 *
+	 * The *name* is derived from the token hash so a browser can hold slots on
+	 * several links at once; it is deliberately not a secret, since the browser
+	 * has to know which cookie to send. The security lives in the value.
+	 */
 	private function cookie_name( Token $token ): string {
 		return self::COOKIE_PREFIX . substr( $token->hash(), 0, 20 );
 	}
 
-	private function viewer_already_counted( Token $token ): bool {
-		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Preview requests are never page-cached (unique token query string + preview=true), so reading a per-viewer cookie is reliable.
-		return isset( $_COOKIE[ $this->cookie_name( $token ) ] );
+	/**
+	 * The slot ID this visitor presented, or null.
+	 *
+	 * Whether it is genuine is not decided here: the link itself is the authority
+	 * (see {@see PreviewLink::holds_slot()}), so a forged value simply fails to
+	 * match and the visitor is treated as new.
+	 */
+	private function viewer_id_from_request( Token $token ): ?string {
+		$name = $this->cookie_name( $token );
+
+		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Preview requests are never page-cached (unique token query string + preview=true, and we send nocache headers), so reading a per-viewer cookie is reliable.
+		if ( ! isset( $_COOKIE[ $name ] ) ) {
+			return null;
+		}
+
+		// A visitor controls their own cookies, and a name ending in `[]` makes
+		// PHP hand back an array, so this is not guaranteed to be a string.
+		/** @var mixed $raw_cookie */
+		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Read raw on purpose so the type can be checked first; sanitized three lines below.
+		$raw_cookie = $_COOKIE[ $name ];
+
+		if ( ! is_string( $raw_cookie ) ) {
+			return null;
+		}
+
+		$raw = sanitize_text_field( wp_unslash( $raw_cookie ) );
+
+		// Slot IDs are hex, so anything else is junk and not worth comparing.
+		return 1 === preg_match( '/^[a-f0-9]{32}$/', $raw ) ? $raw : null;
 	}
 
 	/**
-	 * Drop a cookie so this browser is not counted again for this link. Scoped to
-	 * a week, comfortably longer than the longest offered link lifetime.
+	 * Hand the slot ID back to this browser so a return visit is recognised.
+	 * Scoped to a week, comfortably longer than the longest offered lifetime.
 	 */
-	private function remember_viewer( Token $token ): void {
+	private function remember_viewer( Token $token, string $viewer_id ): void {
 		$name = $this->cookie_name( $token );
 
 		if ( ! headers_sent() ) {
-			// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie -- Preview requests carry a unique token query string and preview=true, so they are never page-cached; per-viewer cookie logic is reliable here.
+			// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie -- Preview requests carry a unique token query string and preview=true and are sent with nocache headers, so they are never page-cached; per-viewer cookie logic is reliable here.
 			setcookie(
 				$name,
-				'1',
+				$viewer_id,
 				[
 					'expires'  => time() + WEEK_IN_SECONDS,
 					'path'     => '/',
@@ -208,15 +320,19 @@ final class PreviewGate {
 
 		// Reflect it immediately so a second query in this request sees it.
 		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Uncached preview request; see above.
-		$_COOKIE[ $name ] = '1';
+		$_COOKIE[ $name ] = $viewer_id;
 	}
 
 	/**
-	 * Whether the request looks like an automated crawler or chat-link unfurler,
-	 * which should be allowed to render a preview card but never spend a use.
+	 * Whether the request looks like a crawler or chat-link unfurler.
+	 *
+	 * These are served a stub rather than the draft, so an unknown or absent user
+	 * agent is treated as automated: withholding content from an odd-looking
+	 * client is the safe way to be wrong. Because the stub is all a "crawler"
+	 * gets, there is nothing to win by spoofing one of these strings.
 	 */
-	private function is_bot(): bool {
-		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___SERVER__HTTP_USER_AGENT__ -- Only read on uncached preview requests, to skip counting crawlers and link unfurlers.
+	private function is_automated_client(): bool {
+		// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___SERVER__HTTP_USER_AGENT__ -- Only read on uncached preview requests, to decide whether to serve the draft or a stub.
 		$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_USER_AGENT'] ) ) : '';
 
 		if ( '' === $user_agent ) {
@@ -226,8 +342,8 @@ final class PreviewGate {
 		$default_pattern = '/bot|crawler|spider|slack|facebookexternalhit|whatsapp|telegram|discord|twitterbot|linkedinbot|embedly|preview|feedfetcher|pinterest/i';
 
 		/**
-		 * Filters the user-agent pattern used to spot crawlers and link unfurlers
-		 * that must not consume a preview-link use.
+		 * Filters the user-agent pattern used to spot crawlers and link unfurlers,
+		 * which are served a contentless stub instead of the draft.
 		 *
 		 * @param string $default_pattern Regular expression tested against the UA string.
 		 */

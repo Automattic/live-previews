@@ -7,11 +7,22 @@ namespace Automattic\LivePreviews;
  *
  * The REST endpoint calls {@see PreviewLinkService::mint()} to issue a link; the
  * request-time gate calls {@see PreviewLinkService::authorize()} to decide
- * whether a visitor may see a draft. All the collaborators are injected, so the
+ * whether a visitor may see a draft, and {@see PreviewLinkService::claim_slot()}
+ * to spend one of its viewer slots. All the collaborators are injected, so the
  * service is exercised in unit tests against an in-memory repository and a frozen
  * clock, with no WordPress and no database.
  */
 final class PreviewLinkService {
+	/**
+	 * How many times to re-read and retry a slot claim that lost a write race.
+	 * Each attempt only loses to a *different* visitor genuinely claiming a slot,
+	 * so a handful is ample; the cap stops a pathological loop.
+	 */
+	private const CLAIM_ATTEMPTS = 5;
+
+	/** Bytes of randomness in a viewer slot ID. 16 bytes = 128 bits. */
+	private const VIEWER_ID_BYTES = 16;
+
 	private TokenRepository $repository;
 	private AccessPolicy $policy;
 	private Clock $clock;
@@ -82,8 +93,8 @@ final class PreviewLinkService {
 	}
 
 	/**
-	 * Forget every link for a post. Called when a post is published and its
-	 * preview links no longer mean anything.
+	 * Forget every link for a post. Called when a post is published or trashed
+	 * and its preview links no longer mean anything.
 	 */
 	public function discard_all( int $post_id ): void {
 		$this->repository->delete_all_for_post( $post_id );
@@ -92,29 +103,95 @@ final class PreviewLinkService {
 	/**
 	 * Decide whether a token may view a post.
 	 *
-	 * Pure query: it never mutates the link. Counting a viewer is the distinct
-	 * {@see PreviewLinkService::record_visit()} command, run once per request by
-	 * the gate, so a single page load that fires several queries cannot exhaust
-	 * its own link mid-render.
+	 * Pure query: it never mutates the link. Spending a slot is the distinct
+	 * {@see PreviewLinkService::claim_slot()} command, run once per request by the
+	 * gate, so a single page load that fires several queries cannot exhaust its
+	 * own link mid-render.
 	 *
-	 * @param bool $viewer_already_counted Whether this viewer already holds a slot.
+	 * @param string|null $viewer_id Slot ID this visitor presented, if any. It is
+	 *                               only honoured when the link actually issued
+	 *                               it, so a made-up value grants nothing.
 	 */
-	public function authorize( int $post_id, Token $candidate, bool $viewer_already_counted = false ): AccessDecision {
+	public function authorize( int $post_id, Token $candidate, ?string $viewer_id = null ): AccessDecision {
 		$link = $this->repository->find( $post_id, $candidate );
 
-		return $this->policy->decide( $link, $this->clock->now(), $viewer_already_counted );
+		$holds_slot = null !== $link
+			&& null !== $viewer_id
+			&& $link->holds_slot( $viewer_id );
+
+		return $this->policy->decide( $link, $this->clock->now(), $holds_slot );
 	}
 
 	/**
-	 * Count one new viewer against the link, if it still exists. Idempotency (not
-	 * counting the same human twice) is the gate's responsibility, since that
-	 * turns on request-scoped signals like cookies.
+	 * Whether this visitor's slot ID is one the link actually issued.
+	 *
+	 * Asked separately from {@see PreviewLinkService::authorize()} because the
+	 * gate needs the fact on its own: a visitor whose cookie is merely well-formed
+	 * must still claim a slot, or a forged value would buy free, uncounted views.
 	 */
-	public function record_visit( int $post_id, Token $candidate ): void {
+	public function holds_slot( int $post_id, Token $candidate, ?string $viewer_id ): bool {
+		if ( null === $viewer_id ) {
+			return false;
+		}
+
 		$link = $this->repository->find( $post_id, $candidate );
 
-		if ( null !== $link ) {
-			$this->repository->record_use( $link );
+		return null !== $link && $link->holds_slot( $viewer_id );
+	}
+
+	/**
+	 * Spend one of the link's viewer slots and return the ID that now holds it,
+	 * or null if there was nothing left to spend.
+	 *
+	 * The whole policy is re-evaluated here rather than trusting the gate's
+	 * earlier decision, and the write is a compare-and-swap: between reading the
+	 * link and writing it back, another visitor may have taken the last slot, or
+	 * the author may have revoked the link entirely. A caller that loses the race
+	 * gets null and must deny, which is what closes the check-then-act window.
+	 */
+	public function claim_slot( int $post_id, Token $candidate ): ?string {
+		$viewer_id = bin2hex( random_bytes( self::VIEWER_ID_BYTES ) );
+
+		for ( $attempt = 0; $attempt < self::CLAIM_ATTEMPTS; $attempt++ ) {
+			$link = $this->repository->find( $post_id, $candidate );
+
+			if ( null === $link ) {
+				return null;
+			}
+
+			// No viewer ID passed: this is a brand-new slot, so the exhaustion
+			// rule must apply in full.
+			if ( ! $this->policy->decide( $link, $this->clock->now() )->is_allowed() ) {
+				return null;
+			}
+
+			if ( $this->repository->add_viewer( $link, $viewer_id ) ) {
+				return $viewer_id;
+			}
+
+			// Lost the write race to a concurrent visitor: re-read and re-decide.
 		}
+
+		return null;
+	}
+
+	/**
+	 * Delete this post's links that died before the cutoff, returning how many
+	 * went. Dead links are deliberately kept for a while so the gate can explain
+	 * itself; this is what stops them accumulating forever.
+	 */
+	public function prune_dead( int $post_id, int $grace_seconds ): int {
+		$now = $this->clock->now();
+
+		return $this->repository->delete_dead_for_post( $post_id, $now - $grace_seconds, $now );
+	}
+
+	/**
+	 * A batch of post IDs still carrying links, for the garbage collector.
+	 *
+	 * @return list<int>
+	 */
+	public function post_ids_with_links( int $after_post_id, int $limit ): array {
+		return $this->repository->post_ids_with_links( $after_post_id, $limit );
 	}
 }

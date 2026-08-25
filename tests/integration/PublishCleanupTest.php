@@ -36,6 +36,32 @@ class PublishCleanupTest extends WP_UnitTestCase {
 		static::assertCount( 0, $this->repository->all_for_post( $post_id ) );
 	}
 
+	public function test_trashing_a_post_discards_its_preview_links(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+
+		// Binning a draft reads as retracting it. `trash` is a non-public status,
+		// so without cleanup the gate would keep unlocking it for link holders.
+		wp_trash_post( $post_id );
+
+		static::assertCount( 0, $this->repository->all_for_post( $post_id ) );
+	}
+
+	public function test_a_pending_review_post_keeps_its_links(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+
+		// Still work in progress, and sharing it for review is the whole point.
+		wp_update_post(
+			[
+				'ID'          => $post_id,
+				'post_status' => 'pending',
+			]
+		);
+
+		static::assertCount( 1, $this->repository->all_for_post( $post_id ) );
+	}
+
 	public function test_a_draft_saved_as_draft_keeps_its_links(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );

@@ -10,11 +10,20 @@ use Automattic\LivePreviews\TokenRepository;
 
 /**
  * In-memory {@see TokenRepository} for unit tests. Mirrors the postmeta adapter's
- * contract (multiple links per post, matched by token hash) without a database.
+ * contract (multiple links per post, matched by token hash) without a database,
+ * including its compare-and-swap semantics on {@see self::add_viewer()} so the
+ * service's retry loop is exercised for real.
  */
 final class InMemoryTokenRepository implements TokenRepository {
 	/** @var array<int, list<PreviewLink>> Links keyed by post ID. */
 	private array $links = [];
+
+	/**
+	 * @var callable|null Runs immediately before each add_viewer write, so a test
+	 *                    can simulate a competing request landing in the window
+	 *                    between the service reading a link and writing it back.
+	 */
+	private $before_add_viewer;
 
 	public function save( PreviewLink $link ): void {
 		$this->links[ $link->post_id() ][] = $link;
@@ -34,8 +43,23 @@ final class InMemoryTokenRepository implements TokenRepository {
 		return $this->links[ $post_id ] ?? [];
 	}
 
-	public function record_use( PreviewLink $link ): void {
-		$this->replace( $link, $link->with_recorded_use() );
+	public function add_viewer( PreviewLink $link, string $viewer_id ): bool {
+		if ( is_callable( $this->before_add_viewer ) ) {
+			$hook                    = $this->before_add_viewer;
+			$this->before_add_viewer = null;
+			$hook();
+		}
+
+		$stored = $this->find_stored( $link );
+
+		// Compare-and-swap: the caller's read must still be current.
+		if ( null === $stored || $stored->viewers() !== $link->viewers() ) {
+			return false;
+		}
+
+		$this->replace( $link, $link->with_viewer( $viewer_id ) );
+
+		return true;
 	}
 
 	public function find_by_hash( int $post_id, string $token_hash ): ?PreviewLink {
@@ -54,6 +78,57 @@ final class InMemoryTokenRepository implements TokenRepository {
 
 	public function delete_all_for_post( int $post_id ): void {
 		unset( $this->links[ $post_id ] );
+	}
+
+	public function delete_dead_for_post( int $post_id, int $dead_before, int $now ): int {
+		$kept    = [];
+		$deleted = 0;
+
+		foreach ( $this->links[ $post_id ] ?? [] as $link ) {
+			$dead_since = $link->dead_since( $now );
+
+			if ( null !== $dead_since && $dead_since < $dead_before ) {
+				++$deleted;
+				continue;
+			}
+
+			$kept[] = $link;
+		}
+
+		$this->links[ $post_id ] = $kept;
+
+		return $deleted;
+	}
+
+	public function post_ids_with_links( int $after_post_id, int $limit ): array {
+		$ids = [];
+
+		foreach ( $this->links as $post_id => $links ) {
+			if ( [] !== $links && $post_id > $after_post_id ) {
+				$ids[] = $post_id;
+			}
+		}
+
+		sort( $ids );
+
+		return array_slice( $ids, 0, $limit );
+	}
+
+	/**
+	 * Arrange for a competing write to land just before the next add_viewer call.
+	 */
+	public function on_next_add_viewer( callable $hook ): void {
+		$this->before_add_viewer = $hook;
+	}
+
+	private function find_stored( PreviewLink $link ): ?PreviewLink {
+		foreach ( $this->links[ $link->post_id() ] ?? [] as $stored ) {
+			if ( hash_equals( $stored->token_hash(), $link->token_hash() ) ) {
+				return $stored;
+			}
+		}
+
+		return null;
 	}
 
 	private function replace( PreviewLink $old, PreviewLink $replacement ): void {

@@ -45,26 +45,52 @@ final class PreviewLinkTest extends TestCase {
 	}
 
 	public function test_an_unlimited_link_is_never_exhausted(): void {
-		$link = new PreviewLink( 13, 'hash', 2000, null, 1, 1000, 9999 );
+		$link = new PreviewLink( 13, 'hash', 2000, null, 1, 1000, self::slots( 9999 ) );
 
 		self::assertFalse( $link->is_exhausted() );
 	}
 
-	public function test_a_link_is_exhausted_once_uses_reach_the_cap(): void {
-		$at_cap = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 5 );
-		$below  = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 4 );
+	public function test_a_link_is_exhausted_once_slots_reach_the_cap(): void {
+		$at_cap = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, self::slots( 5 ) );
+		$below  = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, self::slots( 4 ) );
 
 		self::assertTrue( $at_cap->is_exhausted() );
 		self::assertFalse( $below->is_exhausted() );
 	}
 
-	public function test_recording_a_use_increments_a_copy(): void {
-		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 2 );
+	public function test_adding_a_viewer_spends_a_slot_on_a_copy(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, self::slots( 2 ) );
 
-		$next = $link->with_recorded_use();
+		$next = $link->with_viewer( 'fresh-viewer' );
 
 		self::assertSame( 2, $link->use_count(), 'Original is unchanged.' );
 		self::assertSame( 3, $next->use_count() );
+		self::assertTrue( $next->holds_slot( 'fresh-viewer' ) );
+	}
+
+	public function test_a_link_only_recognises_slots_it_issued(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, [ 'issued-id' ] );
+
+		self::assertTrue( $link->holds_slot( 'issued-id' ) );
+		self::assertFalse( $link->holds_slot( 'made-up-id' ) );
+		self::assertFalse( $link->holds_slot( '' ), 'A blank ID must never pass.' );
+	}
+
+	public function test_re_adding_a_known_viewer_does_not_spend_another_slot(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, [ 'issued-id' ] );
+
+		// A retried write must be idempotent, or a retry would cost two slots.
+		self::assertSame( 1, $link->with_viewer( 'issued-id' )->use_count() );
+	}
+
+	public function test_dead_since_reports_when_a_link_stopped_working(): void {
+		$live    = new PreviewLink( 13, 'hash', 2000, null, 1, 1000 );
+		$expired = new PreviewLink( 13, 'hash', 2000, null, 1, 1000 );
+		$revoked = new PreviewLink( 13, 'hash', 9000, null, 1, 1000, [], 1500 );
+
+		self::assertNull( $live->dead_since( 1999 ) );
+		self::assertSame( 2000, $expired->dead_since( 2500 ) );
+		self::assertSame( 1500, $revoked->dead_since( 2500 ) );
 	}
 
 	public function test_issue_captures_the_token_tail_as_a_hint(): void {
@@ -74,7 +100,7 @@ final class PreviewLinkTest extends TestCase {
 	}
 
 	public function test_revoking_stamps_a_copy(): void {
-		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, 2 );
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, self::slots( 2 ) );
 
 		$revoked = $link->with_revoked( 1500 );
 
@@ -82,5 +108,20 @@ final class PreviewLinkTest extends TestCase {
 		self::assertTrue( $revoked->is_revoked() );
 		self::assertSame( 1500, $revoked->revoked_at() );
 		self::assertSame( 2, $revoked->use_count(), 'Other fields are preserved.' );
+	}
+
+	/**
+	 * A given number of distinct, already-issued slot IDs.
+	 *
+	 * @return list<string>
+	 */
+	private static function slots( int $count ): array {
+		$slots = [];
+
+		for ( $index = 0; $index < $count; $index++ ) {
+			$slots[] = 'viewer-' . $index;
+		}
+
+		return $slots;
 	}
 }

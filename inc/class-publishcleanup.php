@@ -5,13 +5,21 @@ namespace Automattic\LivePreviews;
 use WP_Post;
 
 /**
- * Deletes a post's preview links once it is published.
+ * Deletes a post's preview links once they stop making sense.
  *
- * A public post is viewable by anyone, so its preview links are meaningless and
- * only clutter storage. Rather than leave them to be pruned lazily, discard them
- * outright the moment the post becomes public.
+ * Publishing makes them redundant: the post is public, so the links only clutter
+ * storage. Trashing makes them dangerous: `trash` is a non-public status, so
+ * without this the gate would happily keep unlocking a binned post for anyone
+ * still holding a link. Authors reasonably read "move to bin" as "retract it",
+ * and the links have to honour that.
  */
 final class PublishCleanup {
+	/**
+	 * Statuses that end a post's preview-link life. Draft, pending, and future
+	 * are all still work in progress, so their links survive.
+	 */
+	private const TERMINAL_STATUSES = [ 'publish', 'trash' ];
+
 	private PreviewLinkService $service;
 
 	public function __construct( PreviewLinkService $service ) {
@@ -28,7 +36,11 @@ final class PublishCleanup {
 	 * @param WP_Post $post       The post being transitioned.
 	 */
 	public function on_transition( string $new_status, string $old_status, WP_Post $post ): void {
-		if ( 'publish' === $new_status && 'publish' !== $old_status ) {
+		if ( $new_status === $old_status ) {
+			return;
+		}
+
+		if ( in_array( $new_status, self::TERMINAL_STATUSES, true ) ) {
 			$this->service->discard_all( (int) $post->ID );
 		}
 	}
