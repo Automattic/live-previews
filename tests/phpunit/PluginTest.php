@@ -79,7 +79,6 @@ class PluginTest extends WP_UnitTestCase {
 	 */
 	private function set_config_singleton( ?Config $config ): void {
 		$property = new ReflectionProperty( Config::class, 'instance' );
-		$property->setAccessible( true );
 		$property->setValue( null, $config );
 	}
 }
