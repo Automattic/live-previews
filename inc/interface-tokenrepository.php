@@ -34,11 +34,15 @@ interface TokenRepository {
 	public function all_for_post( int $post_id ): array;
 
 	/**
-	 * Persist the recorded-use increment for an existing link. The passed link is
-	 * the pre-increment state; implementations store its {@see
-	 * PreviewLink::with_recorded_use()} form.
+	 * Give a viewer a slot on an existing link, atomically.
+	 *
+	 * The passed link is the state the caller read; implementations must persist
+	 * its {@see PreviewLink::with_viewer()} form *only if* the stored record is
+	 * still in that same state, and return false otherwise. That compare-and-swap
+	 * is what stops two concurrent visitors both claiming the last slot: the
+	 * loser is told so and re-reads rather than silently overwriting.
 	 */
-	public function record_use( PreviewLink $link ): void;
+	public function add_viewer( PreviewLink $link, string $viewer_id ): bool;
 
 	/**
 	 * The link on this post whose token hash matches, or null. Unlike {@see find()}
@@ -55,8 +59,27 @@ interface TokenRepository {
 	public function revoke( PreviewLink $link, int $revoked_at ): void;
 
 	/**
-	 * Delete every link for a post, live or not. Used when a post is published and
-	 * its preview links become meaningless.
+	 * Delete every link for a post, live or not. Used when a post is published or
+	 * trashed and its preview links become meaningless.
 	 */
 	public function delete_all_for_post( int $post_id ): void;
+
+	/**
+	 * Delete this post's links that stopped being usable before the cutoff,
+	 * returning how many were removed.
+	 *
+	 * Dead links are kept for a grace period so the gate can still tell a visitor
+	 * "this link expired" rather than 404; past that they are only clutter.
+	 */
+	public function delete_dead_for_post( int $post_id, int $dead_before, int $now ): int;
+
+	/**
+	 * A batch of post IDs that still carry links, for the garbage collector to
+	 * walk. Ordered by post ID ascending and starting after the given cursor, so
+	 * a long site can be swept across several cron runs without re-reading work
+	 * it has already done.
+	 *
+	 * @return list<int>
+	 */
+	public function post_ids_with_links( int $after_post_id, int $limit ): array;
 }

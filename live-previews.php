@@ -12,6 +12,7 @@
  * Text Domain: live-previews
  */
 
+use Automattic\LivePreviews\LinkGarbageCollector;
 use Automattic\LivePreviews\Plugin;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -27,5 +28,7 @@ define( 'VIP_LIVE_PREVIEWS_VERSION', '1.0.0' );
 define( 'VIP_LIVE_PREVIEWS_FILE', __FILE__ );
 
 require_once __DIR__ . '/vendor/autoload.php';
+
+register_deactivation_hook( __FILE__, [ LinkGarbageCollector::class, 'unschedule' ] );
 
 Plugin::get_instance()->register();

@@ -91,21 +91,124 @@ class PreviewGateTest extends WP_UnitTestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1 );
 
-		// Same browser both times: the cookie is kept, so the return visit is fine
-		// and does not count again.
+		// Same browser both times: the server-issued slot ID is kept, so the
+		// return visit is fine and does not claim a second slot.
 		static::assertSame( 'publish', $this->visit( $post_id, $token, false ) );
 		static::assertSame( 'publish', $this->visit( $post_id, $token, false ) );
 		static::assertSame( 1, $this->repository->all_for_post( $post_id )[0]->use_count() );
 	}
 
-	public function test_a_bot_views_without_spending_a_use(): void {
+	public function test_an_array_shaped_cookie_is_ignored_rather_than_fatal(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 5, 1 );
+
+		// A visitor controls their own cookie names, and one ending in `[]` makes
+		// PHP hand back an array where a string is expected.
+		$_COOKIE = [ 'lp_viewer_' . substr( $token->hash(), 0, 20 ) => [ 'not', 'a', 'string' ] ];
+
+		static::assertSame( 'publish', $this->visit( $post_id, $token ) );
+		static::assertSame( 1, $this->repository->all_for_post( $post_id )[0]->use_count() );
+	}
+
+	public function test_the_slot_cookie_value_is_not_derivable_from_the_link(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 2, 1 );
+
+		$this->visit( $post_id, $token, true );
+
+		$cookie = 'lp_viewer_' . substr( $token->hash(), 0, 20 );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Reading back the value the gate itself just set, in a test.
+		$issued = isset( $_COOKIE[ $cookie ] ) ? (string) $_COOKIE[ $cookie ] : '';
+
+		static::assertNotSame( '', $issued, 'A slot ID should have been issued.' );
+		static::assertNotSame( '1', $issued );
+		static::assertStringNotContainsString( $issued, $token->value() );
+		static::assertStringNotContainsString( $issued, $token->hash() );
+		static::assertSame(
+			[ $issued ],
+			$this->repository->all_for_post( $post_id )[0]->viewers(),
+			'The issued ID is the one the server recorded.'
+		);
+	}
+
+	public function test_a_bot_gets_no_content_and_spends_no_slot(): void {
 		$post_id                    = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$token                      = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1 );
 		$_SERVER['HTTP_USER_AGENT'] = 'Slackbot-LinkExpanding 1.0';
 
-		// The unfurler sees a preview card but must not burn the single use.
-		static::assertSame( 'publish', $this->visit( $post_id, $token, true ) );
+		// Exempting unfurlers from the cap by user agent alone would hand the
+		// bypass to anyone who can set a header. Instead they get a stub: the
+		// draft stays locked, and no slot is spent.
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
 		static::assertSame( 0, $this->repository->all_for_post( $post_id )[0]->use_count() );
+	}
+
+	public function test_spoofing_a_bot_user_agent_wins_nothing(): void {
+		$post_id                    = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token                      = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1 );
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (definitely-a-crawler-bot)';
+
+		// The point of the stub: claiming to be a crawler costs you the content
+		// instead of buying you an uncounted view.
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
+	}
+
+	public function test_a_missing_user_agent_is_treated_as_automated(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1 );
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
+		static::assertSame( 0, $this->repository->all_for_post( $post_id )[0]->use_count() );
+	}
+
+	public function test_a_bot_is_shown_a_stub_with_no_draft_details(): void {
+		$post_id                    = self::factory()->post->create( [
+			'post_status' => 'draft',
+			'post_title'  => 'Confidential Launch Plan',
+		] );
+		$token                      = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+		$_SERVER['HTTP_USER_AGENT'] = 'Slackbot-LinkExpanding 1.0';
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/private preview link/i' );
+		$gate->maybe_render_notice();
+	}
+
+	public function test_a_forged_viewer_cookie_does_not_bypass_a_spent_cap(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1 );
+
+		// One genuine viewer spends the only slot.
+		static::assertSame( 'publish', $this->visit( $post_id, $token, true ) );
+
+		// A second viewer forges the marker. Everything here is derivable from
+		// the shared URL, which is exactly what the old scheme got wrong.
+		$_COOKIE = [
+			'lp_viewer_' . substr( $token->hash(), 0, 20 ) => substr( hash( 'sha256', $token->value() ), 0, 32 ),
+		];
+
+		static::assertSame( 'draft', $this->visit( $post_id, $token ) );
+		static::assertSame(
+			1,
+			$this->repository->all_for_post( $post_id )[0]->use_count(),
+			'A forged cookie must not silently suppress the count either.'
+		);
+	}
+
+	public function test_an_unissued_but_well_formed_cookie_still_claims_a_slot(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 5, 1 );
+
+		$_COOKIE = [
+			'lp_viewer_' . substr( $token->hash(), 0, 20 ) => str_repeat( 'a', 32 ),
+		];
+
+		// A cookie the link never issued makes this a new viewer, not a free one.
+		static::assertSame( 'publish', $this->visit( $post_id, $token ) );
+		static::assertSame( 1, $this->repository->all_for_post( $post_id )[0]->use_count() );
 	}
 
 	public function test_an_expired_link_shows_a_friendly_notice(): void {
@@ -120,7 +223,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 		$this->expectExceptionMessageMatches( '/expired/i' );
-		$gate->maybe_render_expired_notice();
+		$gate->maybe_render_notice();
 	}
 
 	public function test_a_revoked_link_shows_a_friendly_notice(): void {
@@ -132,7 +235,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 		$this->expectExceptionMessageMatches( '/revoked/i' );
-		$gate->maybe_render_expired_notice();
+		$gate->maybe_render_notice();
 	}
 
 	public function test_an_unknown_token_shows_no_notice(): void {
@@ -142,7 +245,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// A garbage token must 404 like a missing post, not reveal the draft exists.
 		$gate = $this->denied_main_query( $post_id, Token::from_string( 'not-a-real-token' ) );
 
-		$gate->maybe_render_expired_notice();
+		$gate->maybe_render_notice();
 		static::assertTrue( true, 'No wp_die was triggered for an unknown token.' );
 	}
 
@@ -158,7 +261,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// intercept them with the notice.
 		$gate = $this->denied_main_query( $post_id, $token );
 
-		$gate->maybe_render_expired_notice();
+		$gate->maybe_render_notice();
 		static::assertTrue( true, 'No wp_die was triggered for a user who can edit the post.' );
 	}
 

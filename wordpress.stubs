@@ -28,6 +28,16 @@ namespace {
 		/** @var string */
 		public $login_log_table = '';
 
+		/** @var string */
+		public $postmeta = '';
+
+		/**
+		 * @param string|null $query
+		 * @param int         $x
+		 * @return list<string>
+		 */
+		public function get_col( $query = null, $x = 0 ) {}
+
 		/**
 		 * @param string $query
 		 * @param mixed $args

@@ -68,7 +68,7 @@ final class AccessPolicyTest extends TestCase {
 		$link = $this->link( [
 			'expires_at' => self::NOW + 100,
 			'max_uses'   => 3,
-			'use_count'  => 3,
+			'viewers'    => self::slots( 3 ),
 		] );
 
 		$decision = $this->policy->decide( $link, self::NOW );
@@ -81,7 +81,7 @@ final class AccessPolicyTest extends TestCase {
 		$link = $this->link( [
 			'expires_at' => self::NOW + 100,
 			'max_uses'   => 3,
-			'use_count'  => 2,
+			'viewers'    => self::slots( 2 ),
 		] );
 
 		self::assertTrue( $this->policy->decide( $link, self::NOW )->is_allowed() );
@@ -91,17 +91,17 @@ final class AccessPolicyTest extends TestCase {
 		$link = $this->link( [
 			'expires_at' => self::NOW + 100,
 			'max_uses'   => null,
-			'use_count'  => 999,
+			'viewers'    => self::slots( 999 ),
 		] );
 
 		self::assertTrue( $this->policy->decide( $link, self::NOW )->is_allowed() );
 	}
 
-	public function test_an_already_counted_viewer_is_not_locked_out_by_exhaustion(): void {
+	public function test_a_slot_holder_is_not_locked_out_by_exhaustion(): void {
 		$link = $this->link( [
 			'expires_at' => self::NOW + 100,
 			'max_uses'   => 3,
-			'use_count'  => 3,
+			'viewers'    => self::slots( 3 ),
 		] );
 
 		// A returning viewer holds one of the spent slots, so must still get in.
@@ -112,7 +112,7 @@ final class AccessPolicyTest extends TestCase {
 		$link = $this->link( [
 			'expires_at' => self::NOW - 1,
 			'max_uses'   => 3,
-			'use_count'  => 1,
+			'viewers'    => self::slots( 1 ),
 		] );
 
 		self::assertSame(
@@ -134,7 +134,7 @@ final class AccessPolicyTest extends TestCase {
 	}
 
 	/**
-	 * @param array{expires_at?: int, max_uses?: int|null, use_count?: int, revoked_at?: int|null} $overrides
+	 * @param array{expires_at?: int, max_uses?: int|null, viewers?: list<string>, revoked_at?: int|null} $overrides
 	 */
 	private function link( array $overrides ): PreviewLink {
 		return new PreviewLink(
@@ -144,8 +144,23 @@ final class AccessPolicyTest extends TestCase {
 			array_key_exists( 'max_uses', $overrides ) ? $overrides['max_uses'] : null,
 			1,
 			self::NOW - 100,
-			$overrides['use_count'] ?? 0,
+			$overrides['viewers'] ?? [],
 			$overrides['revoked_at'] ?? null
 		);
+	}
+
+	/**
+	 * A given number of distinct, already-issued slot IDs.
+	 *
+	 * @return list<string>
+	 */
+	private static function slots( int $count ): array {
+		$slots = [];
+
+		for ( $index = 0; $index < $count; $index++ ) {
+			$slots[] = 'viewer-' . $index;
+		}
+
+		return $slots;
 	}
 }

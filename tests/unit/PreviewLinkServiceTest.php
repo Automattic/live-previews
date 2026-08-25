@@ -83,26 +83,118 @@ final class PreviewLinkServiceTest extends TestCase {
 		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 	}
 
-	public function test_recording_visits_exhausts_a_capped_link(): void {
+	public function test_claiming_slots_exhausts_a_capped_link(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, 2, 1 );
 
-		$this->service->record_visit( self::POST_ID, $token );
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token ) );
 		self::assertTrue( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
 
-		$this->service->record_visit( self::POST_ID, $token );
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token ) );
 		$decision = $this->service->authorize( self::POST_ID, $token );
 
 		self::assertFalse( $decision->is_allowed() );
 		self::assertSame( AccessDecision::REASON_EXHAUSTED, $decision->reason() );
 	}
 
-	public function test_a_counted_viewer_still_gets_in_after_exhaustion(): void {
+	public function test_a_slot_holder_still_gets_in_after_exhaustion(): void {
+		$token     = $this->service->mint( self::POST_ID, 3600, 1, 1 );
+		$viewer_id = $this->service->claim_slot( self::POST_ID, $token );
+
+		self::assertNotNull( $viewer_id );
+		self::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token, $viewer_id )->is_allowed() );
+	}
+
+	public function test_a_forged_viewer_id_does_not_open_an_exhausted_link(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
+		$this->service->claim_slot( self::POST_ID, $token );
+
+		// The old scheme derived the cookie from sha256(token), which every link
+		// holder can compute. Nothing derivable from the URL may work now.
+		$guesses = [
+			hash( 'sha256', $token->value() ),
+			substr( hash( 'sha256', $token->value() ), 0, 32 ),
+			'1',
+			str_repeat( 'a', 32 ),
+			'',
+		];
+
+		foreach ( $guesses as $guess ) {
+			self::assertFalse(
+				$this->service->authorize( self::POST_ID, $token, $guess )->is_allowed(),
+				sprintf( 'A forged slot ID (%s) must not open a spent link.', $guess )
+			);
+		}
+	}
+
+	public function test_a_slot_cannot_be_claimed_once_the_cap_is_spent(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
 
-		$this->service->record_visit( self::POST_ID, $token );
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token ) );
+		self::assertNull( $this->service->claim_slot( self::POST_ID, $token ) );
+	}
 
-		self::assertFalse( $this->service->authorize( self::POST_ID, $token )->is_allowed() );
-		self::assertTrue( $this->service->authorize( self::POST_ID, $token, true )->is_allowed() );
+	public function test_a_slot_cannot_be_claimed_on_a_revoked_link(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
+		$this->service->revoke( self::POST_ID, $this->repository->all_for_post( self::POST_ID )[0]->token_hash() );
+
+		self::assertNull( $this->service->claim_slot( self::POST_ID, $token ) );
+	}
+
+	public function test_a_concurrent_claim_cannot_overspend_the_cap(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 1, 1 );
+
+		// Simulate a competing request taking the only slot in the window between
+		// this claim reading the link and writing it back. The write must lose,
+		// and the retry must then find the link exhausted rather than overwrite.
+		$this->repository->on_next_add_viewer(
+			function () use ( $token ): void {
+				$link = $this->repository->find( self::POST_ID, $token );
+				self::assertNotNull( $link );
+				$this->repository->add_viewer( $link, 'the-competing-viewer' );
+			}
+		);
+
+		self::assertNull( $this->service->claim_slot( self::POST_ID, $token ) );
+		self::assertSame( 1, $this->repository->all_for_post( self::POST_ID )[0]->use_count() );
+	}
+
+	public function test_a_claim_that_loses_a_race_retries_when_a_slot_remains(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 5, 1 );
+
+		$this->repository->on_next_add_viewer(
+			function () use ( $token ): void {
+				$link = $this->repository->find( self::POST_ID, $token );
+				self::assertNotNull( $link );
+				$this->repository->add_viewer( $link, 'the-competing-viewer' );
+			}
+		);
+
+		// Losing one race is not a denial while the cap has room left.
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token ) );
+		self::assertSame( 2, $this->repository->all_for_post( self::POST_ID )[0]->use_count() );
+	}
+
+	public function test_pruning_removes_only_links_dead_beyond_the_grace_period(): void {
+		$live = $this->service->mint( self::POST_ID, 3600, null, 1 );
+		$this->service->mint( self::POST_ID, 10, null, 1 );
+
+		// Long enough that the short link died well outside a one-hour grace.
+		$this->clock->advance( 2 * 3600 );
+
+		self::assertSame( 1, $this->service->prune_dead( self::POST_ID, 3600 ) );
+
+		$remaining = $this->repository->all_for_post( self::POST_ID );
+		self::assertCount( 1, $remaining );
+		self::assertTrue( $remaining[0]->matches( $live ) );
+	}
+
+	public function test_pruning_keeps_a_link_that_died_inside_the_grace_period(): void {
+		$this->service->mint( self::POST_ID, 10, null, 1 );
+		$this->clock->advance( 20 );
+
+		self::assertSame( 0, $this->service->prune_dead( self::POST_ID, 86400 ) );
+		self::assertCount( 1, $this->repository->all_for_post( self::POST_ID ) );
 	}
 
 	public function test_revoking_a_link_denies_it(): void {
