@@ -82,14 +82,6 @@ final class PostMetaTokenRepository implements TokenRepository {
 		);
 	}
 
-	public function prune( int $post_id, int $now ): void {
-		foreach ( $this->all_for_post( $post_id ) as $link ) {
-			if ( $link->is_revoked() || $link->is_expired( $now ) ) {
-				delete_post_meta( $post_id, self::META_KEY, $this->to_array( $link ) );
-			}
-		}
-	}
-
 	public function delete_all_for_post( int $post_id ): void {
 		delete_post_meta( $post_id, self::META_KEY );
 	}
@@ -107,6 +99,7 @@ final class PostMetaTokenRepository implements TokenRepository {
 			'created_at' => $link->created_at(),
 			'use_count'  => $link->use_count(),
 			'revoked_at' => $link->revoked_at(),
+			'token_hint' => $link->token_hint(),
 		];
 	}
 
@@ -125,7 +118,8 @@ final class PostMetaTokenRepository implements TokenRepository {
 			isset( $row['created_by'] ) ? (int) $row['created_by'] : 0,
 			isset( $row['created_at'] ) ? (int) $row['created_at'] : 0,
 			isset( $row['use_count'] ) ? (int) $row['use_count'] : 0,
-			isset( $row['revoked_at'] ) ? (int) $row['revoked_at'] : null
+			isset( $row['revoked_at'] ) ? (int) $row['revoked_at'] : null,
+			isset( $row['token_hint'] ) && is_string( $row['token_hint'] ) ? $row['token_hint'] : ''
 		);
 	}
 }

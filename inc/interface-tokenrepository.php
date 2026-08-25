@@ -55,12 +55,6 @@ interface TokenRepository {
 	public function revoke( PreviewLink $link, int $revoked_at ): void;
 
 	/**
-	 * Delete dead rows (revoked, or expired at $now) for a post, so storage does
-	 * not grow without bound as links are issued and retired.
-	 */
-	public function prune( int $post_id, int $now ): void;
-
-	/**
 	 * Delete every link for a post, live or not. Used when a post is published and
 	 * its preview links become meaningless.
 	 */

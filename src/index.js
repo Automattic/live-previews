@@ -46,6 +46,12 @@ function timeUntil( targetSeconds ) {
 		return __( 'expired', 'live-previews' );
 	}
 
+	// A site can filter in a very long lifetime for an effectively indefinite
+	// link; show that as "no expiry" rather than "expires in 520 weeks".
+	if ( remaining > 5 * 365 * 86400 ) {
+		return __( 'no expiry', 'live-previews' );
+	}
+
 	const units = [
 		[ 86400, __( 'day', 'live-previews' ), __( 'days', 'live-previews' ) ],
 		[ 3600, __( 'hour', 'live-previews' ), __( 'hours', 'live-previews' ) ],
@@ -245,7 +251,14 @@ function ManageModal( { postId, onClose } ) {
 				links.map( ( link ) => (
 					<Flex key={ link.id } align="center" style={ { padding: '8px 0', borderBottom: '1px solid #f0f0f0' } }>
 						<FlexBlock>
-							<div>{ usageLabel( link ) }</div>
+							<div>
+								{ usageLabel( link ) }
+								{ link.token_hint && (
+									<code style={ { marginLeft: '8px', color: '#757575' } }>
+										{ `····${ link.token_hint }` }
+									</code>
+								) }
+							</div>
 							<div style={ { color: '#757575', fontSize: '12px' } }>
 								{ timeUntil( link.expires_at ) }
 							</div>

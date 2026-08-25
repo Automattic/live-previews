@@ -52,7 +52,7 @@ final class EditorAssets {
 		$data = wp_json_encode(
 			[
 				'expirationOptions' => PreviewRestController::expiration_options(),
-				'defaultExpiration' => 8 * HOUR_IN_SECONDS,
+				'defaultExpiration' => PreviewRestController::default_expiration(),
 			]
 		);
 
