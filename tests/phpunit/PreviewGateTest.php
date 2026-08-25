@@ -108,6 +108,74 @@ class PreviewGateTest extends WP_UnitTestCase {
 		static::assertSame( 0, $this->repository->all_for_post( $post_id )[0]->use_count() );
 	}
 
+	public function test_an_expired_link_shows_a_friendly_notice(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = Token::generate();
+		// Save a link that expired an hour ago, without waiting for the clock.
+		$this->repository->save(
+			new PreviewLink( $post_id, $token->hash(), time() - HOUR_IN_SECONDS, null, 1, time() - 2 * HOUR_IN_SECONDS )
+		);
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/expired/i' );
+		$gate->maybe_render_expired_notice();
+	}
+
+	public function test_a_revoked_link_shows_a_friendly_notice(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+		$this->service->revoke( $post_id, $this->repository->all_for_post( $post_id )[0]->token_hash() );
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/revoked/i' );
+		$gate->maybe_render_expired_notice();
+	}
+
+	public function test_an_unknown_token_shows_no_notice(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+
+		// A garbage token must 404 like a missing post, not reveal the draft exists.
+		$gate = $this->denied_main_query( $post_id, Token::from_string( 'not-a-real-token' ) );
+
+		$gate->maybe_render_expired_notice();
+		static::assertTrue( true, 'No wp_die was triggered for an unknown token.' );
+	}
+
+	public function test_an_editor_is_not_blocked_by_a_dead_link(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = Token::generate();
+		$this->repository->save(
+			new PreviewLink( $post_id, $token->hash(), time() - HOUR_IN_SECONDS, null, 1, time() - 2 * HOUR_IN_SECONDS )
+		);
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		// An editor can view the draft directly, so the expired link must not
+		// intercept them with the notice.
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$gate->maybe_render_expired_notice();
+		static::assertTrue( true, 'No wp_die was triggered for a user who can edit the post.' );
+	}
+
+	/**
+	 * Run the gate over a main-query preview and hand back the gate so the caller
+	 * can assert on the notice it would render.
+	 */
+	private function denied_main_query( int $post_id, Token $token ): PreviewGate {
+		$_GET[ PreviewGate::TOKEN_QUERY_VAR ] = $token->value();
+		clean_post_cache( $post_id );
+
+		$gate = new PreviewGate( $this->service );
+		$gate->unlock_valid_previews( [ get_post( $post_id ) ], $this->preview_query() );
+
+		return $gate;
+	}
+
 	/**
 	 * Simulate one request against the gate and return the post's resulting status.
 	 *

@@ -32,12 +32,16 @@ final class PreviewGate {
 	/** Ensures a single request counts at most one use, however many queries run. */
 	private bool $counted_this_request = false;
 
+	/** Reason the main query's preview was denied, for the friendly notice. */
+	private ?string $denial_reason = null;
+
 	public function __construct( PreviewLinkService $service ) {
 		$this->service = $service;
 	}
 
 	public function register(): void {
 		add_filter( 'posts_results', [ $this, 'unlock_valid_previews' ], 10, 2 );
+		add_action( 'template_redirect', [ $this, 'maybe_render_expired_notice' ] );
 	}
 
 	/**
@@ -70,7 +74,19 @@ final class PreviewGate {
 				continue;
 			}
 
-			if ( ! $this->service->authorize( (int) $post->ID, $token, $already_counted )->is_allowed() ) {
+			// Leave authors and editors to WordPress's own preview: they can
+			// already see the draft, so a spent link must not lock them out.
+			if ( current_user_can( 'edit_post', (int) $post->ID ) ) {
+				continue;
+			}
+
+			$decision = $this->service->authorize( (int) $post->ID, $token, $already_counted );
+
+			if ( ! $decision->is_allowed() ) {
+				// Remember a dead-but-real link so template_redirect can explain
+				// why, instead of leaving the visitor at a bare 404. Only preview
+				// requests reach here, so this is the page the visitor asked for.
+				$this->remember_denial( $decision->reason() );
 				continue;
 			}
 
@@ -82,6 +98,50 @@ final class PreviewGate {
 		}
 
 		return $posts;
+	}
+
+	/**
+	 * Record why the main preview was denied, but only for links that once
+	 * existed. An unknown or wrong token is left to 404 exactly as a missing
+	 * post would, so nobody can probe which draft IDs exist.
+	 */
+	private function remember_denial( string $reason ): void {
+		$explainable = [
+			AccessDecision::REASON_EXPIRED,
+			AccessDecision::REASON_REVOKED,
+			AccessDecision::REASON_EXHAUSTED,
+		];
+
+		if ( in_array( $reason, $explainable, true ) ) {
+			$this->denial_reason = $reason;
+		}
+	}
+
+	/**
+	 * Show a friendly page when a real preview link is no longer usable.
+	 */
+	public function maybe_render_expired_notice(): void {
+		if ( null === $this->denial_reason ) {
+			return;
+		}
+
+		$messages = [
+			AccessDecision::REASON_EXPIRED   => __( 'This preview link has expired.', 'live-previews' ),
+			AccessDecision::REASON_REVOKED   => __( 'This preview link has been revoked.', 'live-previews' ),
+			AccessDecision::REASON_EXHAUSTED => __( 'This preview link has reached its viewing limit.', 'live-previews' ),
+		];
+
+		$message = $messages[ $this->denial_reason ] ?? __( 'This preview link is no longer available.', 'live-previews' );
+
+		wp_die(
+			sprintf(
+				'<p>%s</p><p>%s</p>',
+				esc_html( $message ),
+				esc_html__( 'Ask the author to share a new preview link.', 'live-previews' )
+			),
+			esc_html__( 'Preview unavailable', 'live-previews' ),
+			[ 'response' => 410 ]
+		);
 	}
 
 	/**
