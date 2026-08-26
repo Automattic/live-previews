@@ -4,7 +4,7 @@
 | -------------------------- | --------------------------------------------------------------------------------------------- |
 | `live-previews.php`  | Plugin entry file: header, guards, constants, autoloader, start. Kept intentionally small.    |
 | `inc/`                     | The integration's WordPress runtime code (autoloaded via Composer classmap).                  |
-| `views/`                   | Admin page templates.                                                                         |
+| `src/`                     | Block-editor JavaScript, compiled into `build/` by `npm run build`.                           |
 | `fixtures/`                | Mock runtime configs for local development and tests (see `fixtures/README.md`).              |
 | `tests/unit/`              | Fast PHPUnit unit tests (pure PHP, no WordPress; run through `composer test:unit`).           |
 | `tests/integration/`       | PHPUnit integration tests (boot WordPress; run through `composer test:integration`).          |

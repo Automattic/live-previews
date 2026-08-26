@@ -28,7 +28,7 @@ suite needs neither WordPress nor a database.
 | ------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Install PHP dependencies  | `composer install`                                                                                             |
 | Install Node dependencies | `npm ci`                                                                                                       |
-| Build release assets      | not applicable — this integration ships no compiled JS/CSS assets (`npm run build` documents this)             |
+| Build editor assets       | `npm run build` (compiles the block-editor script from `src/` into `build/`)                                   |
 | Tests                     | `composer test`                                                                                                |
 | Integration validation    | `npx @automattic/vip-integration validate` (the external conformance checker — see [manifest.md](manifest.md)) |
 

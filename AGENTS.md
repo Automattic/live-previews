@@ -21,7 +21,7 @@ validate with `vip-integration validate` before shipping.
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
 | `inc/`                                            | Runtime code (autoloaded via Composer classmap). `class-config.php`, `class-telemetry.php`, REST handlers. |
-| `views/`                                          | Admin page templates.                                                                                      |
+| `src/`                                            | Block-editor JavaScript, compiled into `build/` by `npm run build`.                                        |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
 | `tests/unit/`, `tests/integration/`, `tests/e2e/` | PHPUnit unit (pure PHP) and integration (boot WordPress) tests, plus Playwright e2e.                       |
 | `vip-manifest.yaml`                               | The handoff manifest VIP registers the integration from.                                                   |

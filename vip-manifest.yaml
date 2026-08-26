@@ -55,12 +55,13 @@ telemetry:
   default_properties:
     - plugin_version
   events:
-    - name: live_previews_sum_requested
+    - name: live_previews_preview_link_created
       type: tracks
-      trigger: The REST /sum endpoint serves a request.
+      trigger: A preview link is minted via REST.
       properties:
-        - route
-      note: Usage metadata only — no request payload or config values.
+        - expiration
+        - max_uses
+      note: Usage metadata only — never the token, content, or PII.
 
 release:
   plugin_version: 1.0.0
