@@ -23,9 +23,6 @@ final class Plugin {
 	 */
 	public function register(): void {
 		add_action( 'init', [ $this, 'init' ] );
-		if ( is_admin() ) {
-			add_action( 'init', [ Admin::class, 'register' ] );
-		}
 	}
 
 	public function init(): void {

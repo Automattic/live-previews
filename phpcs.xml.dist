@@ -12,7 +12,6 @@
 
 	<!-- What to scan -->
 	<file>./inc/</file>
-	<file>./views/</file>
 	<file>./tests/unit/</file>
 	<file>./tests/integration/</file>
 	<!-- Ignoring Files and Folders:

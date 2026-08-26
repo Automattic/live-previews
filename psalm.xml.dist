@@ -13,7 +13,6 @@
     <projectFiles>
         <file name="live-previews.php"/>
         <directory name="inc"/>
-        <directory name="views"/>
         <directory name="tests/unit"/>
         <directory name="tests/integration"/>
     </projectFiles>
