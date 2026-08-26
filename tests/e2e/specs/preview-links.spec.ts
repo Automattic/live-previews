@@ -125,7 +125,20 @@ test.describe( 'Preview links', () => {
 
 		const revokeButton = manageModal.getByRole( 'button', { name: 'Revoke' } );
 		await expect( revokeButton ).toBeVisible();
+
+		// The modal drops the link from the list optimistically, before the
+		// revoke request lands. Wait for that request to complete so the
+		// revocation has taken effect server-side before the visitor tries the
+		// link again. apiFetch sends the DELETE over the wire as a POST to the
+		// id-bearing path, which is what distinguishes it from the earlier mint.
+		const revoked = page.waitForResponse(
+			( response ) =>
+				/\/live-previews\/v1\/preview-links\/[a-f0-9]{64}/u.test( response.url() ) &&
+				[ 'DELETE', 'POST' ].includes( response.request().method() ) &&
+				response.ok()
+		);
 		await revokeButton.click();
+		await revoked;
 		await expect( manageModal.getByText( 'No active preview links.' ) ).toBeVisible();
 
 		// --- The same link now turns the visitor away -----------------------
