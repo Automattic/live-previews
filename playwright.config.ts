@@ -71,6 +71,9 @@ export default defineConfig({
             name: 'Mobile Chrome',
             use: { ...devices['Pixel 5'], ...defaultSettings },
             dependencies: ['setup'],
+            // The editor authoring journey is a desktop flow; the mobile editor
+            // chrome differs and adds no coverage, so run it on chromium only.
+            testIgnore: /preview-links\.spec\.ts/,
         },
     ],
 });

@@ -1,6 +1,5 @@
 import type { Locator, Page, Response } from '@playwright/test';
 import { BasePage } from './basepage';
-import { LostPasswordPage } from './lostpassword.pom';
 
 export class LoginPage extends BasePage {
     public readonly loginField: Locator;
@@ -10,7 +9,6 @@ export class LoginPage extends BasePage {
     public readonly loginButton: Locator;
     public readonly redirectToField: Locator;
     public readonly registerLink: Locator
-    public readonly lostPasswordLink: Locator;
     public readonly loginErrorBlock: Locator;
     public readonly backToBlogLink: Locator;
 
@@ -23,7 +21,6 @@ export class LoginPage extends BasePage {
         this.loginButton = page.locator('input#wp-submit');
         this.redirectToField = page.locator('input[name="redirect_to"]');
         this.registerLink = page.locator('#nav a[href*="wp-login.php?action=register"]');
-        this.lostPasswordLink = page.locator('#nav a[href*="wp-login.php?action=lostpassword"]');
         this.loginErrorBlock = page.locator('div#login_error');
         this.backToBlogLink = page.locator('#backtoblog a');
     }
@@ -58,16 +55,5 @@ export class LoginPage extends BasePage {
 
         await this.loginButton.click();
         return this.page.waitForLoadState('load');
-    }
-
-    public async lostPassword(): Promise<LostPasswordPage | Page> {
-        await this.lostPasswordLink.click();
-        await this.page.waitForURL((url) => url.pathname.endsWith('/wp-login.php'), { waitUntil: 'domcontentloaded' });
-        const url = new URL(this.page.url());
-        if (url.searchParams.get('action') === 'lostpassword') {
-            return new LostPasswordPage(this.page);
-        }
-
-        return this.page;
     }
 }
