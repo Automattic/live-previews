@@ -220,11 +220,16 @@ final class PreviewRestController {
 		$url = get_preview_post_link( $post_id, [ PreviewGate::TOKEN_QUERY_VAR => $token->value() ] );
 
 		// Usage metadata only — never the token, content, or PII.
+		// Prefixed to `livepreviews_link_created` by the Telemetry client.
+		// `is_capped` keeps `max_uses` a clean integer: an uncapped link reports
+		// is_capped=false with max_uses=0 rather than a null that Tracks would
+		// coerce to the string "null".
 		Telemetry::get_instance()->record_event(
-			'preview_link_created',
+			'link_created',
 			[
 				'expiration' => $expiration,
-				'max_uses'   => $max_uses,
+				'is_capped'  => null !== $max_uses,
+				'max_uses'   => (int) $max_uses,
 			]
 		);
 
