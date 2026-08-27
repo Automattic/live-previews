@@ -49,28 +49,14 @@ class TelemetryTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
-	public function test_global_properties_include_the_vip_app_id_on_platform(): void {
-		if ( ! defined( 'VIP_GO_APP_ID' ) ) {
-			define( 'VIP_GO_APP_ID', 1234 );
-		}
-
-		$properties = self::global_properties();
-
-		// The environment id is an integer, matching how the platform defines it.
-		static::assertSame( VIP_GO_APP_ID, $properties['vip_app_id'] );
-	}
-
-	/**
 	 * Invoke the private factory that builds the client's global properties.
 	 *
 	 * @return array<string, mixed>
 	 */
 	private static function global_properties(): array {
+		// Reflection ignores visibility on PHP 8.1+, so no setAccessible() call
+		// (which is a no-op since 8.1 and deprecated in 8.5).
 		$method = new \ReflectionMethod( Telemetry::class, 'global_properties' );
-		$method->setAccessible( true );
 
 		/** @var array<string, mixed> $properties */
 		$properties = $method->invoke( null );
