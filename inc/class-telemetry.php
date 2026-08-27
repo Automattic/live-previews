@@ -13,7 +13,17 @@ namespace Automattic\LivePreviews;
  * event properties.
  */
 final class Telemetry {
-	public const EVENT_PREFIX = 'live_previews_';
+	/**
+	 * Tracks source prefix for every event this plugin records.
+	 *
+	 * The leading token (`livepreviews`) is the Tracks "source" and MUST be a
+	 * single lowercase word with no underscores, and MUST be whitelisted in
+	 * Automattic/nosara's `tracks_events_whitelist.config`. Events from a
+	 * non-whitelisted source are silently diverted to `prod_rejects` and never
+	 * appear in the Tracks tools — so do not change this to a value that isn't
+	 * on that whitelist.
+	 */
+	public const EVENT_PREFIX = 'livepreviews_';
 
 	/** @var self|null */
 	private static $instance;
@@ -33,9 +43,34 @@ final class Telemetry {
 		if ( class_exists( \Automattic\VIP\Telemetry\Telemetry::class ) ) {
 			$this->client = new \Automattic\VIP\Telemetry\Telemetry(
 				self::EVENT_PREFIX,
-				[ 'plugin_version' => VIP_LIVE_PREVIEWS_VERSION ]
+				self::global_properties()
 			);
 		}
+	}
+
+	/**
+	 * Environment-level properties attached to every event this plugin records.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function global_properties(): array {
+		$properties = [
+			'plugin_version' => VIP_LIVE_PREVIEWS_VERSION,
+		];
+
+		// The environment's unique numeric ID on VIP. A production (parent) and
+		// its non-production (child) environments have different IDs, so this
+		// pins each event to a specific environment. Absent off-platform (local,
+		// non-VIP), so only included when the constant is a positive integer.
+		if ( defined( 'VIP_GO_APP_ID' ) ) {
+			/** @var mixed $app_id */
+			$app_id = constant( 'VIP_GO_APP_ID' );
+			if ( is_int( $app_id ) && $app_id > 0 ) {
+				$properties['vip_app_id'] = $app_id;
+			}
+		}
+
+		return $properties;
 	}
 
 	/**

@@ -21,7 +21,46 @@ class TelemetryTest extends WP_UnitTestCase {
 		static::assertSame( [ 'foo' => 'bar' ], VIP_Telemetry::$events[0]['properties'] );
 	}
 
+	public function test_the_source_prefix_is_a_whitelisted_tracks_source(): void {
+		// The Tracks source (the token before the first underscore) must be a
+		// single lowercase word whitelisted in Automattic/nosara, or events are
+		// diverted to `prod_rejects`. Guard the exact value against regressions.
+		static::assertSame( 'livepreviews_', Telemetry::EVENT_PREFIX );
+
+		$source = strtok( Telemetry::EVENT_PREFIX, '_' );
+		static::assertSame( 'livepreviews', $source );
+		static::assertMatchesRegularExpression( '/^[a-z]+$/', (string) $source, 'The Tracks source must be a single lowercase word with no underscores.' );
+	}
+
 	public function test_singleton(): void {
 		static::assertSame( Telemetry::get_instance(), Telemetry::get_instance() );
+	}
+
+	public function test_global_properties_always_carry_the_plugin_version(): void {
+		$properties = self::global_properties();
+
+		static::assertSame( VIP_LIVE_PREVIEWS_VERSION, $properties['plugin_version'] );
+
+		// Off-platform (no VIP_GO_APP_ID) the app id is simply omitted rather
+		// than sent as a null or zero.
+		if ( ! defined( 'VIP_GO_APP_ID' ) ) {
+			static::assertArrayNotHasKey( 'vip_app_id', $properties );
+		}
+	}
+
+	/**
+	 * Invoke the private factory that builds the client's global properties.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function global_properties(): array {
+		// Reflection ignores visibility on PHP 8.1+, so no setAccessible() call
+		// (which is a no-op since 8.1 and deprecated in 8.5).
+		$method = new \ReflectionMethod( Telemetry::class, 'global_properties' );
+
+		/** @var array<string, mixed> $properties */
+		$properties = $method->invoke( null );
+
+		return $properties;
 	}
 }

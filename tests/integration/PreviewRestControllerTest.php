@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Automattic\LivePreviews;
 
+use Automattic\VIP\Telemetry\Telemetry as VIP_Telemetry;
 use Spy_REST_Server;
 use WP_REST_Request;
 use WP_REST_Server;
@@ -62,6 +63,45 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertStringContainsString( 'preview=true', (string) $data['url'] );
 		static::assertStringContainsString( PreviewGate::TOKEN_QUERY_VAR . '=', (string) $data['url'] );
 		static::assertGreaterThan( time(), (int) $data['expires_at'] );
+	}
+
+	public function test_minting_records_a_tracks_event(): void {
+		VIP_Telemetry::$events = [];
+
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		static::assertSame( 200, $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, 5 )->get_status() );
+
+		static::assertCount( 1, VIP_Telemetry::$events );
+		$event = VIP_Telemetry::$events[0];
+
+		// Source token + event name resolve to `livepreviews_link_created`.
+		static::assertSame( 'livepreviews_', $event['prefix'] );
+		static::assertSame( 'link_created', $event['event'] );
+
+		// Usage metadata only — never the token, content, or PII.
+		static::assertSame( 8 * HOUR_IN_SECONDS, $event['properties']['expiration'] );
+		static::assertTrue( $event['properties']['is_capped'] );
+		static::assertSame( 5, $event['properties']['max_uses'] );
+		static::assertArrayNotHasKey( 'url', $event['properties'] );
+		static::assertArrayNotHasKey( 'token', $event['properties'] );
+	}
+
+	public function test_minting_an_uncapped_link_reports_a_clean_integer(): void {
+		VIP_Telemetry::$events = [];
+
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		static::assertSame( 200, $this->create_link( $post_id, HOUR_IN_SECONDS )->get_status() );
+
+		static::assertCount( 1, VIP_Telemetry::$events );
+		$properties = VIP_Telemetry::$events[0]['properties'];
+
+		// No cap: is_capped is false and max_uses is 0, never a null.
+		static::assertFalse( $properties['is_capped'] );
+		static::assertSame( 0, $properties['max_uses'] );
 	}
 
 	public function test_a_user_without_edit_rights_is_forbidden(): void {
