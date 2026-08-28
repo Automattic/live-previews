@@ -42,9 +42,11 @@ validate with `vip-integration validate` before shipping.
   (VIP Tracks API, `class_exists`-guarded). No Stats/Pixel. Never put secrets,
   raw content, emails, or credentials in event properties.
 - **Match the prefix set.** Slug (`live-previews`), namespace
-  (`Automattic\LivePreviews`), constant (`VIP_LIVE_PREVIEWS_*`), and telemetry
-  prefix (`live_previews_`) are one consistent set. Keep them in sync if you
-  rename anything.
+  (`Automattic\LivePreviews`), and constant (`VIP_LIVE_PREVIEWS_*`) are one
+  consistent set. Keep them in sync if you rename anything. The telemetry prefix
+  is the deliberate exception: `livepreviews_` (one word, no underscore), because
+  the leading token is the Tracks *source* and must be whitelisted in nosara — do
+  not "normalise" it to `live_previews_`.
 
 ## Conventions
 

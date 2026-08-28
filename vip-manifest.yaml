@@ -51,17 +51,20 @@ runtime_config:
       help: Text rendered in the site footer signature.
 
 telemetry:
-  prefix: live_previews_
+  # Single word, no underscores: the leading token is the Tracks source and must
+  # be whitelisted in nosara. `live_previews_` would divert events to prod_rejects.
+  prefix: livepreviews_
   default_properties:
     - plugin_version
   events:
-    - name: live_previews_preview_link_created
+    - name: livepreviews_link_created
       type: tracks
-      trigger: A preview link is minted via REST.
+      trigger: A preview link is minted, via REST or the Abilities API.
       properties:
         - expiration
         - max_uses
-      note: Usage metadata only — never the token, content, or PII.
+        - channel
+      note: Usage metadata only — never the token, content, or PII. `channel` records how the link was requested (`rest` or `ability`).
 
 release:
   plugin_version: 1.0.0

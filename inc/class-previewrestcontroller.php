@@ -3,7 +3,6 @@
 namespace Automattic\LivePreviews;
 
 use WP_Error;
-use WP_Post;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -26,9 +25,11 @@ final class PreviewRestController {
 	public const MAX_USES_LIMIT = 1000;
 
 	private PreviewLinkService $service;
+	private PreviewLinkMinter $minter;
 
-	public function __construct( PreviewLinkService $service ) {
+	public function __construct( PreviewLinkService $service, PreviewLinkMinter $minter ) {
 		$this->service = $service;
+		$this->minter  = $minter;
 	}
 
 	/**
@@ -197,54 +198,31 @@ final class PreviewRestController {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function create_link( WP_REST_Request $request ) {
-		$post_id = (int) $request->get_param( 'post_id' );
-
-		if ( ! get_post( $post_id ) instanceof WP_Post ) {
-			return new WP_Error(
-				'live_previews_invalid_post',
-				__( 'The post could not be found.', 'live-previews' ),
-				[ 'status' => 404 ]
-			);
-		}
-
-		$expiration = (int) $request->get_param( 'expiration' );
-
 		/** @var mixed $max_uses_param */
 		$max_uses_param = $request->get_param( 'max_uses' );
 		$max_uses       = null === $max_uses_param ? null : (int) $max_uses_param;
 
-		$token = $this->service->mint( $post_id, $expiration, $max_uses, get_current_user_id() );
-
-		// Reuse WordPress's own preview URL (adds preview=true) and carry the
-		// token on it, so the gate can unlock the draft for a logged-out visitor.
-		$url = get_preview_post_link( $post_id, [ PreviewGate::TOKEN_QUERY_VAR => $token->value() ] );
-
-		// Usage metadata only — never the token, content, or PII.
-		// Prefixed to `livepreviews_link_created` by the Telemetry client.
-		// `is_capped` keeps `max_uses` a clean integer: an uncapped link reports
-		// is_capped=false with max_uses=0 rather than a null that Tracks would
-		// coerce to the string "null".
-		Telemetry::get_instance()->record_event(
-			'link_created',
-			[
-				'expiration' => $expiration,
-				'is_capped'  => null !== $max_uses,
-				'max_uses'   => (int) $max_uses,
-			]
-		);
-
+		// A WP_Error from the minter (e.g. a missing post) passes straight
+		// through: rest_ensure_response() returns it unchanged and the REST
+		// server renders it with its status.
 		return rest_ensure_response(
-			[
-				'url'        => $url,
-				'expires_at' => time() + $expiration,
-			]
+			$this->minter->mint(
+				(int) $request->get_param( 'post_id' ),
+				(int) $request->get_param( 'expiration' ),
+				$max_uses,
+				'rest'
+			)
 		);
 	}
 
 	/**
+	 * The link lifetimes (in seconds) the plugin accepts, derived from the
+	 * filterable {@see expiration_options()}. Shared with the abilities layer so
+	 * REST and MCP honour the same set.
+	 *
 	 * @return list<int>
 	 */
-	private static function allowed_expirations(): array {
+	public static function allowed_expirations(): array {
 		return array_map(
 			/** @param array{seconds: int, label: string} $option */
 			static fn ( array $option ): int => $option['seconds'],

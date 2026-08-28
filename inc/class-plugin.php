@@ -34,14 +34,19 @@ final class Plugin {
 			new AccessPolicy(),
 			new SystemClock()
 		);
+		$minter  = new PreviewLinkMinter( $service );
 
-		$rest_controller = new PreviewRestController( $service );
+		$rest_controller = new PreviewRestController( $service, $minter );
 		add_action( 'rest_api_init', [ $rest_controller, 'register_routes' ] );
 
 		( new PreviewGate( $service ) )->register();
 		( new PublishCleanup( $service ) )->register();
 		( new LinkGarbageCollector( $service ) )->register();
 		( new EditorAssets() )->register();
+
+		// Expose link creation to MCP, the AI Client, and the abilities REST
+		// runner. Shares the same minter as the REST endpoint above.
+		( new PreviewAbilities( $minter ) )->register();
 
 		if ( ! Config::get_instance()->is_ready() ) {
 			// An incomplete runtime config must never fatal; surface a diagnostic.

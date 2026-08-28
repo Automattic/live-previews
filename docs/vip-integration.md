@@ -76,9 +76,11 @@ wired in.
 Telemetry uses the helper in `inc/class-telemetry.php`, which wraps the VIP
 Telemetry API (Tracks events only, no Stats) behind a `class_exists` guard so
 environments without VIP MU plugins no-op. Event names are prefixed with
-`live_previews_`. Never include secrets, raw content, email addresses,
-or customer credentials in event properties.
+`livepreviews_` — a single word with no underscores, because the leading token is
+the Tracks *source* and must be whitelisted in nosara (an underscore there would
+divert events to `prod_rejects`). Never include secrets, raw content, email
+addresses, or customer credentials in event properties.
 
 | Name                            | Type   | Trigger                              | Properties                                             | Notes                                             |
 | ------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
-| `live_previews_preview_link_created` | Tracks | A preview link is minted via REST.   | `expiration`, `max_uses` (null = unlimited), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
+| `livepreviews_link_created` | Tracks | A preview link is minted, via REST or the Abilities API. | `expiration`, `max_uses` (null = unlimited), `channel` (`rest` or `ability`), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
