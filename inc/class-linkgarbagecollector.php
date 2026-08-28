@@ -28,7 +28,7 @@ final class LinkGarbageCollector {
 	 * How long a dead link is kept so the gate can still explain it. Long enough
 	 * to cover a reviewer coming back to a stale link after a fortnight off.
 	 */
-	private const DEFAULT_GRACE = 30 * DAY_IN_SECONDS;
+	private const DEFAULT_GRACE = 21 * DAY_IN_SECONDS;
 
 	private PreviewLinkService $service;
 
@@ -96,7 +96,7 @@ final class LinkGarbageCollector {
 		 * garbage collector deletes it. Until then the gate can still tell a
 		 * visitor why their link stopped working.
 		 *
-		 * @param int $grace_seconds Retention period in seconds (30 days).
+		 * @param int $grace_seconds Retention period in seconds (21 days).
 		 */
 		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', self::DEFAULT_GRACE );
 
