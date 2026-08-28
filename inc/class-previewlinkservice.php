@@ -194,4 +194,21 @@ final class PreviewLinkService {
 	public function post_ids_with_links( int $after_post_id, int $limit ): array {
 		return $this->repository->post_ids_with_links( $after_post_id, $limit );
 	}
+
+	/**
+	 * A page of every issued link across the site, newest first, for the admin
+	 * table.
+	 *
+	 * @return list<PreviewLink>
+	 */
+	public function page_of_links( int $offset, int $limit ): array {
+		return $this->repository->page_of_links( $offset, $limit );
+	}
+
+	/**
+	 * How many links exist across the site, for paginating the admin table.
+	 */
+	public function count_links(): int {
+		return $this->repository->count_links();
+	}
 }

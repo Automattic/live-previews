@@ -155,6 +155,64 @@ final class PostMetaTokenRepository implements TokenRepository {
 		return array_map( 'intval', $ids );
 	}
 
+	public function page_of_links( int $offset, int $limit ): array {
+		/** @var \wpdb $wpdb */
+		global $wpdb;
+
+		/**
+		 * Indexed on `meta_key` and run only from the editor-gated admin table,
+		 * never on a page request. Not cached: it must reflect a revocation made
+		 * moments earlier on the same screen, and each page is a large single-use
+		 * read.
+		 */
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin audit table over an indexed meta_key; see above.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY meta_id DESC LIMIT %d OFFSET %d",
+				self::META_KEY,
+				$limit,
+				$offset
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) ) {
+			return [];
+		}
+
+		$links = [];
+
+		foreach ( $rows as $row ) {
+			$post_id = isset( $row['post_id'] ) && is_scalar( $row['post_id'] ) ? (int) $row['post_id'] : 0;
+			$raw     = isset( $row['meta_value'] ) && is_string( $row['meta_value'] ) ? $row['meta_value'] : '';
+
+			/** @psalm-suppress MixedAssignment */
+			$stored = maybe_unserialize( $raw );
+
+			if ( is_array( $stored ) ) {
+				/** @var array<string, mixed> $stored */
+				$links[] = $this->from_array( $post_id, $stored );
+			}
+		}
+
+		return $links;
+	}
+
+	public function count_links(): int {
+		/** @var \wpdb $wpdb */
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin audit table over an indexed meta_key; see page_of_links().
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				self::META_KEY
+			)
+		);
+
+		return (int) $count;
+	}
+
 	/**
 	 * @return array<string, mixed>
 	 */

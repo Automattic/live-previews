@@ -82,4 +82,24 @@ interface TokenRepository {
 	 * @return list<int>
 	 */
 	public function post_ids_with_links( int $after_post_id, int $limit ): array;
+
+	/**
+	 * A page of issued links across every post, newest first, for the site-wide
+	 * admin table.
+	 *
+	 * Unlike {@see all_for_post()} this is a cross-post read, so implementations
+	 * run it only off the request path (an editor-gated admin screen) and never
+	 * from the gate.
+	 *
+	 * @param int $offset Rows to skip.
+	 * @param int $limit  Maximum rows to return.
+	 * @return list<PreviewLink>
+	 */
+	public function page_of_links( int $offset, int $limit ): array;
+
+	/**
+	 * How many links are issued across every post, for paginating
+	 * {@see page_of_links()}.
+	 */
+	public function count_links(): int;
 }

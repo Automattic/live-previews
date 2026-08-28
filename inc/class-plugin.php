@@ -29,10 +29,11 @@ final class Plugin {
 		// Composition root: assemble the domain graph once (no container) and
 		// share it between minting (REST) and enforcement (the gate). Swapping
 		// storage, clock, or policy is a one-line change here.
+		$clock   = new SystemClock();
 		$service = new PreviewLinkService(
 			new PostMetaTokenRepository(),
 			new AccessPolicy(),
-			new SystemClock()
+			$clock
 		);
 		$minter  = new PreviewLinkMinter( $service );
 
@@ -43,6 +44,9 @@ final class Plugin {
 		( new PublishCleanup( $service ) )->register();
 		( new LinkGarbageCollector( $service ) )->register();
 		( new EditorAssets() )->register();
+
+		// Site-wide audit + revoke table for editors.
+		( new PreviewLinksAdminPage( $service, $clock ) )->register();
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.
