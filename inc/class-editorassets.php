@@ -24,8 +24,11 @@ final class EditorAssets {
 			return;
 		}
 
+		// $asset_file is derived solely from the plugin's own directory and a
+		// hard-coded, build-generated filename, never from user input, so the
+		// variable include is safe.
 		/** @var mixed $asset */
-		$asset = require $asset_file;
+		$asset = require $asset_file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable
 		if ( ! is_array( $asset ) ) {
 			return;
 		}

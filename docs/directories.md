@@ -3,7 +3,7 @@
 | Path                       | Purpose                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------- |
 | `live-previews.php`  | Plugin entry file: header, guards, constants, autoloader, start. Kept intentionally small.    |
-| `inc/`                     | The integration's WordPress runtime code (autoloaded via Composer classmap).                  |
+| `inc/`                     | The integration's WordPress runtime code (autoloaded at runtime by `inc/autoload.php`).       |
 | `src/`                     | Block-editor JavaScript, compiled into `build/` by `npm run build`.                           |
 | `fixtures/`                | Mock runtime configs for local development and tests (see `fixtures/README.md`).              |
 | `tests/unit/`              | Fast PHPUnit unit tests (pure PHP, no WordPress; run through `composer test:unit`).           |

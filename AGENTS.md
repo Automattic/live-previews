@@ -20,7 +20,7 @@ validate with `vip-integration validate` before shipping.
 | Path                                              | What lives here                                                                                            |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
-| `inc/`                                            | Runtime code (autoloaded via Composer classmap). `class-config.php`, `class-telemetry.php`, REST handlers. |
+| `inc/`                                            | Runtime code (autoloaded via `inc/autoload.php`). `class-config.php`, `class-telemetry.php`, REST handlers. |
 | `src/`                                            | Block-editor JavaScript, compiled into `build/` by `npm run build`.                                        |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
 | `tests/unit/`, `tests/integration/`, `tests/e2e/` | PHPUnit unit (pure PHP) and integration (boot WordPress) tests, plus Playwright e2e.                       |
@@ -58,7 +58,10 @@ pattern rather than introducing a new one.
 - **Baseline:** PHP 8.2+, WordPress 6.9 / 7.0. Do not use syntax newer than 8.2.
 - **Namespaces:** everything under the integration root namespace (example:
   `Automattic\LivePreviews`). One class per file, filenames
-  `class-<name>.php`, autoloaded via the Composer classmap on `inc/`.
+  `class-<name>.php` / `interface-<name>.php`, autoloaded at runtime by the
+  first-party `inc/autoload.php` (no Composer autoloader is shipped, since the
+  plugin has no runtime dependencies). Composer's classmap still autoloads `inc/`
+  for local development and the test suites.
 - **Coding standards:** WordPress VIP rules via PHPCS (`composer phpcs`). Escape
   output, sanitize input, use `wpdb->prepare`, add capability checks on admin
   and REST surfaces. `composer phpcbf` auto-fixes what it can.
