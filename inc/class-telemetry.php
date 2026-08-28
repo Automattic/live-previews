@@ -80,8 +80,32 @@ final class Telemetry {
 	 * @param array<string, mixed> $properties
 	 */
 	public function record_event( string $event_name, array $properties = [] ): void {
-		if ( $this->client ) {
+		if ( $this->client && self::should_record() ) {
 			$this->client->record_event( $event_name, $properties );
 		}
+	}
+
+	/**
+	 * Whether events should be recorded in the current environment.
+	 *
+	 * The local dev-env (VIP_GO_APP_ENVIRONMENT === 'local') is where the E2E
+	 * suite runs, including in GitHub CI, so recording there would pump
+	 * synthetic events into production Tracks. Every real VIP environment
+	 * (production, develop, staging, …) still records, and its type travels on
+	 * each event as the platform's `vip_env` property for downstream filtering.
+	 */
+	private static function should_record(): bool {
+		$is_local = defined( 'VIP_GO_APP_ENVIRONMENT' ) && 'local' === constant( 'VIP_GO_APP_ENVIRONMENT' );
+
+		/**
+		 * Filters whether Live Previews telemetry is recorded in this environment.
+		 *
+		 * Defaults to false on the local dev-env and true everywhere else. Return
+		 * true to record from a dev-env (e.g. a deliberate smoke test), or false
+		 * to suppress recording elsewhere.
+		 *
+		 * @param bool $should_record Whether to record events.
+		 */
+		return (bool) apply_filters( 'livepreviews_record_telemetry', ! $is_local );
 	}
 }

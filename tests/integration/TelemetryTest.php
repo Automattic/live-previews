@@ -21,6 +21,18 @@ class TelemetryTest extends WP_UnitTestCase {
 		static::assertSame( [ 'foo' => 'bar' ], VIP_Telemetry::$events[0]['properties'] );
 	}
 
+	public function test_recording_is_skipped_when_the_environment_opts_out(): void {
+		VIP_Telemetry::$events = [];
+
+		// The local dev-env (where the E2E suite runs) opts out via this filter,
+		// so no synthetic events reach production Tracks.
+		add_filter( 'livepreviews_record_telemetry', '__return_false' );
+		Telemetry::get_instance()->record_event( 'unit_test_event', [ 'foo' => 'bar' ] );
+		remove_filter( 'livepreviews_record_telemetry', '__return_false' );
+
+		static::assertCount( 0, VIP_Telemetry::$events );
+	}
+
 	public function test_the_source_prefix_is_a_whitelisted_tracks_source(): void {
 		// The Tracks source (the token before the first underscore) must be a
 		// single lowercase word whitelisted in Automattic/nosara, or events are
