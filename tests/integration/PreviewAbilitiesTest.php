@@ -118,4 +118,57 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 		static::assertInstanceOf( WP_Error::class, $result );
 		static::assertSame( 'ability_invalid_permissions', $result->get_error_code() );
 	}
+
+	public function test_the_list_ability_is_registered_readonly_and_public(): void {
+		$ability = wp_get_ability( PreviewAbilities::LIST_LINKS );
+
+		static::assertInstanceOf( WP_Ability::class, $ability );
+		static::assertSame( PreviewAbilities::CATEGORY, $ability->get_category() );
+		static::assertTrue( $ability->get_meta_item( 'public' ) );
+
+		$meta = $ability->get_meta();
+		static::assertTrue( $meta['show_in_rest'] );
+		// Read-only so MCP clients can run it without a confirmation prompt.
+		static::assertTrue( $meta['annotations']['readonly'] );
+	}
+
+	public function test_an_editor_lists_a_posts_live_links(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$create = wp_get_ability( PreviewAbilities::CREATE_LINK );
+		$list   = wp_get_ability( PreviewAbilities::LIST_LINKS );
+		static::assertInstanceOf( WP_Ability::class, $create );
+		static::assertInstanceOf( WP_Ability::class, $list );
+
+		$create->execute(
+			[
+				'post_id'    => $post_id,
+				'expiration' => HOUR_IN_SECONDS,
+				'max_uses'   => 5,
+			]
+		);
+
+		$result = $list->execute( [ 'post_id' => $post_id ] );
+
+		static::assertIsArray( $result );
+		static::assertCount( 1, $result );
+		static::assertSame( 5, $result[0]['max_uses'] );
+		static::assertArrayHasKey( 'token_hint', $result[0] );
+		// A hint, never the shareable URL or the token itself.
+		static::assertArrayNotHasKey( 'url', $result[0] );
+	}
+
+	public function test_listing_is_denied_without_edit_rights(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+
+		$ability = wp_get_ability( PreviewAbilities::LIST_LINKS );
+		static::assertInstanceOf( WP_Ability::class, $ability );
+
+		$result = $ability->execute( [ 'post_id' => $post_id ] );
+
+		static::assertInstanceOf( WP_Error::class, $result );
+		static::assertSame( 'ability_invalid_permissions', $result->get_error_code() );
+	}
 }

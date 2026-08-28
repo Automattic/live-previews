@@ -152,28 +152,12 @@ final class PreviewRestController {
 	}
 
 	public function list_links( WP_REST_Request $request ): WP_REST_Response {
-		$post_id = (int) $request->get_param( 'post_id' );
-		$now     = time();
-
-		$links = [];
-		foreach ( $this->service->list_for_post( $post_id ) as $link ) {
-			// Expired and revoked links are dead clutter; show only live ones.
-			if ( $link->is_expired( $now ) || $link->is_revoked() ) {
-				continue;
-			}
-
-			$links[] = [
-				'id'         => $link->token_hash(),
-				'token_hint' => $link->token_hint(),
-				'created_at' => $link->created_at(),
-				'expires_at' => $link->expires_at(),
-				'max_uses'   => $link->max_uses(),
-				'use_count'  => $link->use_count(),
-				'exhausted'  => $link->is_exhausted(),
-			];
-		}
-
-		return rest_ensure_response( $links );
+		return rest_ensure_response(
+			PreviewLinkPresenter::present_live_links(
+				$this->service->list_for_post( (int) $request->get_param( 'post_id' ) ),
+				time()
+			)
+		);
 	}
 
 	/**

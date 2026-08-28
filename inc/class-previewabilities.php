@@ -10,9 +10,10 @@ use WP_Error;
  * WordPress AI Client, and the generic abilities REST runner.
  *
  * The driving use case is drafting with a local agent — the agent can mint a
- * shareable preview without a human switching to the block editor. The ability
- * is a sibling adapter to {@see PreviewRestController}: both call the same
- * {@see PreviewLinkMinter}, so the two entry points cannot diverge.
+ * shareable preview, and see what it has already shared, without a human
+ * switching to the block editor. These abilities are sibling adapters to
+ * {@see PreviewRestController}: they reuse the same {@see PreviewLinkMinter} and
+ * {@see PreviewLinkPresenter}, so a given surface cannot diverge from REST.
  *
  * @see https://developer.wordpress.org/apis/abilities/
  */
@@ -23,10 +24,15 @@ final class PreviewAbilities {
 	/** Fully-qualified name of the create-link ability. */
 	public const CREATE_LINK = 'live-previews/create-preview-link';
 
+	/** Fully-qualified name of the list-links ability. */
+	public const LIST_LINKS = 'live-previews/list-preview-links';
+
+	private PreviewLinkService $service;
 	private PreviewLinkMinter $minter;
 
-	public function __construct( PreviewLinkMinter $minter ) {
-		$this->minter = $minter;
+	public function __construct( PreviewLinkService $service, PreviewLinkMinter $minter ) {
+		$this->service = $service;
+		$this->minter  = $minter;
 	}
 
 	/**
@@ -119,6 +125,58 @@ final class PreviewAbilities {
 				],
 			]
 		);
+
+		wp_register_ability(
+			self::LIST_LINKS,
+			[
+				'label'               => __( 'List preview links', 'live-previews' ),
+				'description'         => __( 'Lists the active preview links for a post — their usage, expiry, and a short token hint — so an existing link can be reused instead of minting a duplicate. The shareable URL is not returned (only a hint), because the token itself is never stored.', 'live-previews' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'       => 'object',
+					'required'   => [ 'post_id' ],
+					'properties' => [
+						'post_id' => [
+							'type'        => 'integer',
+							'description' => __( 'ID of the post whose preview links to list.', 'live-previews' ),
+						],
+					],
+				],
+				'output_schema'       => [
+					'type'  => 'array',
+					'items' => [
+						'type'       => 'object',
+						'properties' => [
+							'id'         => [
+								'type'        => 'string',
+								'description' => __( 'Token hash identifying the link.', 'live-previews' ),
+							],
+							'token_hint' => [
+								'type'        => 'string',
+								'description' => __( 'Last few characters of the token, to recognise the link.', 'live-previews' ),
+							],
+							'created_at' => [ 'type' => 'integer' ],
+							'expires_at' => [ 'type' => 'integer' ],
+							'max_uses'   => [ 'type' => [ 'integer', 'null' ] ],
+							'use_count'  => [ 'type' => 'integer' ],
+							'exhausted'  => [ 'type' => 'boolean' ],
+						],
+					],
+				],
+				'execute_callback'    => [ $this, 'list_links' ],
+				'permission_callback' => [ $this, 'can_list_links' ],
+				'meta'                => [
+					'public'       => true,
+					'show_in_rest' => true,
+					'annotations'  => [
+						// Pure read: no state changes, and repeating it is harmless.
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					],
+				],
+			]
+		);
 	}
 
 	/**
@@ -148,5 +206,29 @@ final class PreviewAbilities {
 		$max_uses   = isset( $input['max_uses'] ) ? (int) $input['max_uses'] : null;
 
 		return $this->minter->mint( $post_id, $expiration, $max_uses, 'ability' );
+	}
+
+	/**
+	 * Listing is gated the same way as minting: you must be able to edit the post.
+	 *
+	 * @param mixed $input The ability input.
+	 */
+	public function can_list_links( $input ): bool {
+		$post_id = is_array( $input ) && isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+
+		return current_user_can( 'edit_post', $post_id );
+	}
+
+	/**
+	 * @param mixed $input The schema-validated ability input.
+	 * @return list<array{id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool}>
+	 */
+	public function list_links( $input ): array {
+		$post_id = is_array( $input ) && isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+
+		return PreviewLinkPresenter::present_live_links(
+			$this->service->list_for_post( $post_id ),
+			time()
+		);
 	}
 }

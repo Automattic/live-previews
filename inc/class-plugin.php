@@ -46,7 +46,7 @@ final class Plugin {
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.
-		( new PreviewAbilities( $minter ) )->register();
+		( new PreviewAbilities( $service, $minter ) )->register();
 
 		if ( ! Config::get_instance()->is_ready() ) {
 			// An incomplete runtime config must never fatal; surface a diagnostic.
