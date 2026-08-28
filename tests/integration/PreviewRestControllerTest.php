@@ -32,7 +32,7 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 			new AccessPolicy(),
 			new SystemClock()
 		);
-		( new PreviewRestController( $service ) )->register_routes();
+		( new PreviewRestController( $service, new PreviewLinkMinter( $service ) ) )->register_routes();
 	}
 
 	/**
@@ -84,6 +84,7 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertSame( 8 * HOUR_IN_SECONDS, $event['properties']['expiration'] );
 		static::assertTrue( $event['properties']['is_capped'] );
 		static::assertSame( 5, $event['properties']['max_uses'] );
+		static::assertSame( 'rest', $event['properties']['channel'], 'A REST-minted link is tagged with the rest channel.' );
 		static::assertArrayNotHasKey( 'url', $event['properties'] );
 		static::assertArrayNotHasKey( 'token', $event['properties'] );
 	}
