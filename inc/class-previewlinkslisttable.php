@@ -21,9 +21,8 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 	private PreviewLinkService $service;
 	private int $now;
-	private int $per_page;
 
-	public function __construct( PreviewLinkService $service, int $now, int $per_page ) {
+	public function __construct( PreviewLinkService $service, int $now ) {
 		parent::__construct(
 			[
 				'singular' => 'preview-link',
@@ -32,9 +31,8 @@ final class PreviewLinksListTable extends WP_List_Table {
 			]
 		);
 
-		$this->service  = $service;
-		$this->now      = $now;
-		$this->per_page = $per_page;
+		$this->service = $service;
+		$this->now     = $now;
 	}
 
 	/**
@@ -59,26 +57,31 @@ final class PreviewLinksListTable extends WP_List_Table {
 		return [ 'revoke' => esc_html__( 'Revoke', 'live-previews' ) ];
 	}
 
+	protected function get_default_primary_column_name(): string {
+		return 'post';
+	}
+
 	public function no_items(): void {
 		esc_html_e( 'No preview links have been created yet.', 'live-previews' );
 	}
 
 	public function prepare_items(): void {
-		$offset = ( $this->get_pagenum() - 1 ) * $this->per_page;
+		$per_page = $this->get_items_per_page( PreviewLinksAdminPage::PER_PAGE_OPTION, PreviewLinksAdminPage::DEFAULT_PER_PAGE );
+		$offset   = ( $this->get_pagenum() - 1 ) * $per_page;
 
-		$this->items = $this->service->page_of_links( $offset, $this->per_page );
+		$this->items = $this->service->page_of_links( $offset, $per_page );
 
 		$total = $this->service->count_links();
 
 		$this->set_pagination_args(
 			[
 				'total_items' => $total,
-				'per_page'    => $this->per_page,
-				'total_pages' => (int) ceil( $total / $this->per_page ),
+				'per_page'    => $per_page,
+				'total_pages' => (int) ceil( $total / $per_page ),
 			]
 		);
 
-		$this->_column_headers = [ $this->get_columns(), [], [] ];
+		$this->_column_headers = [ $this->get_columns(), get_hidden_columns( $this->screen ), [] ];
 	}
 
 	public function column_cb( $item ): string {

@@ -15,12 +15,19 @@ final class PreviewLinksAdminPage {
 	/** Menu slug; also the `page` query var. Referenced by the list table's row actions. */
 	public const SLUG = 'live-previews';
 
-	private const CAPABILITY = 'edit_others_posts';
+	/** Per-user "links per page" screen option; the `_page` suffix is core convention. */
+	public const PER_PAGE_OPTION = 'live_previews_links_per_page';
 
-	private const PER_PAGE = 20;
+	/** Rows per page until the screen option overrides it. */
+	public const DEFAULT_PER_PAGE = 20;
+
+	private const CAPABILITY = 'edit_others_posts';
 
 	private PreviewLinkService $service;
 	private Clock $clock;
+
+	/** Built lazily on the screen load, then reused when rendering the page. */
+	private ?PreviewLinksListTable $table = null;
 
 	public function __construct( PreviewLinkService $service, Clock $clock ) {
 		$this->service = $service;
@@ -29,6 +36,16 @@ final class PreviewLinksAdminPage {
 
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'add_menu' ] );
+
+		// Registered on init, not the page load: core saves screen options in
+		// wp-admin/admin.php before the load-{hook} action fires, and a custom
+		// per-page option is discarded unless this filter returns its value.
+		add_filter(
+			'set_screen_option_' . self::PER_PAGE_OPTION,
+			[ $this, 'save_per_page' ],
+			10,
+			3
+		);
 	}
 
 	public function add_menu(): void {
@@ -42,8 +59,10 @@ final class PreviewLinksAdminPage {
 		);
 
 		if ( '' !== $hook ) {
-			// Handle revoke actions before any output, so we can redirect cleanly.
+			// Handle revoke actions before any output, so we can redirect cleanly,
+			// then wire up the screen options and contextual help.
 			add_action( "load-{$hook}", [ $this, 'handle_actions' ] );
+			add_action( "load-{$hook}", [ $this, 'configure_screen' ] );
 		}
 	}
 
@@ -97,12 +116,7 @@ final class PreviewLinksAdminPage {
 			wp_die( esc_html__( 'You are not allowed to manage preview links.', 'live-previews' ) );
 		}
 
-		if ( ! class_exists( 'WP_List_Table' ) ) {
-			/** @psalm-suppress MissingFile */
-			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
-		}
-
-		$table = new PreviewLinksListTable( $this->service, $this->clock->now(), self::PER_PAGE );
+		$table = $this->table();
 		$table->prepare_items();
 
 		echo '<div class="wrap">';
@@ -182,6 +196,108 @@ final class PreviewLinksAdminPage {
 				)
 			)
 		);
+	}
+
+	/**
+	 * Register the per-page screen option, the hideable columns, and the help tabs
+	 * once the screen exists. Runs on the page load, after any revoke.
+	 */
+	public function configure_screen(): void {
+		$screen = get_current_screen();
+
+		if ( ! $screen instanceof \WP_Screen ) {
+			return;
+		}
+
+		add_screen_option(
+			'per_page',
+			[
+				'label'   => __( 'Links per page', 'live-previews' ),
+				'default' => self::DEFAULT_PER_PAGE,
+				'option'  => self::PER_PAGE_OPTION,
+			]
+		);
+
+		// Let WordPress render the column show/hide checkboxes in Screen Options.
+		add_filter( "manage_{$screen->id}_columns", [ $this, 'screen_columns' ] );
+
+		$this->add_help( $screen );
+	}
+
+	/**
+	 * The columns offered as show/hide checkboxes in Screen Options. WordPress
+	 * drops the checkbox column itself.
+	 *
+	 * @return array<string, string>
+	 */
+	public function screen_columns(): array {
+		return $this->table()->get_columns();
+	}
+
+	/**
+	 * Persist the "links per page" screen option. Core discards a custom per-page
+	 * option unless a filter returns its value.
+	 *
+	 * @param mixed  $_screen_option Incoming value; unused.
+	 * @param string $_option        Option name; unused.
+	 * @param mixed  $value          The submitted value.
+	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Signature is dictated by the set_screen_option filter.
+	public function save_per_page( mixed $_screen_option, string $_option, mixed $value ): int {
+		return is_scalar( $value ) ? min( 999, max( 1, (int) $value ) ) : self::DEFAULT_PER_PAGE;
+	}
+
+	private function add_help( \WP_Screen $screen ): void {
+		$screen->add_help_tab(
+			[
+				'id'      => 'live-previews-overview',
+				'title'   => __( 'Overview', 'live-previews' ),
+				'content' => '<p>' . esc_html__( 'This screen lists every preview link across the site, so you can see at a glance which drafts are shared, how far each link has been used, and when it expires. It is read-only apart from revoking, and is shown to editors because they can already view the drafts these links point at.', 'live-previews' ) . '</p>',
+			]
+		);
+
+		$reading  = '<p>' . esc_html__( 'The table identifies a link by the last four characters of its token and can revoke it, but it never shows or re-copies the shareable URL: only a hash of the token is stored, never the token itself. If a link is lost, revoke it and generate a fresh one from the post editor.', 'live-previews' ) . '</p>';
+		$reading .= '<p><strong>' . esc_html__( 'Status', 'live-previews' ) . '</strong></p><ul>';
+		$reading .= '<li>' . esc_html__( 'Active: the link works.', 'live-previews' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Expired: past its expiry time.', 'live-previews' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Exhausted: reached its limit on distinct viewers.', 'live-previews' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Revoked: switched off by hand.', 'live-previews' ) . '</li>';
+		$reading .= '</ul><p>' . esc_html__( 'Uses counts distinct viewers against the cap; an infinity sign means no cap.', 'live-previews' ) . '</p>';
+
+		$screen->add_help_tab(
+			[
+				'id'      => 'live-previews-reading',
+				'title'   => __( 'Reading a row', 'live-previews' ),
+				'content' => $reading,
+			]
+		);
+
+		$screen->add_help_tab(
+			[
+				'id'      => 'live-previews-revoking',
+				'title'   => __( 'Revoking', 'live-previews' ),
+				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>',
+			]
+		);
+
+		$screen->set_help_sidebar(
+			'<p><strong>' . esc_html__( 'For more information', 'live-previews' ) . '</strong></p>' .
+			'<p><a href="' . esc_url( 'https://docs.wpvip.com/' ) . '">' . esc_html__( 'WordPress VIP documentation', 'live-previews' ) . '</a></p>' .
+			'<p><a href="' . esc_url( 'mailto:support@wpvip.com' ) . '">' . esc_html__( 'Contact VIP support', 'live-previews' ) . '</a></p>'
+		);
+	}
+
+	private function table(): PreviewLinksListTable {
+		if ( null === $this->table ) {
+			if ( ! class_exists( 'WP_List_Table' ) ) {
+				/** @psalm-suppress MissingFile */
+				require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+			}
+
+			$this->table = new PreviewLinksListTable( $this->service, $this->clock->now() );
+		}
+
+		return $this->table;
 	}
 
 	private function page_url(): string {
