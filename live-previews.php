@@ -27,7 +27,7 @@ define( 'VIP_LIVE_PREVIEWS_LOADED', true );
 define( 'VIP_LIVE_PREVIEWS_VERSION', '1.0.0' );
 define( 'VIP_LIVE_PREVIEWS_FILE', __FILE__ );
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/inc/autoload.php';
 
 register_deactivation_hook( __FILE__, [ LinkGarbageCollector::class, 'unschedule' ] );
 
