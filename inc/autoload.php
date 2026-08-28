@@ -32,7 +32,10 @@ spl_autoload_register(
 		foreach ( [ 'class', 'interface' ] as $type ) {
 			$file = __DIR__ . "/{$type}-{$slug}.php";
 			if ( is_readable( $file ) ) {
-				require_once $file;
+				// The path is composed from this directory and a validated slug;
+				// the dynamic include is inherent to an autoloader.
+				/** @psalm-suppress UnresolvableInclude */
+				require_once $file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable
 				return;
 			}
 		}
