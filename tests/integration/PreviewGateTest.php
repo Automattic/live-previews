@@ -238,6 +238,45 @@ class PreviewGateTest extends WP_UnitTestCase {
 		$gate->maybe_render_notice();
 	}
 
+	public function test_a_filter_can_collapse_the_reason_to_a_generic_notice(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = Token::generate();
+		$this->repository->save(
+			new PreviewLink( $post_id, $token->hash(), time() - HOUR_IN_SECONDS, null, 1, time() - 2 * HOUR_IN_SECONDS )
+		);
+
+		// An operator who prefers not to name the reason turns disclosure off.
+		add_filter( 'live_previews_disclose_denial_reason', '__return_false' );
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		// The specific "expired" wording is withheld in favour of the generic one.
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/no longer available/i' );
+		$gate->maybe_render_notice();
+	}
+
+	public function test_the_filter_receives_the_reason_so_it_can_hide_only_some(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
+		$this->service->revoke( $post_id, $this->repository->all_for_post( $post_id )[0]->token_hash() );
+
+		// Reveal every reason except revocation, which the callback singles out
+		// using the reason passed alongside the default.
+		add_filter(
+			'live_previews_disclose_denial_reason',
+			static fn ( bool $disclose, string $reason ): bool => AccessDecision::REASON_REVOKED !== $reason,
+			10,
+			2
+		);
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/no longer available/i' );
+		$gate->maybe_render_notice();
+	}
+
 	public function test_an_unknown_token_shows_no_notice(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );

@@ -197,13 +197,35 @@ final class PreviewGate {
 			);
 		}
 
-		$messages = [
+		$generic = __( 'This preview link is no longer available.', 'live-previews' );
+
+		$specific = [
 			AccessDecision::REASON_EXPIRED   => __( 'This preview link has expired.', 'live-previews' ),
 			AccessDecision::REASON_REVOKED   => __( 'This preview link has been revoked.', 'live-previews' ),
 			AccessDecision::REASON_EXHAUSTED => __( 'This preview link has reached its viewing limit.', 'live-previews' ),
 		];
 
-		$message = $messages[ $this->denial_reason ] ?? __( 'This preview link is no longer available.', 'live-previews' );
+		/**
+		 * Filters whether the visitor is told *why* a preview link stopped working
+		 * (expired, revoked, or viewing limit reached), or sees a single generic
+		 * message instead.
+		 *
+		 * Naming the reason is safe: only a visitor already presenting a valid
+		 * token for this exact post reaches this page, so it is almost always a
+		 * genuine recipient whom the reason helps. The choice is therefore about
+		 * tone, not security. Return false to collapse every reason to one message;
+		 * the passed reason lets a callback hide only some (e.g. reveal expiry but
+		 * not revocation).
+		 *
+		 * @param bool   $disclose Whether to state the specific reason. Default true.
+		 * @param string $reason   Machine reason, one of AccessDecision::REASON_EXPIRED,
+		 *                         REASON_REVOKED, or REASON_EXHAUSTED.
+		 */
+		$disclose = (bool) apply_filters( 'live_previews_disclose_denial_reason', true, $this->denial_reason );
+
+		$message = $disclose
+			? ( $specific[ $this->denial_reason ] ?? $generic )
+			: $generic;
 
 		wp_die(
 			sprintf(
