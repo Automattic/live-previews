@@ -103,9 +103,13 @@ final class PreviewAbilities {
 				'execute_callback'    => [ $this, 'create_link' ],
 				'permission_callback' => [ $this, 'can_create_link' ],
 				'meta'                => [
-					// One flag exposes the ability to REST, MCP, and the AI Client.
-					'public'      => true,
-					'annotations' => [
+					// `public` (WP 7.1+) exposes the ability to MCP and the AI
+					// Client and seeds `show_in_rest`. On WP 6.9/7.0 that seeding
+					// does not exist, so set `show_in_rest` explicitly to keep REST
+					// exposure working across every supported version.
+					'public'       => true,
+					'show_in_rest' => true,
+					'annotations'  => [
 						// Writes a token row, but only ever adds — never removes or
 						// mutates existing state — and each call yields a new link.
 						'readonly'    => false,

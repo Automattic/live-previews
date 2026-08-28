@@ -38,8 +38,9 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 		static::assertInstanceOf( WP_Ability::class, $ability );
 		static::assertSame( PreviewAbilities::CATEGORY, $ability->get_category() );
 
-		// The single public flag is what exposes the ability to REST, MCP, and
-		// the AI Client; it must also seed show_in_rest.
+		// `public` (WP 7.1+) drives MCP and AI Client exposure; `show_in_rest` is
+		// set explicitly so REST exposure also works on WP 6.9/7.0, where `public`
+		// does not seed it.
 		static::assertTrue( $ability->get_meta_item( 'public' ) );
 		$meta = $ability->get_meta();
 		static::assertTrue( $meta['show_in_rest'] );
