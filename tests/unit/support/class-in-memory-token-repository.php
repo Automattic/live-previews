@@ -114,6 +114,30 @@ final class InMemoryTokenRepository implements TokenRepository {
 		return array_slice( $ids, 0, $limit );
 	}
 
+	public function page_of_links( int $offset, int $limit ): array {
+		$all = [];
+
+		foreach ( $this->links as $links ) {
+			foreach ( $links as $link ) {
+				$all[] = $link;
+			}
+		}
+
+		// The adapter returns newest first; the fake keeps insertion order, so
+		// reverse to approximate it.
+		return array_slice( array_reverse( $all ), $offset, $limit );
+	}
+
+	public function count_links(): int {
+		$count = 0;
+
+		foreach ( $this->links as $links ) {
+			$count += count( $links );
+		}
+
+		return $count;
+	}
+
 	/**
 	 * Arrange for a competing write to land just before the next add_viewer call.
 	 */
