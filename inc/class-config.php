@@ -7,19 +7,37 @@ namespace Automattic\LivePreviews;
  * as the VIP_LIVE_PREVIEWS_CONFIG PHP constant (a plain associative
  * array, defined before the plugin is loaded).
  *
+ * The constant carries no data today. Defining it at all is the signal that
+ * matters: it is how the platform says this integration is enabled for the
+ * site. An empty array is therefore a complete, valid configuration, and the
+ * fields below stay empty until the plugin actually needs something from the
+ * platform (an IP allowlist, say).
+ *
  * Missing or invalid required fields must never cause a fatal error: callers
  * check is_ready() and disable the affected behavior instead.
  */
 final class Config {
 	public const CONSTANT_NAME = 'VIP_LIVE_PREVIEWS_CONFIG';
 
-	public const REQUIRED_FIELDS = [ 'api_base_url', 'api_token' ];
+	/**
+	 * Fields the plugin cannot work without. Empty: nothing is required yet.
+	 *
+	 * Adding one here makes a config that omits it report as incomplete, so
+	 * declare it in `vip-manifest.yaml` at the same time — that is what puts the
+	 * field in front of the customer in the VIP Dashboard.
+	 *
+	 * @var list<string>
+	 */
+	public const REQUIRED_FIELDS = [];
 
 	/**
 	 * Keys whose values are secrets and must never be rendered in the admin UI
-	 * (or logs). Surface that a value is set without exposing it.
+	 * (or logs). Surface that a value is set without exposing it. Empty until a
+	 * secret is actually carried.
+	 *
+	 * @var list<string>
 	 */
-	public const SENSITIVE_FIELDS = [ 'api_token' ];
+	public const SENSITIVE_FIELDS = [];
 
 	/** @var self|null */
 	private static $instance;
@@ -71,6 +89,7 @@ final class Config {
 	public function missing_fields(): array {
 		$missing = [];
 
+		/** @var string $field */
 		foreach ( self::REQUIRED_FIELDS as $field ) {
 			if ( ! isset( $this->config[ $field ] )
 				|| ! is_string( $this->config[ $field ] )

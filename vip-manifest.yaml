@@ -32,18 +32,12 @@ runtime:
     scope: site
 
 runtime_config:
+  # Defining the constant is the whole signal: it tells the platform loader this
+  # integration is enabled for the site. Live Previews needs no data from the
+  # platform, so there is nothing for the customer to fill in — future values
+  # (an IP allowlist, say) get declared here and in Config::REQUIRED_FIELDS.
   constant_name: VIP_LIVE_PREVIEWS_CONFIG
-  fields:
-    - key: api_base_url
-      label: API base URL
-      type: url
-      required: true
-      help: Base URL for the vendor API.
-    - key: api_token
-      label: API token
-      type: secret
-      required: true
-      help: Token used to authenticate vendor API requests. Stored encrypted.
+  fields: []
 
 telemetry:
   # Single word, no underscores: the leading token is the Tracks source and must

@@ -56,25 +56,26 @@ class PluginTest extends WP_UnitTestCase {
 		static::assertFalse( method_exists( Plugin::class, 'wp_footer' ) );
 	}
 
-	public function test_config_notice_lists_missing_fields(): void {
-		$this->on_vip();
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
-		$this->set_config_singleton( new Config( [ 'api_base_url' => 'https://api.vendor.example' ] ) );
-
-		$actual = $this->render_config_notice();
-
-		static::assertStringContainsString( 'notice notice-warning', $actual );
-		static::assertStringContainsString( 'missing required fields: api_token', $actual );
-	}
-
-	public function test_config_notice_reports_undefined_constant(): void {
+	public function test_config_notice_reports_an_undefined_constant(): void {
 		$this->on_vip();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		$this->set_config_singleton( new Config( null ) );
 
 		$actual = $this->render_config_notice();
 
+		static::assertStringContainsString( 'notice notice-warning', $actual );
 		static::assertStringContainsString( 'the ' . Config::CONSTANT_NAME . ' constant is not defined', $actual );
+	}
+
+	/**
+	 * The constant carries no data, so defining it at all is a complete setup.
+	 */
+	public function test_no_notice_when_the_constant_is_an_empty_array(): void {
+		$this->on_vip();
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->set_config_singleton( new Config( [] ) );
+
+		static::assertSame( '', $this->render_config_notice() );
 	}
 
 	public function test_config_notice_hidden_from_non_admins(): void {

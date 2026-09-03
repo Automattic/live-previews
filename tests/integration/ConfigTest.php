@@ -11,28 +11,24 @@ use WP_UnitTestCase;
 class ConfigTest extends WP_UnitTestCase {
 	private const FIXTURES_DIR = __DIR__ . '/../../fixtures';
 
-	public function test_fully_configured_fixture(): void {
+	/**
+	 * The platform defines the constant to say "this integration is on", and
+	 * carries no data in it. An empty array is a complete configuration, not a
+	 * half-finished one.
+	 */
+	public function test_the_empty_constant_the_platform_defines_is_ready(): void {
 		$config = new Config( require self::FIXTURES_DIR . '/config-valid.php' );
 
 		static::assertTrue( $config->is_available() );
 		static::assertTrue( $config->is_ready() );
 		static::assertSame( [], $config->missing_fields() );
-		static::assertSame( 'https://api.vendor.example', $config->get( 'api_base_url' ) );
 	}
 
-	public function test_minimal_fixture_is_ready_and_unset_keys_fall_back(): void {
-		$config = new Config( require self::FIXTURES_DIR . '/config-minimal.php' );
+	public function test_unset_keys_fall_back_to_the_given_default(): void {
+		$config = new Config( require self::FIXTURES_DIR . '/config-valid.php' );
 
-		static::assertTrue( $config->is_ready() );
 		static::assertSame( 'fallback', $config->get( 'not_in_the_fixture', 'fallback' ) );
-	}
-
-	public function test_incomplete_fixture_degrades_gracefully(): void {
-		$config = new Config( require self::FIXTURES_DIR . '/config-incomplete.php' );
-
-		static::assertTrue( $config->is_available() );
-		static::assertFalse( $config->is_ready() );
-		static::assertSame( [ 'api_token' ], $config->missing_fields() );
+		static::assertNull( $config->get( 'not_in_the_fixture' ) );
 	}
 
 	public function test_invalid_fixture_is_not_available(): void {
@@ -40,46 +36,7 @@ class ConfigTest extends WP_UnitTestCase {
 
 		static::assertFalse( $config->is_available() );
 		static::assertFalse( $config->is_ready() );
-		static::assertSame( 'default', $config->get( 'api_base_url', 'default' ) );
-	}
-
-	public function test_empty_required_field_counts_as_missing(): void {
-		$config = new Config( [
-			'api_base_url' => '',
-			'api_token'    => 'mock-token',
-		] );
-
-		static::assertFalse( $config->is_ready() );
-		static::assertSame( [ 'api_base_url' ], $config->missing_fields() );
-	}
-
-	/**
-	 * A required field that is present but not a usable string must degrade,
-	 * not enable the integration. Guards against "required means merely set".
-	 *
-	 * @dataProvider provide_unusable_values
-	 * @param mixed $value
-	 */
-	public function test_unusable_required_field_counts_as_missing( $value ): void {
-		$config = new Config( [
-			'api_base_url' => 'https://api.vendor.example',
-			'api_token'    => $value,
-		] );
-
-		static::assertFalse( $config->is_ready() );
-		static::assertSame( [ 'api_token' ], $config->missing_fields() );
-	}
-
-	/**
-	 * @return array<string, array{0: mixed}>
-	 */
-	public function provide_unusable_values(): array {
-		return [
-			'boolean false' => [ false ],
-			'integer zero'  => [ 0 ],
-			'whitespace'    => [ '   ' ],
-			'empty array'   => [ [] ],
-		];
+		static::assertSame( 'default', $config->get( 'anything', 'default' ) );
 	}
 
 	public function test_undefined_constant_is_not_available(): void {
@@ -89,24 +46,34 @@ class ConfigTest extends WP_UnitTestCase {
 		static::assertFalse( $config->is_ready() );
 	}
 
+	/**
+	 * Values the platform may add later must survive the round trip, even though
+	 * nothing declares or requires them yet.
+	 */
+	public function test_it_reads_values_it_does_not_declare(): void {
+		$config = new Config( [ 'ip_allowlist' => [ '203.0.113.4' ] ] );
+
+		static::assertTrue( $config->is_ready() );
+		static::assertSame( [ '203.0.113.4' ], $config->get( 'ip_allowlist' ) );
+	}
+
 	public function test_singleton_reads_the_constant(): void {
 		// bootstrap.php defines the constant from the valid fixture.
 		static::assertTrue( Config::get_instance()->is_ready() );
 		static::assertSame( Config::get_instance(), Config::get_instance() );
 	}
 
-	public function test_for_display_masks_secrets_and_stringifies_values(): void {
+	public function test_for_display_stringifies_values(): void {
 		$config = new Config( [
-			'api_base_url' => 'https://api.vendor.example',
-			'api_token'    => 'super-secret-token',
-			'retries'      => 3,
+			'endpoint' => 'https://api.vendor.example',
+			'retries'  => 3,
+			'flags'    => [ 'a', 'b' ],
 		] );
 
 		$display = $config->for_display();
 
-		static::assertSame( 'https://api.vendor.example', $display['api_base_url'] );
+		static::assertSame( 'https://api.vendor.example', $display['endpoint'] );
 		static::assertSame( '3', $display['retries'] );
-		static::assertNotSame( 'super-secret-token', $display['api_token'] );
-		static::assertStringNotContainsString( 'super-secret-token', implode( '', $display ) );
+		static::assertSame( '["a","b"]', $display['flags'] );
 	}
 }

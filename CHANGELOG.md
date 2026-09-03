@@ -23,6 +23,7 @@ links that let a reviewer without a WordPress account view a draft.
 
 - Run cleanly on any WordPress host, not just VIP: the runtime-configuration notice and the VIP support links in contextual help now appear only on VIP-hosted sites, where they mean something. Everywhere else the plugin is silent about configuration it does not need, and contextual help points at the plugin's own support forum.
 - Confine the runtime-configuration notice to the plugin's own Preview Links screen. It previously appeared on every wp-admin page.
+- Treat an empty `VIP_LIVE_PREVIEWS_CONFIG` as a complete configuration. The plugin needs no data from the platform, so defining the constant is the whole signal that the integration is enabled; the notice now fires only when it is absent or unusable, and says so rather than asking for fields that do not exist.
 
 ### Removed
 

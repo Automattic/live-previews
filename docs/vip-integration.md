@@ -38,35 +38,27 @@ suite needs neither WordPress nor a database.
 
 Config constant: `VIP_LIVE_PREVIEWS_CONFIG`
 
-The VIP platform defines the constant (a plain PHP associative array) before
-the plugin loads. All reads go through `Automattic\LivePreviews\Config`.
+The VIP platform defines the constant (a plain PHP associative array) before the
+plugin loads. All reads go through `Automattic\LivePreviews\Config`.
 
-Required values:
-
-- `api_base_url`: Base URL for the vendor API.
-- `api_token`: Token used to authenticate vendor API requests.
-
-Example valid local mock config:
+**The constant carries no data.** Defining it *at all* is the signal that
+matters: it is how the platform says this integration is enabled for the site.
+Preview links need nothing from the platform, so an empty array is a complete,
+valid configuration:
 
 ```php
-define( 'VIP_LIVE_PREVIEWS_CONFIG', [
-	'api_base_url' => 'https://api.vendor.example',
-	'api_token'    => 'mock-token',
-] );
+define( 'VIP_LIVE_PREVIEWS_CONFIG', [] );
 ```
 
-Example incomplete config (setup in progress — a required value is missing):
+`Config::REQUIRED_FIELDS` is therefore empty. The validation around it stays,
+ready for the first value the plugin genuinely needs from the platform — an IP
+allowlist, say. Adding one means declaring it in both `Config::REQUIRED_FIELDS`
+and the `runtime_config` section of `vip-manifest.yaml`, the latter being what
+puts the field in front of the customer in the VIP Dashboard.
 
-```php
-define( 'VIP_LIVE_PREVIEWS_CONFIG', [
-	'api_base_url' => 'https://api.vendor.example',
-] );
-```
-
-With incomplete config the plugin **must not fatal**: it shows an admin notice
-naming the missing fields and carries on. Preview links need no external config,
-so the feature itself stays fully working. See
-[`fixtures/`](../fixtures/README.md) for all mocked states and where they are
+An absent or non-array constant **must not fatal**: the plugin shows an admin
+notice and carries on, and the preview feature itself keeps working regardless.
+See [`fixtures/`](../fixtures/README.md) for the mocked states and where they are
 wired in.
 
 That notice is confined to the plugin's own **Preview Links** admin screen, and

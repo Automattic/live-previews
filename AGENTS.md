@@ -74,15 +74,23 @@ pattern rather than introducing a new one.
 
 Read config only through `inc/class-config.php`. It reads the single
 VIP-provided constant, validates it, and exposes `is_ready()` /
-`missing_fields()` style accessors. New settings are added by:
+`missing_fields()` style accessors.
 
-1. declaring the field in `vip-manifest.yaml` (and its schema), and
-2. reading it through `Config` — never touching the constant directly elsewhere.
+**The constant currently carries no data.** Defining it is the signal that the
+integration is enabled for the site, so an empty array is a complete, valid
+config and `Config::REQUIRED_FIELDS` is empty. The validation around it stays,
+ready for the first value the plugin genuinely needs from the platform. New
+settings are added by:
+
+1. declaring the field in `vip-manifest.yaml`,
+2. adding it to `Config::REQUIRED_FIELDS` if the plugin cannot work without it
+   (and `SENSITIVE_FIELDS` if it is a secret), and
+3. reading it through `Config` — never touching the constant directly elsewhere.
 
 Whatever you add to `Config`, keep the graceful-degradation contract: with
 missing or invalid config the plugin disables the affected behaviour and shows an
-admin notice; it never fatals. Fixtures in `fixtures/` cover the valid,
-incomplete, and invalid states — wire new cases in there.
+admin notice; it never fatals. Fixtures in `fixtures/` cover the usable and
+unusable states — wire new cases in there.
 
 ### Running off VIP
 

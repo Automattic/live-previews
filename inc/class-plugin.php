@@ -90,28 +90,26 @@ final class Plugin {
 			return;
 		}
 
-		$config  = Config::get_instance();
-		$details = $config->is_available()
+		$config = Config::get_instance();
+
+		// Two different problems, so two different instructions. An absent
+		// constant means the integration is not switched on at all; a config
+		// missing a declared field means it is on but unfinished.
+		$message = $config->is_available()
 			? sprintf(
 				/* translators: %s: comma-separated list of missing config fields */
-				__( 'missing required fields: %s', 'live-previews' ),
+				__( 'Live Previews setup is incomplete — missing required fields: %s. Complete the configuration in the VIP Dashboard.', 'live-previews' ),
 				implode( ', ', $config->missing_fields() )
 			)
 			: sprintf(
 				/* translators: %s: name of the runtime config constant */
-				__( 'the %s constant is not defined', 'live-previews' ),
+				__( 'Live Previews is not enabled for this site: the %s constant is not defined. Enable the integration in the VIP Dashboard.', 'live-previews' ),
 				Config::CONSTANT_NAME
 			);
 
 		printf(
 			'<div class="notice notice-warning"><p>%s</p></div>',
-			esc_html(
-				sprintf(
-					/* translators: %s: reason the configuration is incomplete */
-					__( 'Live Previews setup is incomplete (%s). Complete the configuration in the VIP Dashboard.', 'live-previews' ),
-					$details
-				)
-			)
+			esc_html( $message )
 		);
 	}
 }
