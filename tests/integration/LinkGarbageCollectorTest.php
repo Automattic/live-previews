@@ -108,6 +108,22 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 		LinkGarbageCollector::unschedule();
 
 		static::assertFalse( wp_next_scheduled( LinkGarbageCollector::HOOK ) );
+		static::assertNull( LinkGarbageCollector::last_run() );
+	}
+
+	/**
+	 * Site Health reads this to tell "the sweep is scheduled" apart from "the
+	 * sweep is actually running".
+	 */
+	public function test_a_run_is_stamped_even_when_there_is_nothing_to_sweep(): void {
+		static::assertNull( LinkGarbageCollector::last_run() );
+
+		$before = time();
+		static::assertSame( 0, $this->collector->run() );
+
+		$last_run = LinkGarbageCollector::last_run();
+		static::assertNotNull( $last_run );
+		static::assertGreaterThanOrEqual( $before, $last_run );
 	}
 
 	/**

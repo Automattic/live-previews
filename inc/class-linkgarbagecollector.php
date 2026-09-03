@@ -21,6 +21,12 @@ final class LinkGarbageCollector {
 	/** Where the last sweep got to, so the next run resumes rather than restarts. */
 	private const CURSOR_OPTION = 'live_previews_gc_cursor';
 
+	/**
+	 * When a sweep last ran. Nothing in the sweep needs it; it exists so
+	 * {@see SiteHealth} can tell "scheduled" apart from "actually running".
+	 */
+	private const LAST_RUN_OPTION = 'live_previews_gc_last_run';
+
 	/** Posts examined per run. Small enough to finish well inside a cron slot. */
 	private const BATCH_SIZE = 100;
 
@@ -54,6 +60,20 @@ final class LinkGarbageCollector {
 	public static function unschedule( bool $_network_wide = false ): void {
 		wp_clear_scheduled_hook( self::HOOK );
 		delete_option( self::CURSOR_OPTION );
+		delete_option( self::LAST_RUN_OPTION );
+	}
+
+	/**
+	 * When a sweep last completed, or null if one never has.
+	 *
+	 * Read by {@see SiteHealth}: a scheduled event that never fires leaves this
+	 * behind, which is the difference between "set up correctly" and "working".
+	 */
+	public static function last_run(): ?int {
+		/** @var mixed $value */
+		$value = get_option( self::LAST_RUN_OPTION, null );
+
+		return is_numeric( $value ) ? (int) $value : null;
 	}
 
 	/**
@@ -62,6 +82,11 @@ final class LinkGarbageCollector {
 	 * @return int Links deleted in this batch.
 	 */
 	public function run(): int {
+		// Recorded first, and for every run rather than only productive ones: the
+		// question it answers is "did cron fire?", to which "yes, and there was
+		// nothing to delete" is still a yes.
+		update_option( self::LAST_RUN_OPTION, time(), false );
+
 		$cursor   = (int) get_option( self::CURSOR_OPTION, 0 );
 		$post_ids = $this->service->post_ids_with_links( $cursor, self::BATCH_SIZE );
 
