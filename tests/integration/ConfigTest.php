@@ -20,11 +20,11 @@ class ConfigTest extends WP_UnitTestCase {
 		static::assertSame( 'https://api.vendor.example', $config->get( 'api_base_url' ) );
 	}
 
-	public function test_minimal_fixture_is_ready_and_optional_fields_fall_back(): void {
+	public function test_minimal_fixture_is_ready_and_unset_keys_fall_back(): void {
 		$config = new Config( require self::FIXTURES_DIR . '/config-minimal.php' );
 
 		static::assertTrue( $config->is_ready() );
-		static::assertSame( 'fallback', $config->get( 'signature_label', 'fallback' ) );
+		static::assertSame( 'fallback', $config->get( 'not_in_the_fixture', 'fallback' ) );
 	}
 
 	public function test_incomplete_fixture_degrades_gracefully(): void {

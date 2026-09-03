@@ -2,9 +2,25 @@
 
 Live Previews generates safe-to-share, time- and usage-limited preview links so reviewers without a WordPress account can review a draft. It hardens the existing Preview Links.
 
-Live Previews is a WordPress VIP integration: it runs as a plugin, reads its runtime configuration from a single VIP-provided constant, and is registered with the VIP Integrations Center through the [handoff manifest](/docs/manifest.md). See [/docs/vip-integration.md](/docs/vip-integration.md) for the operational details, and check conformance with the [`vip-integration`](https://github.com/Automattic/integration) CLI (`npx @automattic/vip-integration validate`).
+Live Previews is an ordinary WordPress plugin and works on any host, with no configuration needed. It is also packaged as a WordPress VIP integration: on VIP it reads runtime configuration from a VIP-provided constant, records Tracks telemetry, and is registered with the VIP Integrations Center through the [handoff manifest](/docs/manifest.md). Each of those is gated behind a platform check (`Automattic\LivePreviews\Platform::is_vip()`) or a `class_exists()` guard, so off VIP they are simply absent — no notices, no fatals, and no VIP branding on the site. See [/docs/vip-integration.md](/docs/vip-integration.md) for the operational details, and check conformance with the [`vip-integration`](https://github.com/Automattic/integration) CLI (`npx @automattic/vip-integration validate`).
 
 The repository ships fully configured VIP local and cloud development environments along with unit tests, end-to-end tests, static analysis, and linting.
+
+## Hosting requirements
+
+The plugin itself needs nothing beyond WordPress 6.9 and PHP 8.2, and runs on any host. Two things about the hosting environment are worth checking.
+
+### Preview requests must not be served from a page cache
+
+A preview link carries its token in the query string (`?p=13&preview=true&lp-token=…`), and the gate sends `nocache_headers()`, `X-Robots-Tag: noindex`, and `Referrer-Policy: no-referrer` before rendering an unlocked draft. Any full-page cache in front of WordPress — Varnish, nginx FastCGI cache, LiteSpeed, a caching plugin, or a CDN — must respect those headers and must not serve a cached response for a URL carrying `lp-token`.
+
+Practically every cache already bypasses on `preview=true` and on unrecognised query strings, and VIP guarantees it. If a cache is misconfigured, the visible symptom is that per-viewer limits stop counting correctly, because the gate reads and sets a per-viewer cookie. The worse and quieter failure is a cached copy of an unlocked draft being served to somebody with no token at all, so it is worth confirming rather than assuming.
+
+### Scheduled events must run
+
+Expired and revoked links are kept for a grace period so the gate can tell a visitor *why* their link stopped working, then removed by a daily `live_previews_prune_links` event. If scheduled events never fire, nothing breaks for visitors — expiry is checked when a link is opened, not by the sweep — but the rows accumulate indefinitely.
+
+There is a **Preview link cleanup** check under Tools → Site Health that reports whether the sweep is scheduled and whether it has actually run recently, so a stalled sweep is visible rather than silent.
 
 ## Technology
 

@@ -52,18 +52,41 @@ final class Plugin {
 		// runner. Shares the same minter as the REST endpoint above.
 		( new PreviewAbilities( $service, $minter ) )->register();
 
-		if ( ! Config::get_instance()->is_ready() ) {
+		// Surfaces whether the cleanup sweep is actually running, which is the
+		// one part of the plugin that depends on cron firing.
+		( new SiteHealth( $clock ) )->register();
+
+		if ( $this->should_warn_about_config() ) {
 			// An incomplete runtime config must never fatal; surface a diagnostic.
 			// The preview feature itself needs no external config, so it stays on.
 			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
 		}
-
-		add_action( 'wp_footer', [ $this, 'wp_footer' ] );
 	}
 	// @codeCoverageIgnoreEnd
 
+	/**
+	 * Whether to warn about the runtime configuration.
+	 *
+	 * Only on VIP. The config constant is injected by the VIP Dashboard, so off
+	 * platform it is *expected* to be absent — there is no dashboard to go and
+	 * complete, and previews work without it. Warning everywhere would mean every
+	 * standalone site carrying a permanent notice about a setting it cannot set
+	 * and does not need.
+	 */
+	private function should_warn_about_config(): bool {
+		return Platform::is_vip() && ! Config::get_instance()->is_ready();
+	}
+
 	public function render_config_notice(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		$screen = get_current_screen();
+
+		// Only on our own screen. This is our housekeeping, not something to
+		// interrupt someone editing a post or updating plugins with.
+		if ( ! $screen instanceof \WP_Screen || PreviewLinksAdminPage::SCREEN_ID !== $screen->id ) {
+			return;
+		}
+
+		if ( ! $this->should_warn_about_config() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
@@ -90,10 +113,5 @@ final class Plugin {
 				)
 			)
 		);
-	}
-
-	public function wp_footer(): void {
-		$label = (string) Config::get_instance()->get( 'signature_label', 'Live Previews' );
-		printf( '<p class="live-previews-signature">%s</p>', esc_html( $label ) );
 	}
 }

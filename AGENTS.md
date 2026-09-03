@@ -80,9 +80,27 @@ VIP-provided constant, validates it, and exposes `is_ready()` /
 2. reading it through `Config` — never touching the constant directly elsewhere.
 
 Whatever you add to `Config`, keep the graceful-degradation contract: with
-missing or invalid config the plugin disables its features and shows an admin
-notice; it never fatals. Fixtures in `fixtures/` cover the valid, incomplete,
-and invalid states — wire new cases in there.
+missing or invalid config the plugin disables the affected behaviour and shows an
+admin notice; it never fatals. Fixtures in `fixtures/` cover the valid,
+incomplete, and invalid states — wire new cases in there.
+
+### Running off VIP
+
+The plugin has to work as an ordinary WordPress plugin on any host, not just on
+VIP, so anything platform-specific is gated:
+
+- **Platform-only surfaces** (the config notice, VIP support links) go behind
+  `Automattic\LivePreviews\Platform::is_vip()`. Off VIP the config constant is
+  *expected* to be absent, so warning about it there is noise, not a diagnostic.
+- **Platform-only APIs** (VIP Telemetry, the Abilities API) go behind
+  `class_exists()` / `function_exists()` and no-op when absent.
+- **Nothing renders on the front end, and nothing nags site-wide.** No footer
+  signature, no branding, and no `admin_notices` outside the plugin's own screen
+  (`PreviewLinksAdminPage::SCREEN_ID`).
+- Do not assume anything the platform guarantees but a standalone host does not
+  — object caching, cron actually firing, or preview requests bypassing a page
+  cache. Where the plugin depends on one, make the dependency observable
+  (see `inc/class-sitehealth.php`) or document it in the README.
 
 ### Telemetry
 

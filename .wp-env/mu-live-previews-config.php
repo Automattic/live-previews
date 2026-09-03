@@ -14,9 +14,8 @@ if ( ! defined( 'VIP_LIVE_PREVIEWS_CONFIG' ) ) {
 	define(
 		'VIP_LIVE_PREVIEWS_CONFIG',
 		[
-			'api_base_url'    => 'https://api.vendor.example',
-			'api_token'       => 'local-dev-token',
-			'signature_label' => 'Live Previews (wp-env)',
+			'api_base_url' => 'https://api.vendor.example',
+			'api_token'    => 'local-dev-token',
 		]
 	);
 }

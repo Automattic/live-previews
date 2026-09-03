@@ -1,7 +1,7 @@
 <?php
 /**
- * Minimal valid config: required fields only. Optional fields fall back to
- * the defaults passed to Config::get().
+ * Minimal valid config: required fields only. Any other key falls back to the
+ * default passed to Config::get().
  */
 
 return [

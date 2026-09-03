@@ -7,8 +7,8 @@ local development and automated testing.
 
 | Fixture | State it simulates |
 | --- | --- |
-| `config-valid.php` | Fully configured: all required and optional fields set. |
-| `config-minimal.php` | Required fields only; optional fields fall back to defaults. |
+| `config-valid.php` | Fully configured: every required field set. |
+| `config-minimal.php` | Required fields only; unknown keys fall back to the defaults passed to `Config::get()`. |
 | `config-incomplete.php` | Setup in progress: a required field is missing. The plugin must degrade gracefully, never fatal. |
 | `config-invalid.php` | Constant holds a non-array value. Exercises the `is_array()` guard. |
 | `config-local.php` | Optional, **git-ignored** local override — see below. |

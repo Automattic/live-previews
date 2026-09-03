@@ -15,6 +15,9 @@ final class PreviewLinksAdminPage {
 	/** Menu slug; also the `page` query var. Referenced by the list table's row actions. */
 	public const SLUG = 'live-previews';
 
+	/** Screen ID core derives from the slug, so other classes can spot this screen. */
+	public const SCREEN_ID = 'toplevel_page_' . self::SLUG;
+
 	/** Per-user "links per page" screen option; the `_page` suffix is core convention. */
 	public const PER_PAGE_OPTION = 'live_previews_links_per_page';
 
@@ -280,11 +283,34 @@ final class PreviewLinksAdminPage {
 			]
 		);
 
-		$screen->set_help_sidebar(
-			'<p><strong>' . esc_html__( 'For more information', 'live-previews' ) . '</strong></p>' .
-			'<p><a href="' . esc_url( 'https://docs.wpvip.com/' ) . '">' . esc_html__( 'WordPress VIP documentation', 'live-previews' ) . '</a></p>' .
-			'<p><a href="' . esc_url( 'mailto:support@wpvip.com' ) . '">' . esc_html__( 'Contact VIP support', 'live-previews' ) . '</a></p>'
-		);
+		$screen->set_help_sidebar( $this->help_sidebar() );
+	}
+
+	/**
+	 * Where to send someone who needs more help.
+	 *
+	 * VIP support can only help VIP customers, so pointing every install at it
+	 * would send most people to a desk that cannot answer them. On VIP the links
+	 * go to the platform's documentation and support; everywhere else, to the
+	 * plugin's own support forum.
+	 */
+	private function help_sidebar(): string {
+		$links = Platform::is_vip()
+			? [
+				'https://docs.wpvip.com/'  => __( 'WordPress VIP documentation', 'live-previews' ),
+				'mailto:support@wpvip.com' => __( 'Contact VIP support', 'live-previews' ),
+			]
+			: [
+				'https://wordpress.org/support/plugin/live-previews/' => __( 'Support forum', 'live-previews' ),
+			];
+
+		$sidebar = '<p><strong>' . esc_html__( 'For more information', 'live-previews' ) . '</strong></p>';
+
+		foreach ( $links as $url => $label ) {
+			$sidebar .= '<p><a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a></p>';
+		}
+
+		return $sidebar;
 	}
 
 	private function table(): PreviewLinksListTable {

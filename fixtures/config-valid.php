@@ -5,7 +5,6 @@
  */
 
 return [
-	'api_base_url'    => 'https://api.vendor.example',
-	'api_token'       => 'mock-token',
-	'signature_label' => 'Live Previews (dev)',
+	'api_base_url' => 'https://api.vendor.example',
+	'api_token'    => 'mock-token',
 ];

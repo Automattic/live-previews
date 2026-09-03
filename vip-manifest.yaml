@@ -44,11 +44,6 @@ runtime_config:
       type: secret
       required: true
       help: Token used to authenticate vendor API requests. Stored encrypted.
-    - key: signature_label
-      label: Signature label
-      type: string
-      required: false
-      help: Text rendered in the site footer signature.
 
 telemetry:
   # Single word, no underscores: the leading token is the Tracks source and must

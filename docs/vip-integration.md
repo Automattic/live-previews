@@ -3,7 +3,9 @@
 Live Previews is a WordPress VIP integration. It follows the patterns WordPress
 VIP requires of integrations: a single runtime config constant read through a
 central `Config` class, graceful degradation when required config is missing, and
-Tracks-only telemetry through the VIP Telemetry API.
+Tracks-only telemetry through the VIP Telemetry API. It is also an ordinary
+WordPress plugin that runs on any host: everything VIP-specific is gated, so off
+platform it is simply absent.
 
 ## Running and testing locally
 
@@ -44,17 +46,12 @@ Required values:
 - `api_base_url`: Base URL for the vendor API.
 - `api_token`: Token used to authenticate vendor API requests.
 
-Optional values:
-
-- `signature_label`: Text rendered in the site footer signature.
-
 Example valid local mock config:
 
 ```php
 define( 'VIP_LIVE_PREVIEWS_CONFIG', [
-	'api_base_url'    => 'https://api.vendor.example',
-	'api_token'       => 'mock-token',
-	'signature_label' => 'Live Previews (dev)',
+	'api_base_url' => 'https://api.vendor.example',
+	'api_token'    => 'mock-token',
 ] );
 ```
 
@@ -66,10 +63,18 @@ define( 'VIP_LIVE_PREVIEWS_CONFIG', [
 ] );
 ```
 
-With incomplete config the plugin **must not fatal**: it disables its REST API
-endpoints and shows an admin notice naming the missing fields. See
+With incomplete config the plugin **must not fatal**: it shows an admin notice
+naming the missing fields and carries on. Preview links need no external config,
+so the feature itself stays fully working. See
 [`fixtures/`](../fixtures/README.md) for all mocked states and where they are
 wired in.
+
+That notice is confined to the plugin's own **Preview Links** admin screen, and
+shown **only on VIP** (`Automattic\LivePreviews\Platform::is_vip()`, which looks
+for `VIP_GO_APP_ENVIRONMENT` or `WPCOM_IS_VIP_ENV`). Off platform the constant is
+expected to be absent — there is no VIP Dashboard to complete — so warning about
+it would be permanent noise on a self-hosted site. The same check decides whether
+contextual help links to VIP support or to the plugin's support forum.
 
 ## Telemetry
 

@@ -17,6 +17,16 @@ links that let a reviewer without a WordPress account view a draft.
 - Limit a link by the number of distinct viewers, including one-time and unlimited links; crawler and unfurler requests never spend a view. ([#11](https://github.com/Automattic/live-previews/pull/11))
 - Manage a post's preview links from the editor — see each link's usage and time remaining, identify it by a token hint, and revoke it. ([#12](https://github.com/Automattic/live-previews/pull/12), [#17](https://github.com/Automattic/live-previews/pull/17))
 - Show a friendly notice when a link has expired, been revoked, or been exhausted, while unknown links stay a plain 404 so drafts cannot be enumerated. ([#15](https://github.com/Automattic/live-previews/pull/15))
+- Report whether the cleanup sweep for expired links is scheduled and actually running, as a Site Health check under Tools → Site Health.
+
+### Changed
+
+- Run cleanly on any WordPress host, not just VIP: the runtime-configuration notice and the VIP support links in contextual help now appear only on VIP-hosted sites, where they mean something. Everywhere else the plugin is silent about configuration it does not need, and contextual help points at the plugin's own support forum.
+- Confine the runtime-configuration notice to the plugin's own Preview Links screen. It previously appeared on every wp-admin page.
+
+### Removed
+
+- The signature line the plugin printed in the site footer, and the `signature_label` configuration field that fed it. The plugin now renders nothing on the front end apart from the previewed post itself.
 
 ### Security
 
