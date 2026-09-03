@@ -23,6 +23,11 @@ class SiteHealthTest extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 
+		// The plugin schedules the sweep when it loads, so the test suite starts
+		// with one already on the books. Clear it so each case sets up the cron
+		// state it actually means to assert against.
+		LinkGarbageCollector::unschedule();
+
 		$this->health = new SiteHealth( new SystemClock() );
 	}
 
