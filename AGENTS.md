@@ -23,6 +23,7 @@ validate with `vip-integration validate` before shipping.
 | `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
 | `inc/`                                            | Runtime code (autoloaded via `inc/autoload.php`). `class-config.php`, `class-telemetry.php`, REST handlers. |
 | `src/`                                            | Block-editor JavaScript, compiled into `build/` by `npm run build`.                                        |
+| `languages/`                                      | Translation catalogues. Regenerate the POT with `composer i18n` after changing any translatable string.    |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
 | `tests/unit/`, `tests/integration/`, `tests/e2e/` | PHPUnit unit (pure PHP) and integration (boot WordPress) tests, plus Playwright e2e.                       |
 | `vip-manifest.yaml`                               | The handoff manifest VIP registers the integration from.                                                   |
@@ -169,6 +170,7 @@ composer test:e2e        # Playwright only
 composer phpcs          # WordPress VIP coding standards
 composer phpcbf         # auto-fix what PHPCS can
 composer psalm          # static analysis
+composer i18n           # regenerate languages/ (needs WP-CLI and a current `npm run build`)
 ```
 
 ### Validate the integration

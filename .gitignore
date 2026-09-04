@@ -14,3 +14,7 @@ Thumbs.db
 
 # Local runtime-config override (see fixtures/README.md)
 fixtures/config-local.php
+
+# Local release-ZIP dry runs (see docs/vip-integration.md).
+/dist/
+/*.zip

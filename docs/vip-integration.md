@@ -32,6 +32,7 @@ suite needs neither WordPress nor a database.
 | Install Node dependencies | `npm ci`                                                                                                       |
 | Build editor assets       | `npm run build` (compiles the block-editor script from `src/` into `build/`)                                   |
 | Tests                     | `composer test`                                                                                                |
+| Regenerate translations   | `composer i18n` (needs WP-CLI, and a current `npm run build`)                                                  |
 | Integration validation    | `npx @automattic/vip-integration validate` (the external conformance checker — see [manifest.md](manifest.md)) |
 
 ## Runtime Config
@@ -116,3 +117,48 @@ addresses, or customer credentials in event properties.
 | Name                            | Type   | Trigger                              | Properties                                             | Notes                                             |
 | ------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
 | `livepreviews_link_created` | Tracks | A preview link is minted, via REST or the Abilities API. | `expiration`, `max_uses` (null = unlimited), `channel` (`rest` or `ability`), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
+
+## Translations
+
+Translations ship inside the plugin, in `languages/`, rather than coming from
+translate.wordpress.org. Two consequences follow, and both are easy to undo by
+accident:
+
+- `Plugin::init()` calls `load_plugin_textdomain()`. Without it WordPress only
+  looks in `wp-content/languages/plugins/` and the bundled catalogues are
+  ignored.
+- `EditorAssets` passes the plugin's `languages/` directory as the third
+  argument to `wp_set_script_translations()`, for the same reason.
+
+`composer i18n` regenerates `languages/live-previews.pot` and splits any
+translated `.po` files into the JSON catalogues the editor script loads. It
+scans `build/`, not `src/`: WordPress derives each JSON filename from a hash of
+the *enqueued* script path, so the POT references have to point at
+`build/index.js`. Run `npm run build` first, or the POT will describe a stale
+script.
+
+## Cutting a release
+
+`.github/workflows/release.yml` runs on any pushed tag, wherever that tag lives,
+and publishes a GitHub Release with a ready-to-install ZIP attached. A tag
+containing a hyphen (`1.0.0-RC1`, `1.1.0-rc.2`) is published as a pre-release,
+so internal test builds can be cut from a `release/*` branch without touching
+`main`.
+
+1. Branch from `develop`: `git checkout -b release/1.0.0-RC1`.
+2. Update `CHANGELOG.md` — the workflow uses the entry matching the tag as the
+   release notes, and falls back to auto-generated notes if it finds none.
+3. Bump the version in all four places: the `Version:` header and the
+   `VIP_LIVE_PREVIEWS_VERSION` constant in `live-previews.php`, `package.json`,
+   and `release.plugin_version` in `vip-manifest.yaml`. The workflow fails the
+   release if the first two disagree with the tag.
+4. Run `npm run build` and `composer i18n`, and commit the results.
+5. Push the branch, then tag its head: `git tag -s 1.0.0-RC1 -m "1.0.0-RC1"`
+   and `git push origin 1.0.0-RC1`.
+
+What ends up in the ZIP is controlled by `.distignore`: `live-previews.php`,
+`inc/`, `build/`, `languages/`, `vip-manifest.yaml`, `README.md`, and
+`CHANGELOG.md`, unpacked under a single `live-previews/` directory. There is no
+`vendor/` — `inc/autoload.php` resolves the plugin's own classes, and there are
+no runtime Composer dependencies. **Add a new development-only file to
+`.distignore` when you add it to the repo**, or it ships.

@@ -5,6 +5,7 @@
 | `live-previews.php`  | Plugin entry file: header, guards, constants, autoloader, start. Kept intentionally small.    |
 | `inc/`                     | The integration's WordPress runtime code (autoloaded at runtime by `inc/autoload.php`).       |
 | `src/`                     | Block-editor JavaScript, compiled into `build/` by `npm run build`.                           |
+| `languages/`               | Translation catalogues shipped with the plugin (regenerate with `composer i18n`).             |
 | `fixtures/`                | Mock runtime configs for local development and tests (see `fixtures/README.md`).              |
 | `tests/unit/`              | Fast PHPUnit unit tests (pure PHP, no WordPress; run through `composer test:unit`).           |
 | `tests/integration/`       | PHPUnit integration tests (boot WordPress; run through `composer test:integration`).          |
@@ -15,4 +16,5 @@
 | `AGENTS.md`                | Orientation for AI coding agents working in this repo.                                        |
 | `.wpvip/`                  | VIP local development environment config and plugin loader.                                   |
 | `.devcontainer/`           | GitHub Codespaces configuration.                                                              |
-| `.github/workflows/`       | CI: unit tests, integration tests, e2e, linting, static analysis, CodeQL, dependency review.  |
+| `.github/workflows/`       | CI: unit tests, integration tests, e2e, linting, static analysis, CodeQL, dependency review, and the tagged release build. |
+| `.distignore`              | What to leave out of the release ZIP (see "Cutting a release" in `docs/vip-integration.md`). |
