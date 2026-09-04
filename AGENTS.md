@@ -9,8 +9,9 @@ matches your task.
 **Live Previews**: a WordPress VIP integration that generates safe-to-share, time-
 and usage-limited preview links so reviewers without a WordPress account can
 review a draft. It runs as a WordPress plugin, is registered with the VIP
-Integration Center through `vip-manifest.yaml`, and reads its settings from a
-single VIP-provided config constant.
+Integration Center through `vip-manifest.yaml`, and reads its optional settings
+from a single VIP-provided config constant. It also runs as an ordinary plugin on
+any host.
 
 Write runtime code under `inc/`, keep `vip-manifest.yaml` in sync with it, and
 validate with `vip-integration validate` before shipping.
@@ -36,8 +37,9 @@ validate with `vip-integration validate` before shipping.
 - **One config constant.** All runtime config comes from a single VIP-defined
   constant read through `inc/class-config.php`. Never read `$_ENV`, hardcode
   secrets, or add a second config source.
-- **Degrade, never fatal.** Missing or invalid config must disable features and
-  surface an admin notice — never a fatal. There are fixtures for this.
+- **Degrade, never fatal.** Missing or unusable config must disable the affected
+  behaviour or fall back to a default — never a fatal. There are fixtures for
+  each state.
 - **Tracks-only telemetry.** Telemetry goes through `inc/class-telemetry.php`
   (VIP Tracks API, `class_exists`-guarded). No Stats/Pixel. Never put secrets,
   raw content, emails, or credentials in event properties.
@@ -74,15 +76,44 @@ pattern rather than introducing a new one.
 
 Read config only through `inc/class-config.php`. It reads the single
 VIP-provided constant, validates it, and exposes `is_ready()` /
-`missing_fields()` style accessors. New settings are added by:
+`missing_fields()` style accessors.
 
-1. declaring the field in `vip-manifest.yaml` (and its schema), and
-2. reading it through `Config` — never touching the constant directly elsewhere.
+**Nothing in the constant is required.** Defining it is the signal that the
+integration is enabled for the site, so an empty array is a complete, valid
+config and `Config::REQUIRED_FIELDS` is empty. Everything the constant can carry
+is optional and falls back to a built-in default. New settings are added by:
 
-Whatever you add to `Config`, keep the graceful-degradation contract: with
-missing or invalid config the plugin disables its features and shows an admin
-notice; it never fatals. Fixtures in `fixtures/` cover the valid, incomplete,
-and invalid states — wire new cases in there.
+1. declaring the field in `vip-manifest.yaml` (the schema demands at least one,
+   so there is always one there),
+2. adding it to `Config::REQUIRED_FIELDS` if the plugin genuinely cannot work
+   without it (and `SENSITIVE_FIELDS` if it is a secret), and
+3. reading it through `Config` — never touching the constant directly elsewhere.
+
+**Never declare a field nothing reads.** A field in the manifest becomes a box in
+front of a VIP customer; if no code reads it, that box is a lie.
+
+Keep the graceful-degradation contract: missing or invalid config disables the
+affected behaviour or falls back to a default; it never fatals. Note there is no
+admin notice for absent config — on VIP, enabling the integration is what both
+loads the plugin and defines the constant, so a running plugin has one by
+definition. Fixtures in `fixtures/` cover the usable and unusable states.
+
+### Running off VIP
+
+The plugin has to work as an ordinary WordPress plugin on any host, not just on
+VIP, so anything platform-specific is gated:
+
+- **Platform-only surfaces** (the VIP support links in contextual help) go behind
+  `Automattic\LivePreviews\Platform::is_vip()`.
+- **Platform-only APIs** (VIP Telemetry, the Abilities API) go behind
+  `class_exists()` / `function_exists()` and no-op when absent.
+- **Nothing renders on the front end, and nothing nags.** No footer signature, no
+  branding, and no `admin_notices` at all today. Anything the plugin needs to say
+  belongs on its own screen (`PreviewLinksAdminPage::SCREEN_ID`).
+- Do not assume anything the platform guarantees but a standalone host does not
+  — object caching, cron actually firing, or preview requests bypassing a page
+  cache. Where the plugin depends on one, make the dependency observable
+  (see `inc/class-sitehealth.php`) or document it in the README.
 
 ### Telemetry
 

@@ -1,0 +1,87 @@
+<?php
+
+declare(strict_types = 1);
+
+namespace Automattic\LivePreviews;
+
+use WP_Screen;
+use WP_UnitTestCase;
+
+/**
+ * The contextual help sidebar, which points somewhere different depending on
+ * whether the site is VIP-hosted.
+ *
+ * @covers \Automattic\LivePreviews\PreviewLinksAdminPage
+ */
+class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
+	private PreviewLinksAdminPage $page;
+
+	public static function set_up_before_class(): void {
+		parent::set_up_before_class();
+
+		// Screen options and contextual help live in wp-admin, which the test
+		// bootstrap does not load.
+		require_once ABSPATH . 'wp-admin/includes/admin.php';
+	}
+
+	public function set_up(): void {
+		parent::set_up();
+
+		$this->page = new PreviewLinksAdminPage(
+			new PreviewLinkService( new PostMetaTokenRepository(), new AccessPolicy(), new SystemClock() ),
+			new SystemClock()
+		);
+	}
+
+	public function tear_down(): void {
+		remove_all_filters( 'live_previews_is_vip_platform' );
+		set_current_screen( 'front' );
+		parent::tear_down();
+	}
+
+	public function test_it_links_to_vip_support_on_vip(): void {
+		add_filter( 'live_previews_is_vip_platform', '__return_true' );
+
+		$sidebar = $this->sidebar();
+
+		static::assertStringContainsString( 'docs.wpvip.com', $sidebar );
+		static::assertStringContainsString( 'support@wpvip.com', $sidebar );
+	}
+
+	/**
+	 * VIP support cannot help a self-hosted site, so pointing one at it would
+	 * send people to a desk that has no way to answer them.
+	 */
+	public function test_it_links_to_the_plugin_support_forum_off_vip(): void {
+		add_filter( 'live_previews_is_vip_platform', '__return_false' );
+
+		$sidebar = $this->sidebar();
+
+		static::assertStringNotContainsString( 'wpvip.com', $sidebar );
+		static::assertStringContainsString( 'wordpress.org/support/plugin/live-previews', $sidebar );
+	}
+
+	public function test_the_help_tabs_are_added_regardless_of_platform(): void {
+		add_filter( 'live_previews_is_vip_platform', '__return_false' );
+
+		$this->configure_screen();
+		$screen = get_current_screen();
+
+		static::assertInstanceOf( WP_Screen::class, $screen );
+		static::assertNotEmpty( $screen->get_help_tabs() );
+	}
+
+	private function sidebar(): string {
+		$this->configure_screen();
+		$screen = get_current_screen();
+
+		static::assertInstanceOf( WP_Screen::class, $screen );
+
+		return $screen->get_help_sidebar();
+	}
+
+	private function configure_screen(): void {
+		set_current_screen( 'toplevel_page_' . PreviewLinksAdminPage::SLUG );
+		$this->page->configure_screen();
+	}
+}

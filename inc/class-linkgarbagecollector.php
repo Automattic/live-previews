@@ -21,6 +21,12 @@ final class LinkGarbageCollector {
 	/** Where the last sweep got to, so the next run resumes rather than restarts. */
 	private const CURSOR_OPTION = 'live_previews_gc_cursor';
 
+	/**
+	 * When a sweep last ran. Nothing in the sweep needs it; it exists so
+	 * {@see SiteHealth} can tell "scheduled" apart from "actually running".
+	 */
+	private const LAST_RUN_OPTION = 'live_previews_gc_last_run';
+
 	/** Posts examined per run. Small enough to finish well inside a cron slot. */
 	private const BATCH_SIZE = 100;
 
@@ -54,6 +60,20 @@ final class LinkGarbageCollector {
 	public static function unschedule( bool $_network_wide = false ): void {
 		wp_clear_scheduled_hook( self::HOOK );
 		delete_option( self::CURSOR_OPTION );
+		delete_option( self::LAST_RUN_OPTION );
+	}
+
+	/**
+	 * When a sweep last completed, or null if one never has.
+	 *
+	 * Read by {@see SiteHealth}: a scheduled event that never fires leaves this
+	 * behind, which is the difference between "set up correctly" and "working".
+	 */
+	public static function last_run(): ?int {
+		/** @var mixed $value */
+		$value = get_option( self::LAST_RUN_OPTION, null );
+
+		return is_numeric( $value ) ? (int) $value : null;
 	}
 
 	/**
@@ -62,6 +82,11 @@ final class LinkGarbageCollector {
 	 * @return int Links deleted in this batch.
 	 */
 	public function run(): int {
+		// Recorded first, and for every run rather than only productive ones: the
+		// question it answers is "did cron fire?", to which "yes, and there was
+		// nothing to delete" is still a yes.
+		update_option( self::LAST_RUN_OPTION, time(), false );
+
 		$cursor   = (int) get_option( self::CURSOR_OPTION, 0 );
 		$post_ids = $this->service->post_ids_with_links( $cursor, self::BATCH_SIZE );
 
@@ -96,10 +121,27 @@ final class LinkGarbageCollector {
 		 * garbage collector deletes it. Until then the gate can still tell a
 		 * visitor why their link stopped working.
 		 *
+		 * A value injected by the platform seeds the default, so a site can set
+		 * this without shipping code; the filter still has the last word.
+		 *
 		 * @param int $grace_seconds Retention period in seconds (21 days).
 		 */
-		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', self::DEFAULT_GRACE );
+		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', $this->configured_grace_period() );
 
 		return max( 0, $grace );
+	}
+
+	/**
+	 * The retention period the platform config asks for, or the built-in default
+	 * when it says nothing usable. A nonsensical value (zero, negative, a string)
+	 * falls back rather than silently deleting links the moment they expire.
+	 */
+	private function configured_grace_period(): int {
+		/** @var mixed $configured */
+		$configured = Config::get_instance()->get( 'dead_link_grace_period' );
+
+		return is_numeric( $configured ) && (int) $configured > 0
+			? (int) $configured
+			: self::DEFAULT_GRACE;
 	}
 }

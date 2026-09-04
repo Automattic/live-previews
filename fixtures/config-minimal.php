@@ -1,10 +1,10 @@
 <?php
 /**
- * Minimal valid config: required fields only. Optional fields fall back to
- * the defaults passed to Config::get().
+ * Minimal valid config: the constant defined, and nothing in it.
+ *
+ * This is the ordinary state. Defining the constant is how the platform says
+ * the integration is enabled for the site; every value it can carry is
+ * optional, so each one falls back to its built-in default.
  */
 
-return [
-	'api_base_url' => 'https://api.vendor.example',
-	'api_token'    => 'mock-token',
-];
+return [];

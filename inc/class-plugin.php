@@ -2,6 +2,15 @@
 
 namespace Automattic\LivePreviews;
 
+/**
+ * Composition root: assembles the object graph and registers its hooks.
+ *
+ * Nothing here reads {@see Config}. The runtime config constant carries no data
+ * yet, and on VIP its presence is what enables the integration in the first
+ * place — so a plugin that is running has, by definition, a config that is
+ * present. Config stays as the reader for the first value the platform does
+ * send; there is simply nothing to read today.
+ */
 final class Plugin {
 	/** @var self|null */
 	private static $instance;
@@ -52,48 +61,9 @@ final class Plugin {
 		// runner. Shares the same minter as the REST endpoint above.
 		( new PreviewAbilities( $service, $minter ) )->register();
 
-		if ( ! Config::get_instance()->is_ready() ) {
-			// An incomplete runtime config must never fatal; surface a diagnostic.
-			// The preview feature itself needs no external config, so it stays on.
-			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
-		}
-
-		add_action( 'wp_footer', [ $this, 'wp_footer' ] );
+		// Surfaces whether the cleanup sweep is actually running, which is the
+		// one part of the plugin that depends on cron firing.
+		( new SiteHealth( $clock ) )->register();
 	}
 	// @codeCoverageIgnoreEnd
-
-	public function render_config_notice(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		$config  = Config::get_instance();
-		$details = $config->is_available()
-			? sprintf(
-				/* translators: %s: comma-separated list of missing config fields */
-				__( 'missing required fields: %s', 'live-previews' ),
-				implode( ', ', $config->missing_fields() )
-			)
-			: sprintf(
-				/* translators: %s: name of the runtime config constant */
-				__( 'the %s constant is not defined', 'live-previews' ),
-				Config::CONSTANT_NAME
-			);
-
-		printf(
-			'<div class="notice notice-warning"><p>%s</p></div>',
-			esc_html(
-				sprintf(
-					/* translators: %s: reason the configuration is incomplete */
-					__( 'Live Previews setup is incomplete (%s). Complete the configuration in the VIP Dashboard.', 'live-previews' ),
-					$details
-				)
-			)
-		);
-	}
-
-	public function wp_footer(): void {
-		$label = (string) Config::get_instance()->get( 'signature_label', 'Live Previews' );
-		printf( '<p class="live-previews-signature">%s</p>', esc_html( $label ) );
-	}
 }

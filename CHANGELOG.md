@@ -17,6 +17,18 @@ links that let a reviewer without a WordPress account view a draft.
 - Limit a link by the number of distinct viewers, including one-time and unlimited links; crawler and unfurler requests never spend a view. ([#11](https://github.com/Automattic/live-previews/pull/11))
 - Manage a post's preview links from the editor — see each link's usage and time remaining, identify it by a token hint, and revoke it. ([#12](https://github.com/Automattic/live-previews/pull/12), [#17](https://github.com/Automattic/live-previews/pull/17))
 - Show a friendly notice when a link has expired, been revoked, or been exhausted, while unknown links stay a plain 404 so drafts cannot be enumerated. ([#15](https://github.com/Automattic/live-previews/pull/15))
+- Report whether the cleanup sweep for expired links is scheduled and actually running, as a Site Health check under Tools → Site Health.
+
+### Changed
+
+- Run cleanly on any WordPress host, not just VIP: the VIP support links in contextual help now appear only on VIP-hosted sites, where VIP support can actually answer, and point at the plugin's own support forum everywhere else.
+- Remove the runtime-configuration admin notice, which previously appeared on every wp-admin page. It could never fire: on VIP, enabling the integration is what both loads the plugin and defines the constant, so a running plugin always has a configuration.
+- Treat an empty `VIP_LIVE_PREVIEWS_CONFIG` as a complete configuration. The plugin needs no data from the platform, so defining the constant is the whole signal that the integration is enabled, and the credential fields it previously demanded — which no code read — are gone.
+- Allow the expired-link retention period to be set from the VIP Dashboard, through a new optional `dead_link_grace_period` config value. It falls back to the 21-day default when absent or unusable — a field left blank in the Dashboard does not mean "delete links the moment they expire" — and the `live_previews_dead_link_grace_period` filter still overrides it.
+
+### Removed
+
+- The signature line the plugin printed in the site footer, and the `signature_label` configuration field that fed it. The plugin now renders nothing on the front end apart from the previewed post itself.
 
 ### Security
 
