@@ -22,8 +22,9 @@ links that let a reviewer without a WordPress account view a draft.
 ### Changed
 
 - Run cleanly on any WordPress host, not just VIP: the runtime-configuration notice and the VIP support links in contextual help now appear only on VIP-hosted sites, where they mean something. Everywhere else the plugin is silent about configuration it does not need, and contextual help points at the plugin's own support forum.
-- Confine the runtime-configuration notice to the plugin's own Preview Links screen. It previously appeared on every wp-admin page.
-- Treat an empty `VIP_LIVE_PREVIEWS_CONFIG` as a complete configuration. The plugin needs no data from the platform, so defining the constant is the whole signal that the integration is enabled; the notice now fires only when it is absent or unusable, and says so rather than asking for fields that do not exist.
+- Remove the runtime-configuration admin notice, which previously appeared on every wp-admin page. It could never fire: on VIP, enabling the integration is what both loads the plugin and defines the constant, so a running plugin always has a configuration.
+- Treat an empty `VIP_LIVE_PREVIEWS_CONFIG` as a complete configuration. The plugin needs no data from the platform, so defining the constant is the whole signal that the integration is enabled, and the credential fields it previously demanded — which no code read — are gone.
+- Allow the expired-link retention period to be set from the VIP Dashboard, through a new optional `dead_link_grace_period` config value. The `live_previews_dead_link_grace_period` filter still overrides it.
 
 ### Removed
 

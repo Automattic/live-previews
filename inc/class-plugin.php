@@ -2,6 +2,15 @@
 
 namespace Automattic\LivePreviews;
 
+/**
+ * Composition root: assembles the object graph and registers its hooks.
+ *
+ * Nothing here reads {@see Config}. The runtime config constant carries no data
+ * yet, and on VIP its presence is what enables the integration in the first
+ * place — so a plugin that is running has, by definition, a config that is
+ * present. Config stays as the reader for the first value the platform does
+ * send; there is simply nothing to read today.
+ */
 final class Plugin {
 	/** @var self|null */
 	private static $instance;
@@ -55,61 +64,6 @@ final class Plugin {
 		// Surfaces whether the cleanup sweep is actually running, which is the
 		// one part of the plugin that depends on cron firing.
 		( new SiteHealth( $clock ) )->register();
-
-		if ( $this->should_warn_about_config() ) {
-			// An incomplete runtime config must never fatal; surface a diagnostic.
-			// The preview feature itself needs no external config, so it stays on.
-			add_action( 'admin_notices', [ $this, 'render_config_notice' ] );
-		}
 	}
 	// @codeCoverageIgnoreEnd
-
-	/**
-	 * Whether to warn about the runtime configuration.
-	 *
-	 * Only on VIP. The config constant is injected by the VIP Dashboard, so off
-	 * platform it is *expected* to be absent — there is no dashboard to go and
-	 * complete, and previews work without it. Warning everywhere would mean every
-	 * standalone site carrying a permanent notice about a setting it cannot set
-	 * and does not need.
-	 */
-	private function should_warn_about_config(): bool {
-		return Platform::is_vip() && ! Config::get_instance()->is_ready();
-	}
-
-	public function render_config_notice(): void {
-		$screen = get_current_screen();
-
-		// Only on our own screen. This is our housekeeping, not something to
-		// interrupt someone editing a post or updating plugins with.
-		if ( ! $screen instanceof \WP_Screen || PreviewLinksAdminPage::SCREEN_ID !== $screen->id ) {
-			return;
-		}
-
-		if ( ! $this->should_warn_about_config() || ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		$config = Config::get_instance();
-
-		// Two different problems, so two different instructions. An absent
-		// constant means the integration is not switched on at all; a config
-		// missing a declared field means it is on but unfinished.
-		$message = $config->is_available()
-			? sprintf(
-				/* translators: %s: comma-separated list of missing config fields */
-				__( 'Live Previews setup is incomplete — missing required fields: %s. Complete the configuration in the VIP Dashboard.', 'live-previews' ),
-				implode( ', ', $config->missing_fields() )
-			)
-			: sprintf(
-				/* translators: %s: name of the runtime config constant */
-				__( 'Live Previews is not enabled for this site: the %s constant is not defined. Enable the integration in the VIP Dashboard.', 'live-previews' ),
-				Config::CONSTANT_NAME
-			);
-
-		printf(
-			'<div class="notice notice-warning"><p>%s</p></div>',
-			esc_html( $message )
-		);
-	}
 }

@@ -32,12 +32,21 @@ runtime:
     scope: site
 
 runtime_config:
-  # Defining the constant is the whole signal: it tells the platform loader this
-  # integration is enabled for the site. Live Previews needs no data from the
-  # platform, so there is nothing for the customer to fill in — future values
-  # (an IP allowlist, say) get declared here and in Config::REQUIRED_FIELDS.
+  # Defining the constant is the signal that matters: it tells the platform this
+  # integration is enabled for the site, and the plugin works with nothing in it.
+  # The schema requires at least one field to be declared, so the one below is
+  # optional and read through Config — never declare a field nothing reads.
   constant_name: VIP_LIVE_PREVIEWS_CONFIG
-  fields: []
+  fields:
+    - key: dead_link_grace_period
+      label: Expired link retention
+      type: number
+      required: false
+      default: 1814400
+      help: >-
+        How long an expired or revoked preview link is kept, in seconds, so a
+        reviewer who returns to a stale link is told why it stopped working
+        rather than seeing a "not found" page. Defaults to 21 days.
 
 telemetry:
   # Single word, no underscores: the leading token is the Tracks source and must

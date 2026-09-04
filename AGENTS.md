@@ -76,21 +76,25 @@ Read config only through `inc/class-config.php`. It reads the single
 VIP-provided constant, validates it, and exposes `is_ready()` /
 `missing_fields()` style accessors.
 
-**The constant currently carries no data.** Defining it is the signal that the
+**Nothing in the constant is required.** Defining it is the signal that the
 integration is enabled for the site, so an empty array is a complete, valid
-config and `Config::REQUIRED_FIELDS` is empty. The validation around it stays,
-ready for the first value the plugin genuinely needs from the platform. New
-settings are added by:
+config and `Config::REQUIRED_FIELDS` is empty. Everything the constant can carry
+is optional and falls back to a built-in default. New settings are added by:
 
-1. declaring the field in `vip-manifest.yaml`,
-2. adding it to `Config::REQUIRED_FIELDS` if the plugin cannot work without it
-   (and `SENSITIVE_FIELDS` if it is a secret), and
+1. declaring the field in `vip-manifest.yaml` (the schema demands at least one,
+   so there is always one there),
+2. adding it to `Config::REQUIRED_FIELDS` if the plugin genuinely cannot work
+   without it (and `SENSITIVE_FIELDS` if it is a secret), and
 3. reading it through `Config` — never touching the constant directly elsewhere.
 
-Whatever you add to `Config`, keep the graceful-degradation contract: with
-missing or invalid config the plugin disables the affected behaviour and shows an
-admin notice; it never fatals. Fixtures in `fixtures/` cover the usable and
-unusable states — wire new cases in there.
+**Never declare a field nothing reads.** A field in the manifest becomes a box in
+front of a VIP customer; if no code reads it, that box is a lie.
+
+Keep the graceful-degradation contract: missing or invalid config disables the
+affected behaviour or falls back to a default; it never fatals. Note there is no
+admin notice for absent config — on VIP, enabling the integration is what both
+loads the plugin and defines the constant, so a running plugin has one by
+definition. Fixtures in `fixtures/` cover the usable and unusable states.
 
 ### Running off VIP
 

@@ -30,6 +30,7 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 	public function tear_down(): void {
 		LinkGarbageCollector::unschedule();
 		remove_all_filters( 'live_previews_dead_link_grace_period' );
+		$this->set_config( null );
 		parent::tear_down();
 	}
 
@@ -73,6 +74,57 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 				time() - 90 * DAY_IN_SECONDS
 			)
 		);
+
+		static::assertSame( 1, $this->collector->run() );
+	}
+
+	public function test_the_platform_config_can_set_the_grace_period(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->save_link( $post_id, time() - 2 * HOUR_IN_SECONDS );
+
+		$this->set_config( new Config( [ 'dead_link_grace_period' => HOUR_IN_SECONDS ] ) );
+
+		static::assertSame( 1, $this->collector->run() );
+	}
+
+	/**
+	 * A config value that would delete links the moment they expire is treated as
+	 * nonsense and ignored, rather than quietly costing the gate its explanation.
+	 *
+	 * @dataProvider provide_unusable_grace_periods
+	 * @param mixed $value
+	 */
+	public function test_an_unusable_configured_grace_period_falls_back( $value ): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->save_link( $post_id, time() - HOUR_IN_SECONDS );
+
+		$this->set_config( new Config( [ 'dead_link_grace_period' => $value ] ) );
+
+		static::assertSame( 0, $this->collector->run() );
+		static::assertCount( 1, $this->repository->all_for_post( $post_id ) );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public function provide_unusable_grace_periods(): array {
+		return [
+			'zero'     => [ 0 ],
+			'negative' => [ -1 ],
+			'string'   => [ 'soon' ],
+			'array'    => [ [] ],
+		];
+	}
+
+	/**
+	 * The filter still has the last word over whatever the platform injected.
+	 */
+	public function test_the_filter_overrides_the_platform_config(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->save_link( $post_id, time() - 2 * HOUR_IN_SECONDS );
+
+		$this->set_config( new Config( [ 'dead_link_grace_period' => YEAR_IN_SECONDS ] ) );
+		add_filter( 'live_previews_dead_link_grace_period', static fn (): int => HOUR_IN_SECONDS );
 
 		static::assertSame( 1, $this->collector->run() );
 	}
@@ -124,6 +176,14 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 		$last_run = LinkGarbageCollector::last_run();
 		static::assertNotNull( $last_run );
 		static::assertGreaterThanOrEqual( $before, $last_run );
+	}
+
+	/**
+	 * Swap the Config singleton so a test can mimic a platform-injected value.
+	 */
+	private function set_config( ?Config $config ): void {
+		$property = new \ReflectionProperty( Config::class, 'instance' );
+		$property->setValue( null, $config );
 	}
 
 	/**

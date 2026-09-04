@@ -41,7 +41,7 @@ Config constant: `VIP_LIVE_PREVIEWS_CONFIG`
 The VIP platform defines the constant (a plain PHP associative array) before the
 plugin loads. All reads go through `Automattic\LivePreviews\Config`.
 
-**The constant carries no data.** Defining it *at all* is the signal that
+**Nothing in the constant is required.** Defining it *at all* is the signal that
 matters: it is how the platform says this integration is enabled for the site.
 Preview links need nothing from the platform, so an empty array is a complete,
 valid configuration:
@@ -50,15 +50,33 @@ valid configuration:
 define( 'VIP_LIVE_PREVIEWS_CONFIG', [] );
 ```
 
-`Config::REQUIRED_FIELDS` is therefore empty. The validation around it stays,
-ready for the first value the plugin genuinely needs from the platform — an IP
-allowlist, say. Adding one means declaring it in both `Config::REQUIRED_FIELDS`
-and the `runtime_config` section of `vip-manifest.yaml`, the latter being what
-puts the field in front of the customer in the VIP Dashboard.
+Optional values:
 
-An absent or non-array constant **must not fatal**: the plugin shows an admin
-notice and carries on, and the preview feature itself keeps working regardless.
-See [`fixtures/`](../fixtures/README.md) for the mocked states and where they are
+- `dead_link_grace_period`: how long an expired or revoked link is kept, in
+  seconds, so a reviewer returning to a stale link is told why it stopped
+  working rather than seeing a "not found" page. Defaults to 21 days, and the
+  `live_previews_dead_link_grace_period` filter still overrides it.
+
+`Config::REQUIRED_FIELDS` is therefore empty. The validation around it stays,
+ready for the first value the plugin genuinely *cannot* work without. Adding one
+means declaring it in both `Config::REQUIRED_FIELDS` and the `runtime_config`
+section of `vip-manifest.yaml`, the latter being what puts the field in front of
+the customer in the VIP Dashboard.
+
+An incomplete config — the constant absent, or holding something that is not an
+array:
+
+```php
+define( 'VIP_LIVE_PREVIEWS_CONFIG', 'not-an-array' );
+```
+
+An absent or non-array constant **must not fatal**. `Config` reports it through
+`is_available()` / `is_ready()` and the plugin carries on; the preview feature
+needs nothing from the platform, so it keeps working regardless. Nothing warns
+about it, because on VIP the state is unreachable: enabling the integration in
+the Dashboard is what both loads the plugin and defines the constant, so a
+running plugin has a config by definition. See
+[`fixtures/`](../fixtures/README.md) for the mocked states and where they are
 wired in.
 
 That notice is confined to the plugin's own **Preview Links** admin screen, and

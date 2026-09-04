@@ -121,10 +121,27 @@ final class LinkGarbageCollector {
 		 * garbage collector deletes it. Until then the gate can still tell a
 		 * visitor why their link stopped working.
 		 *
+		 * A value injected by the platform seeds the default, so a site can set
+		 * this without shipping code; the filter still has the last word.
+		 *
 		 * @param int $grace_seconds Retention period in seconds (21 days).
 		 */
-		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', self::DEFAULT_GRACE );
+		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', $this->configured_grace_period() );
 
 		return max( 0, $grace );
+	}
+
+	/**
+	 * The retention period the platform config asks for, or the built-in default
+	 * when it says nothing usable. A nonsensical value (zero, negative, a string)
+	 * falls back rather than silently deleting links the moment they expire.
+	 */
+	private function configured_grace_period(): int {
+		/** @var mixed $configured */
+		$configured = Config::get_instance()->get( 'dead_link_grace_period' );
+
+		return is_numeric( $configured ) && (int) $configured > 0
+			? (int) $configured
+			: self::DEFAULT_GRACE;
 	}
 }
