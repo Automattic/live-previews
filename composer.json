@@ -1,7 +1,7 @@
 {
   "name": "automattic/live-previews",
   "type": "wordpress-plugin",
-  "license": "MIT",
+  "license": "GPL-2.0-or-later",
   "require": {
       "php": "^8.2"
   },
@@ -34,7 +34,7 @@
       "@i18n:pot",
       "@i18n:json"
     ],
-    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
+    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\",\"Project-Id-Version\":\"Live Previews\"}'",
     "i18n:json": "wp i18n make-json languages --no-purge --pretty-print",
     "phpcs": "phpcs",
     "phpcbf": "phpcbf",

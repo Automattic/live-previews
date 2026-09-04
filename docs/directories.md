@@ -17,4 +17,5 @@
 | `.wpvip/`                  | VIP local development environment config and plugin loader.                                   |
 | `.devcontainer/`           | GitHub Codespaces configuration.                                                              |
 | `.github/workflows/`       | CI: unit tests, integration tests, e2e, linting, static analysis, CodeQL, dependency review, and the tagged release build. |
+| `LICENSE`                  | GPLv2 licence text, shipped in the release ZIP.                                               |
 | `.distignore`              | What to leave out of the release ZIP (see "Cutting a release" in `docs/vip-integration.md`). |

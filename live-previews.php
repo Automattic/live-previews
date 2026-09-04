@@ -8,7 +8,8 @@
  * Requires PHP: 8.2
  * Author: Automattic
  * Author URI: https://wpvip.com
- * License: MIT
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: live-previews
  * Domain Path: /languages
  */
