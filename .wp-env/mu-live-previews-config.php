@@ -7,12 +7,19 @@
  * injection, letting the plugin report "ready" while you review progress
  * locally. It is never shipped or activated in production.
  *
- * The constant carries no data: defining it is the whole signal. Add keys here
- * to mirror a future platform-provided value.
+ * Nothing in it is required: defining the constant is the signal that matters,
+ * and every value it can carry falls back to a built-in default.
  *
  * @package live-previews-wp-env
  */
 
 if ( ! defined( 'VIP_LIVE_PREVIEWS_CONFIG' ) ) {
-	define( 'VIP_LIVE_PREVIEWS_CONFIG', [] );
+	define(
+		'VIP_LIVE_PREVIEWS_CONFIG',
+		[
+			// 7 days, in seconds — not the 21-day default, so it is obvious when
+			// the injected value is the one in use.
+			'dead_link_grace_period' => 604800,
+		]
+	);
 }

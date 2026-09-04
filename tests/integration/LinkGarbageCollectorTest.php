@@ -109,11 +109,28 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 	 */
 	public function provide_unusable_grace_periods(): array {
 		return [
+			// What a field left blank in the VIP Dashboard arrives as; see
+			// fixtures/config-incomplete.php.
+			'blank'    => [ '' ],
 			'zero'     => [ 0 ],
 			'negative' => [ -1 ],
 			'string'   => [ 'soon' ],
 			'array'    => [ [] ],
 		];
+	}
+
+	/**
+	 * The half-configured state the fixture describes, end to end.
+	 */
+	public function test_the_incomplete_fixture_falls_back_to_the_default_grace(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->save_link( $post_id, time() - 20 * DAY_IN_SECONDS );
+
+		$this->set_config( new Config( require __DIR__ . '/../../fixtures/config-incomplete.php' ) );
+
+		// 20 days dead is inside the 21-day default, so the link survives.
+		static::assertSame( 0, $this->collector->run() );
+		static::assertCount( 1, $this->repository->all_for_post( $post_id ) );
 	}
 
 	/**

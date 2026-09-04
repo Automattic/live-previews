@@ -11,24 +11,40 @@ use WP_UnitTestCase;
 class ConfigTest extends WP_UnitTestCase {
 	private const FIXTURES_DIR = __DIR__ . '/../../fixtures';
 
-	/**
-	 * The platform defines the constant to say "this integration is on", and
-	 * carries no data in it. An empty array is a complete configuration, not a
-	 * half-finished one.
-	 */
-	public function test_the_empty_constant_the_platform_defines_is_ready(): void {
+	public function test_fully_configured_fixture(): void {
 		$config = new Config( require self::FIXTURES_DIR . '/config-valid.php' );
 
 		static::assertTrue( $config->is_available() );
 		static::assertTrue( $config->is_ready() );
 		static::assertSame( [], $config->missing_fields() );
+		static::assertSame( 604800, $config->get( 'dead_link_grace_period' ) );
 	}
 
-	public function test_unset_keys_fall_back_to_the_given_default(): void {
-		$config = new Config( require self::FIXTURES_DIR . '/config-valid.php' );
+	/**
+	 * The platform defines the constant to say "this integration is on". Nothing
+	 * has to be in it: an empty array is a complete configuration, not a
+	 * half-finished one, and every value it can carry has a default.
+	 */
+	public function test_minimal_fixture_is_ready_and_unset_keys_fall_back(): void {
+		$config = new Config( require self::FIXTURES_DIR . '/config-minimal.php' );
 
-		static::assertSame( 'fallback', $config->get( 'not_in_the_fixture', 'fallback' ) );
-		static::assertNull( $config->get( 'not_in_the_fixture' ) );
+		static::assertTrue( $config->is_available() );
+		static::assertTrue( $config->is_ready() );
+		static::assertSame( 'fallback', $config->get( 'dead_link_grace_period', 'fallback' ) );
+		static::assertNull( $config->get( 'dead_link_grace_period' ) );
+	}
+
+	/**
+	 * A field opened in the Dashboard but left blank still parses. Reading it
+	 * back unchanged is the point: judging whether a value is usable belongs to
+	 * whoever consumes it, not to Config.
+	 */
+	public function test_incomplete_fixture_is_available_and_reads_back_the_blank(): void {
+		$config = new Config( require self::FIXTURES_DIR . '/config-incomplete.php' );
+
+		static::assertTrue( $config->is_available() );
+		static::assertTrue( $config->is_ready() );
+		static::assertSame( '', $config->get( 'dead_link_grace_period' ) );
 	}
 
 	public function test_invalid_fixture_is_not_available(): void {

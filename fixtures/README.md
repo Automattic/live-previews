@@ -5,17 +5,20 @@ constant (`VIP_LIVE_PREVIEWS_CONFIG`) holding a plain associative array,
 defined **before** the plugin is loaded. These fixtures mock that constant for
 local development and automated testing.
 
-The constant carries no data today: defining it is how the platform says this
-integration is enabled for the site. There is correspondingly little to mock —
-the states that matter are "defined and usable" and "not usable at all".
+Nothing in the constant is required. Defining it is how the platform says this
+integration is enabled for the site, and every value it can carry falls back to
+a built-in default — so "incomplete" here means a value that arrived unusable,
+not a missing one.
 
 | Fixture | State it simulates |
 | --- | --- |
-| `config-valid.php` | What the platform defines today: present, and empty. The plugin reports ready. |
+| `config-valid.php` | Fully configured: every offered value filled in, and deliberately not the built-in default so it is visible when it is used. |
+| `config-minimal.php` | The constant defined and empty — the ordinary state. Every value falls back to its default. |
+| `config-incomplete.php` | Setup in progress: a field opened in the Dashboard but left blank, arriving as an empty string. Must fall back, not be taken at face value. |
 | `config-invalid.php` | Constant holds a non-array value. Exercises the `is_array()` guard. |
 | `config-local.php` | Optional, **git-ignored** local override — see below. |
 
-A third state, the constant never being defined at all, needs no fixture:
+A fifth state, the constant never being defined at all, needs no fixture:
 `ConfigTest` covers it by constructing `Config` with `null`.
 
 ## Local overrides (`config-local.php`)

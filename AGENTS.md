@@ -9,8 +9,9 @@ matches your task.
 **Live Previews**: a WordPress VIP integration that generates safe-to-share, time-
 and usage-limited preview links so reviewers without a WordPress account can
 review a draft. It runs as a WordPress plugin, is registered with the VIP
-Integration Center through `vip-manifest.yaml`, and reads its settings from a
-single VIP-provided config constant.
+Integration Center through `vip-manifest.yaml`, and reads its optional settings
+from a single VIP-provided config constant. It also runs as an ordinary plugin on
+any host.
 
 Write runtime code under `inc/`, keep `vip-manifest.yaml` in sync with it, and
 validate with `vip-integration validate` before shipping.
@@ -36,8 +37,9 @@ validate with `vip-integration validate` before shipping.
 - **One config constant.** All runtime config comes from a single VIP-defined
   constant read through `inc/class-config.php`. Never read `$_ENV`, hardcode
   secrets, or add a second config source.
-- **Degrade, never fatal.** Missing or invalid config must disable features and
-  surface an admin notice — never a fatal. There are fixtures for this.
+- **Degrade, never fatal.** Missing or unusable config must disable the affected
+  behaviour or fall back to a default — never a fatal. There are fixtures for
+  each state.
 - **Tracks-only telemetry.** Telemetry goes through `inc/class-telemetry.php`
   (VIP Tracks API, `class_exists`-guarded). No Stats/Pixel. Never put secrets,
   raw content, emails, or credentials in event properties.
@@ -101,14 +103,13 @@ definition. Fixtures in `fixtures/` cover the usable and unusable states.
 The plugin has to work as an ordinary WordPress plugin on any host, not just on
 VIP, so anything platform-specific is gated:
 
-- **Platform-only surfaces** (the config notice, VIP support links) go behind
-  `Automattic\LivePreviews\Platform::is_vip()`. Off VIP the config constant is
-  *expected* to be absent, so warning about it there is noise, not a diagnostic.
+- **Platform-only surfaces** (the VIP support links in contextual help) go behind
+  `Automattic\LivePreviews\Platform::is_vip()`.
 - **Platform-only APIs** (VIP Telemetry, the Abilities API) go behind
   `class_exists()` / `function_exists()` and no-op when absent.
-- **Nothing renders on the front end, and nothing nags site-wide.** No footer
-  signature, no branding, and no `admin_notices` outside the plugin's own screen
-  (`PreviewLinksAdminPage::SCREEN_ID`).
+- **Nothing renders on the front end, and nothing nags.** No footer signature, no
+  branding, and no `admin_notices` at all today. Anything the plugin needs to say
+  belongs on its own screen (`PreviewLinksAdminPage::SCREEN_ID`).
 - Do not assume anything the platform guarantees but a standalone host does not
   — object caching, cron actually firing, or preview requests bypassing a page
   cache. Where the plugin depends on one, make the dependency observable
