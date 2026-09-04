@@ -65,7 +65,7 @@ telemetry:
       note: Usage metadata only — never the token, content, or PII. `channel` records how the link was requested (`rest` or `ability`).
 
 release:
-  plugin_version: 1.0.0
+  plugin_version: 1.0.0-RC1
   version_strategy: latest
   migration_required: false
   changelog: Initial release.
