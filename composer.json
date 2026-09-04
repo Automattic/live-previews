@@ -1,12 +1,10 @@
 {
   "name": "automattic/live-previews",
-  "type": "wordpress-plugin",
+  "description": "Live Previews plugin for sharing draft content with external stakeholders.",
   "license": "GPL-2.0-or-later",
+  "type": "wordpress-plugin",
   "require": {
-      "php": "^8.2"
-  },
-  "autoload": {
-    "classmap": ["inc/"]
+    "php": "^8.2"
   },
   "require-dev": {
     "automattic/vipwpcs": "^3",
@@ -20,42 +18,47 @@
     "wp-phpunit/wp-phpunit": "^6.9 || ^7.0",
     "yoast/phpunit-polyfills": "^4.0"
   },
+  "autoload": {
+    "classmap": [
+      "inc/"
+    ]
+  },
   "config": {
-    "sort-packages": true,
-    "platform": {
-        "php": "8.2"
-    },
     "allow-plugins": {
       "dealerdirect/phpcodesniffer-composer-installer": true
-    }
+    },
+    "platform": {
+      "php": "8.2"
+    },
+    "sort-packages": true
   },
   "scripts": {
     "i18n": [
       "@i18n:pot",
       "@i18n:json"
     ],
-    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
     "i18n:json": "wp i18n make-json languages --no-purge --pretty-print",
-    "phpcs": "phpcs",
+    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
     "phpcbf": "phpcbf",
+    "phpcs": "phpcs",
     "psalm": "psalm",
     "test": [
       "@test:unit",
       "@test:integration",
       "@test:e2e"
     ],
-    "test:unit": "phpunit -c phpunit-unit.xml.dist",
-    "test:integration": "phpunit -c phpunit.xml.dist",
+    "test:coverage": "phpunit -c phpunit.xml.dist --coverage-html=coverage --coverage-text",
     "test:e2e": "npm test",
-    "test:coverage": "phpunit -c phpunit.xml.dist --coverage-html=coverage --coverage-text"
+    "test:integration": "phpunit -c phpunit.xml.dist",
+    "test:unit": "phpunit -c phpunit-unit.xml.dist"
   },
   "scripts-descriptions": {
     "i18n": "Regenerate the POT file and any JSON catalogues (needs WP-CLI and a current `npm run build`)",
-    "i18n:pot": "Regenerate languages/live-previews.pot from the PHP and the built editor script",
     "i18n:json": "Split translated PO files into the JSON catalogues the editor script loads",
+    "i18n:pot": "Regenerate languages/live-previews.pot from the PHP and the built editor script",
     "test": "Run PHPUnit (unit + integration) and Playwright e2e tests (e2e needs a running vip dev-env)",
-    "test:unit": "Run the fast unit suite (pure PHP, no WordPress)",
+    "test:e2e": "Run Playwright e2e tests only (needs a running vip dev-env)",
     "test:integration": "Run the integration suite (boots a real WordPress test environment)",
-    "test:e2e": "Run Playwright e2e tests only (needs a running vip dev-env)"
+    "test:unit": "Run the fast unit suite (pure PHP, no WordPress)"
   }
 }
