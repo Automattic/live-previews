@@ -152,7 +152,10 @@ so internal test builds can be cut from a `release/*` branch without touching
    `VIP_LIVE_PREVIEWS_VERSION` constant in `live-previews.php`, `package.json`,
    and `release.plugin_version` in `vip-manifest.yaml`. The workflow fails the
    release if the first two disagree with the tag.
-4. Run `npm run build` and `composer i18n`, and commit the results.
+4. Run `npm run build`, then `composer i18n`, and commit the results. This
+   order matters: the POT takes its `Project-Id-Version` from the plugin
+   header, so regenerating it before step 3 stamps the previous version on
+   the catalogue.
 5. Push the branch, then tag its head: `git tag -s 1.0.0-RC1 -m "1.0.0-RC1"`
    and `git push origin 1.0.0-RC1`.
 
