@@ -30,6 +30,12 @@
     }
   },
   "scripts": {
+    "i18n": [
+      "@i18n:pot",
+      "@i18n:json"
+    ],
+    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
+    "i18n:json": "wp i18n make-json languages --no-purge --pretty-print",
     "phpcs": "phpcs",
     "phpcbf": "phpcbf",
     "psalm": "psalm",
@@ -44,6 +50,9 @@
     "test:coverage": "phpunit -c phpunit.xml.dist --coverage-html=coverage --coverage-text"
   },
   "scripts-descriptions": {
+    "i18n": "Regenerate the POT file and any JSON catalogues (needs WP-CLI and a current `npm run build`)",
+    "i18n:pot": "Regenerate languages/live-previews.pot from the PHP and the built editor script",
+    "i18n:json": "Split translated PO files into the JSON catalogues the editor script loads",
     "test": "Run PHPUnit (unit + integration) and Playwright e2e tests (e2e needs a running vip dev-env)",
     "test:unit": "Run the fast unit suite (pure PHP, no WordPress)",
     "test:integration": "Run the integration suite (boots a real WordPress test environment)",

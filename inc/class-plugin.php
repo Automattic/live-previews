@@ -35,6 +35,17 @@ final class Plugin {
 	}
 
 	public function init(): void {
+		// Translations ship inside the plugin rather than coming from
+		// translate.wordpress.org, so the plugin's own languages/ directory has
+		// to be registered explicitly. PHP strings resolve from here; the
+		// editor script's JSON catalogues are pointed at the same directory in
+		// EditorAssets.
+		load_plugin_textdomain(
+			'live-previews',
+			false,
+			dirname( plugin_basename( VIP_LIVE_PREVIEWS_FILE ) ) . '/languages'
+		);
+
 		// Composition root: assemble the domain graph once (no container) and
 		// share it between minting (REST) and enforcement (the gate). Swapping
 		// storage, clock, or policy is a one-line change here.

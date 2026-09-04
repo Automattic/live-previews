@@ -10,6 +10,7 @@
  * Author URI: https://wpvip.com
  * License: MIT
  * Text Domain: live-previews
+ * Domain Path: /languages
  */
 
 use Automattic\LivePreviews\LinkGarbageCollector;
