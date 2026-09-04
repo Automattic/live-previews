@@ -49,7 +49,11 @@ final class EditorAssets {
 			true
 		);
 
-		wp_set_script_translations( self::HANDLE, 'live-previews' );
+		// The third argument is required: without it WordPress only looks in
+		// wp-content/languages/plugins/, and this plugin ships its catalogues
+		// itself. The JSON filenames hash the enqueued path (build/index.js),
+		// which is why `composer i18n` scans build/ rather than src/.
+		wp_set_script_translations( self::HANDLE, 'live-previews', $base . 'languages' );
 
 		// Hand the editor the same expiration options the endpoint validates.
 		$data = wp_json_encode(
