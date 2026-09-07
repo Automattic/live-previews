@@ -69,8 +69,13 @@ final class Plugin {
 		( new LinkGarbageCollector( $service ) )->register();
 		( new EditorAssets( [] !== $central_ip_ranges ) )->register();
 
+		// Bulk revocation: the break-glass sweep, offboarding on user deletion,
+		// and the customer-facing revoke-user-links action.
+		$revoker = new BulkLinkRevoker( $service );
+		$revoker->register();
+
 		// Site-wide audit + revoke table for editors.
-		( new PreviewLinksAdminPage( $service, $clock, $central_ip_ranges ) )->register();
+		( new PreviewLinksAdminPage( $service, $clock, $revoker, $central_ip_ranges ) )->register();
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.

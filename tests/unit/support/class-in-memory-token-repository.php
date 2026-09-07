@@ -76,6 +76,33 @@ final class InMemoryTokenRepository implements TokenRepository {
 		$this->replace( $link, $link->with_revoked( $revoked_at ) );
 	}
 
+	public function revoke_all_for_post( int $post_id, int $revoked_at ): int {
+		return $this->revoke_matching( $post_id, null, $revoked_at );
+	}
+
+	public function revoke_by_creator_for_post( int $post_id, int $created_by, int $revoked_at ): int {
+		return $this->revoke_matching( $post_id, $created_by, $revoked_at );
+	}
+
+	private function revoke_matching( int $post_id, ?int $created_by, int $revoked_at ): int {
+		$revoked = 0;
+
+		foreach ( $this->links[ $post_id ] ?? [] as $link ) {
+			if ( $link->is_revoked() ) {
+				continue;
+			}
+
+			if ( null !== $created_by && $link->created_by() !== $created_by ) {
+				continue;
+			}
+
+			$this->replace( $link, $link->with_revoked( $revoked_at ) );
+			++$revoked;
+		}
+
+		return $revoked;
+	}
+
 	public function delete_all_for_post( int $post_id ): void {
 		unset( $this->links[ $post_id ] );
 	}
@@ -114,12 +141,14 @@ final class InMemoryTokenRepository implements TokenRepository {
 		return array_slice( $ids, 0, $limit );
 	}
 
-	public function page_of_links( int $offset, int $limit ): array {
+	public function page_of_links( int $offset, int $limit, ?int $created_by = null ): array {
 		$all = [];
 
 		foreach ( $this->links as $links ) {
 			foreach ( $links as $link ) {
-				$all[] = $link;
+				if ( null === $created_by || $link->created_by() === $created_by ) {
+					$all[] = $link;
+				}
 			}
 		}
 
@@ -128,14 +157,8 @@ final class InMemoryTokenRepository implements TokenRepository {
 		return array_slice( array_reverse( $all ), $offset, $limit );
 	}
 
-	public function count_links(): int {
-		$count = 0;
-
-		foreach ( $this->links as $links ) {
-			$count += count( $links );
-		}
-
-		return $count;
+	public function count_links( ?int $created_by = null ): int {
+		return count( $this->page_of_links( 0, PHP_INT_MAX, $created_by ) );
 	}
 
 	/**

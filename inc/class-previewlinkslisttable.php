@@ -69,10 +69,11 @@ final class PreviewLinksListTable extends WP_List_Table {
 	public function prepare_items(): void {
 		$per_page = $this->get_items_per_page( PreviewLinksAdminPage::PER_PAGE_OPTION, PreviewLinksAdminPage::DEFAULT_PER_PAGE );
 		$offset   = ( $this->get_pagenum() - 1 ) * $per_page;
+		$creator  = PreviewLinksAdminPage::requested_creator();
 
-		$this->items = $this->service->page_of_links( $offset, $per_page );
+		$this->items = $this->service->page_of_links( $offset, $per_page, $creator );
 
-		$total = $this->service->count_links();
+		$total = $this->service->count_links( $creator );
 
 		$this->set_pagination_args(
 			[
@@ -119,12 +120,20 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 		$user = get_userdata( $user_id );
 
-		if ( false !== $user ) {
-			return esc_html( $user->display_name );
-		}
-
 		/* translators: %d: user ID */
-		return esc_html( sprintf( __( 'User #%d', 'live-previews' ), $user_id ) );
+		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
+
+		// The name links to the creator-filtered view of this table, which is
+		// where the "revoke everything this user created" action lives.
+		$url = add_query_arg(
+			[
+				'page'    => PreviewLinksAdminPage::SLUG,
+				'creator' => $user_id,
+			],
+			admin_url( 'admin.php' )
+		);
+
+		return sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $name ) );
 	}
 
 	public function column_usage( PreviewLink $item ): string {

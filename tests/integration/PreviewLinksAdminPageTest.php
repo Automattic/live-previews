@@ -22,7 +22,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 
 		$this->repository = new PostMetaTokenRepository();
 		$this->service    = new PreviewLinkService( $this->repository, new AccessPolicy(), new SystemClock() );
-		$this->page       = new PreviewLinksAdminPage( $this->service, new SystemClock() );
+		$this->page       = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ) );
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 	}
@@ -32,6 +32,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 			$_GET['action'],
 			$_GET['post'],
 			$_GET['token'],
+			$_GET['creator'],
 			$_GET['_wpnonce'],
 			$_REQUEST['action'],
 			$_REQUEST['_wpnonce'],
@@ -41,6 +42,8 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		);
 
 		set_current_screen( 'front' );
+		BulkLinkRevoker::unschedule();
+
 		parent::tear_down();
 	}
 
@@ -55,7 +58,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	 * restricts every link.
 	 */
 	public function test_central_ip_ranges_are_stated_above_the_table(): void {
-		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), [ '203.0.113.0/24', '2001:db8::/32' ] );
+		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ), [ '203.0.113.0/24', '2001:db8::/32' ] );
 
 		$output = $this->rendered( $page );
 
@@ -121,5 +124,57 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
 			static::assertTrue( $link->is_revoked() );
 		}
+	}
+
+	public function test_the_creator_action_revokes_everything_that_user_created(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
+
+		$nonce                = wp_create_nonce( 'live_previews_revoke_creator_7' );
+		$_GET['action']       = 'revoke_creator';
+		$_GET['creator']      = '7';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		static::assertSame( 1, $this->page->process_request() );
+
+		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
+			static::assertSame( 7 === $link->created_by(), $link->is_revoked() );
+		}
+	}
+
+	public function test_an_administrator_can_revoke_every_link_on_the_site(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
+
+		$nonce                = wp_create_nonce( 'live_previews_revoke_all' );
+		$_GET['action']       = 'revoke_all';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		static::assertSame( 2, $this->page->process_request() );
+
+		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
+			static::assertTrue( $link->is_revoked() );
+		}
+	}
+
+	/**
+	 * The break-glass switch has a far larger blast radius than the table's
+	 * per-row revokes, so an editor's capability is not enough for it.
+	 */
+	public function test_an_editor_cannot_revoke_every_link_on_the_site(): void {
+		$nonce                = wp_create_nonce( 'live_previews_revoke_all' );
+		$_GET['action']       = 'revoke_all';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		$this->expectException( \WPDieException::class );
+
+		$this->page->process_request();
 	}
 }

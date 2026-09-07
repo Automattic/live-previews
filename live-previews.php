@@ -14,6 +14,7 @@
  * Domain Path: /languages
  */
 
+use Automattic\LivePreviews\BulkLinkRevoker;
 use Automattic\LivePreviews\LinkGarbageCollector;
 use Automattic\LivePreviews\Plugin;
 
@@ -32,5 +33,6 @@ define( 'VIP_LIVE_PREVIEWS_FILE', __FILE__ );
 require_once __DIR__ . '/inc/autoload.php';
 
 register_deactivation_hook( __FILE__, [ LinkGarbageCollector::class, 'unschedule' ] );
+register_deactivation_hook( __FILE__, [ BulkLinkRevoker::class, 'unschedule' ] );
 
 Plugin::get_instance()->register();

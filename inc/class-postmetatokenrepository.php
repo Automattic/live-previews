@@ -113,6 +113,47 @@ final class PostMetaTokenRepository implements TokenRepository {
 		);
 	}
 
+	public function revoke_all_for_post( int $post_id, int $revoked_at ): int {
+		return $this->revoke_matching( $post_id, null, $revoked_at );
+	}
+
+	public function revoke_by_creator_for_post( int $post_id, int $created_by, int $revoked_at ): int {
+		return $this->revoke_matching( $post_id, $created_by, $revoked_at );
+	}
+
+	/**
+	 * Stamp `revoked_at` on this post's not-yet-revoked links, optionally only
+	 * those a given user created. Each write is conditional on the pre-read row
+	 * (see {@see add_viewer()}), so a link that changes concurrently is simply
+	 * not counted rather than clobbered.
+	 */
+	private function revoke_matching( int $post_id, ?int $created_by, int $revoked_at ): int {
+		$revoked = 0;
+
+		foreach ( $this->all_for_post( $post_id ) as $link ) {
+			if ( $link->is_revoked() ) {
+				continue;
+			}
+
+			if ( null !== $created_by && $link->created_by() !== $created_by ) {
+				continue;
+			}
+
+			$updated = update_post_meta(
+				$post_id,
+				self::META_KEY,
+				$this->to_array( $link->with_revoked( $revoked_at ) ),
+				$this->to_array( $link )
+			);
+
+			if ( false !== $updated ) {
+				++$revoked;
+			}
+		}
+
+		return $revoked;
+	}
+
 	public function delete_all_for_post( int $post_id ): void {
 		delete_post_meta( $post_id, self::META_KEY );
 	}
@@ -158,7 +199,7 @@ final class PostMetaTokenRepository implements TokenRepository {
 		return array_map( 'intval', $ids );
 	}
 
-	public function page_of_links( int $offset, int $limit ): array {
+	public function page_of_links( int $offset, int $limit, ?int $created_by = null ): array {
 		/** @var \wpdb $wpdb */
 		global $wpdb;
 
@@ -171,7 +212,8 @@ final class PostMetaTokenRepository implements TokenRepository {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin audit table over an indexed meta_key; see above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY meta_id DESC LIMIT %d OFFSET %d",
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- created_by_clause() returns a fragment prepared with its own placeholder.
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s{$this->created_by_clause( $created_by )} ORDER BY meta_id DESC LIMIT %d OFFSET %d",
 				self::META_KEY,
 				$limit,
 				$offset
@@ -201,19 +243,44 @@ final class PostMetaTokenRepository implements TokenRepository {
 		return $links;
 	}
 
-	public function count_links(): int {
+	public function count_links( ?int $created_by = null ): int {
 		/** @var \wpdb $wpdb */
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Admin audit table over an indexed meta_key; see page_of_links().
 		$count = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- created_by_clause() returns a fragment prepared with its own placeholder.
+				"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s{$this->created_by_clause( $created_by )}",
 				self::META_KEY
 			)
 		);
 
 		return (int) $count;
+	}
+
+	/**
+	 * A prepared `AND meta_value LIKE ...` fragment matching links a given user
+	 * created, or an empty string for no filter.
+	 *
+	 * `created_by` lives inside the serialised row, so this matches its exact
+	 * serialised form (`"created_by";i:<id>;`) — a substring this class alone
+	 * writes, via {@see to_array()}, always as an int. It is a stopgap the admin
+	 * screen alone pays for; an indexed `created_by` column is the custom-table
+	 * upgrade when scale demands it.
+	 */
+	private function created_by_clause( ?int $created_by ): string {
+		if ( null === $created_by ) {
+			return '';
+		}
+
+		/** @var \wpdb $wpdb */
+		global $wpdb;
+
+		return (string) $wpdb->prepare(
+			' AND meta_value LIKE %s',
+			'%' . $wpdb->esc_like( '"created_by";i:' . $created_by . ';' ) . '%'
+		);
 	}
 
 	/**

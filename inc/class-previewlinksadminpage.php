@@ -26,8 +26,15 @@ final class PreviewLinksAdminPage {
 
 	private const CAPABILITY = 'edit_others_posts';
 
+	/**
+	 * The break-glass "revoke everything" switch has a far larger blast radius
+	 * than per-row revoke, so it is gated above the table's own capability.
+	 */
+	private const REVOKE_ALL_CAPABILITY = 'manage_options';
+
 	private PreviewLinkService $service;
 	private Clock $clock;
+	private BulkLinkRevoker $revoker;
 
 	/**
 	 * @var list<string> Central CIDR ranges from the VIP Dashboard config. Shown
@@ -43,10 +50,22 @@ final class PreviewLinksAdminPage {
 	 * @param list<string> $central_ip_ranges Central CIDR ranges applying to
 	 *                                        every link, or empty for none.
 	 */
-	public function __construct( PreviewLinkService $service, Clock $clock, array $central_ip_ranges = [] ) {
+	public function __construct( PreviewLinkService $service, Clock $clock, BulkLinkRevoker $revoker, array $central_ip_ranges = [] ) {
 		$this->service           = $service;
 		$this->clock             = $clock;
+		$this->revoker           = $revoker;
 		$this->central_ip_ranges = $central_ip_ranges;
+	}
+
+	/**
+	 * The creator the table is filtered to, or null when showing everyone.
+	 * Read-only display state, carried in the URL so pagination keeps it.
+	 */
+	public static function requested_creator(): ?int {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display filter; every action derived from it is separately nonce-checked.
+		$creator = isset( $_GET['creator'] ) && is_scalar( $_GET['creator'] ) ? (int) $_GET['creator'] : 0;
+
+		return $creator > 0 ? $creator : null;
 	}
 
 	public function register(): void {
@@ -92,7 +111,15 @@ final class PreviewLinksAdminPage {
 			return;
 		}
 
-		wp_safe_redirect( add_query_arg( 'lp_revoked', $revoked, $this->page_url() ) );
+		$args = [ 'lp_revoked' => $revoked ];
+
+		if ( $this->revoker->has_pending_work() ) {
+			// A sweep overflowed this run and continues on cron; say so rather
+			// than implying the count above was everything.
+			$args['lp_pending'] = 1;
+		}
+
+		wp_safe_redirect( add_query_arg( $args, $this->page_url() ) );
 		exit;
 	}
 
@@ -117,6 +144,24 @@ final class PreviewLinksAdminPage {
 			return $this->service->revoke( $post_id, $token ) ? 1 : 0;
 		}
 
+		if ( 'revoke_creator' === $get_action ) {
+			$creator = self::requested_creator();
+
+			check_admin_referer( 'live_previews_revoke_creator_' . (string) $creator );
+
+			return null === $creator ? 0 : $this->revoker->revoke_by_creator( $creator );
+		}
+
+		if ( 'revoke_all' === $get_action ) {
+			check_admin_referer( 'live_previews_revoke_all' );
+
+			if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+				wp_die( esc_html__( 'You are not allowed to revoke all preview links.', 'live-previews' ) );
+			}
+
+			return $this->revoker->revoke_all();
+		}
+
 		if ( 'revoke' === $this->requested_bulk_action() ) {
 			check_admin_referer( 'bulk-' . PreviewLinksListTable::PLURAL );
 
@@ -139,12 +184,89 @@ final class PreviewLinksAdminPage {
 
 		$this->maybe_render_central_ranges();
 		$this->maybe_render_notice();
+		$this->maybe_render_creator_filter();
 
 		echo '<form method="post">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( self::SLUG ) );
 		$table->display();
 		echo '</form>';
+
+		$this->maybe_render_revoke_all();
 		echo '</div>';
+	}
+
+	/**
+	 * When the table is filtered to one creator, say so and offer the sweep that
+	 * revokes everything they created — the whole set, not just this page.
+	 */
+	private function maybe_render_creator_filter(): void {
+		$creator = self::requested_creator();
+
+		if ( null === $creator ) {
+			return;
+		}
+
+		$user = get_userdata( $creator );
+		/* translators: %d: user ID */
+		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $creator );
+
+		$revoke_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'    => self::SLUG,
+					'action'  => 'revoke_creator',
+					'creator' => $creator,
+				],
+				admin_url( 'admin.php' )
+			),
+			'live_previews_revoke_creator_' . $creator
+		);
+
+		printf(
+			'<p>%s <a href="%s">%s</a> <a href="%s" class="button button-link-delete" onclick="return confirm(%s);">%s</a></p>',
+			esc_html(
+				/* translators: %s: user display name */
+				sprintf( __( 'Showing links created by %s.', 'live-previews' ), $name )
+			),
+			esc_url( $this->page_url() ),
+			esc_html__( 'Show all creators', 'live-previews' ),
+			esc_url( $revoke_url ),
+			esc_attr( (string) wp_json_encode( __( 'Revoke every preview link this user created, across the whole site? This cannot be undone.', 'live-previews' ) ) ),
+			esc_html(
+				/* translators: %s: user display name */
+				sprintf( __( 'Revoke all links by %s', 'live-previews' ), $name )
+			)
+		);
+	}
+
+	/**
+	 * The break-glass switch: revoke every live link on the site. Shown only to
+	 * administrators, behind its own confirmation, because its blast radius far
+	 * exceeds the table's per-row and bulk revokes.
+	 */
+	private function maybe_render_revoke_all(): void {
+		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+			return;
+		}
+
+		$url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'   => self::SLUG,
+					'action' => 'revoke_all',
+				],
+				admin_url( 'admin.php' )
+			),
+			'live_previews_revoke_all'
+		);
+
+		printf(
+			'<p><a href="%s" class="button button-link-delete" onclick="return confirm(%s);">%s</a> %s</p>',
+			esc_url( $url ),
+			esc_attr( (string) wp_json_encode( __( 'Revoke EVERY preview link on this site? Every shared draft immediately stops being viewable. This cannot be undone.', 'live-previews' ) ) ),
+			esc_html__( 'Revoke all preview links', 'live-previews' ),
+			esc_html__( 'Immediately revokes every link on the site, for use when shared drafts must stop being reachable.', 'live-previews' )
+		);
 	}
 
 	/**
@@ -228,15 +350,20 @@ final class PreviewLinksAdminPage {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
 		$count = is_scalar( $_GET['lp_revoked'] ) ? (int) $_GET['lp_revoked'] : 0;
 
+		$message = sprintf(
+			/* translators: %d: number of preview links revoked */
+			_n( '%d preview link revoked.', '%d preview links revoked.', $count, 'live-previews' ),
+			$count
+		);
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Set by our own post-revoke redirect; read only to phrase the notice.
+		if ( isset( $_GET['lp_pending'] ) ) {
+			$message .= ' ' . __( 'The remaining links are being revoked in the background.', 'live-previews' );
+		}
+
 		printf(
 			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-			esc_html(
-				sprintf(
-					/* translators: %d: number of preview links revoked */
-					_n( '%d preview link revoked.', '%d preview links revoked.', $count, 'live-previews' ),
-					$count
-				)
-			)
+			esc_html( $message )
 		);
 	}
 
@@ -319,7 +446,8 @@ final class PreviewLinksAdminPage {
 			[
 				'id'      => 'live-previews-revoking',
 				'title'   => __( 'Revoking', 'live-previews' ),
-				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>',
+				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>'
+					. '<p>' . esc_html__( 'To revoke everything one person created — when someone leaves, for example — click their name in the Created by column, then use "Revoke all links by" that user; it covers every link of theirs on the site, not just the rows shown. Administrators also see a "Revoke all preview links" switch below the table that revokes every link on the site at once. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>',
 			]
 		);
 

@@ -28,6 +28,39 @@ Expired and revoked links are kept for a grace period so the gate can tell a vis
 
 There is a **Preview link cleanup** check under Tools → Site Health that reports whether the sweep is scheduled and whether it has actually run recently, so a stalled sweep is visible rather than silent.
 
+## Bulk revocation and offboarding
+
+Beyond revoking a single link, the Preview Links screen offers two bulk actions, and a hook wires revocation into user offboarding.
+
+- **Revoke by creator.** Click a name in the **Created by** column to filter the table to that person's links, then use **Revoke all links by** that user. This revokes every link they created across the whole site, not just the rows shown.
+- **Revoke all (break-glass).** Administrators (`manage_options`) see a **Revoke all preview links** switch below the table that revokes every link on the site. Use it when shared drafts must stop being reachable — for example, if links are suspected of being used to leak drafts.
+
+Both act in bounded batches; on a site with a very large number of shared posts the sweep finishes in the background within a few minutes, and links on not-yet-swept posts keep working until their batch is reached.
+
+**When a user account is deleted** (`deleted_user`), their links are revoked automatically. Role changes deliberately do not revoke automatically — demoting an editor to author should not necessarily kill in-flight reviews — but you can wire any hook to the supported `live_previews_revoke_user_links` action:
+
+```php
+// Revoke a user's preview links when they lose edit access.
+add_action( 'set_user_role', function ( int $user_id, string $role ): void {
+	if ( ! in_array( $role, [ 'administrator', 'editor', 'author' ], true ) ) {
+		do_action( 'live_previews_revoke_user_links', $user_id );
+	}
+}, 10, 2 );
+
+// Multisite: revoke when a user is removed from this site.
+add_action( 'remove_user_from_blog', function ( int $user_id ): void {
+	do_action( 'live_previews_revoke_user_links', $user_id );
+} );
+```
+
+After a user's links have all been revoked, `live_previews_revoked_user_links` fires with the user's ID, how many links were revoked, and who initiated it (0 when system-initiated), so you can log offboarding for audit purposes:
+
+```php
+add_action( 'live_previews_revoked_user_links', function ( int $user_id, int $count, int $actor ): void {
+	// e.g. send to your audit log.
+}, 10, 3 );
+```
+
 ## Technology
 
 These are the tools we use on a day-to-day basis to ensure code quality on the WordPress VIP platform.
