@@ -33,7 +33,8 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		unset( $_GET[ PreviewGate::TOKEN_QUERY_VAR ], $_SERVER['HTTP_USER_AGENT'] );
-		$_COOKIE = [];
+		$_COOKIE                = [];
+		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 		parent::tear_down();
 	}
 
@@ -209,6 +210,51 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// A cookie the link never issued makes this a new viewer, not a free one.
 		static::assertSame( 'publish', $this->visit( $post_id, $token ) );
 		static::assertSame( 1, $this->repository->all_for_post( $post_id )[0]->use_count() );
+	}
+
+	public function test_an_ip_restricted_link_unlocks_only_from_an_allowed_address(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [ '203.0.113.0/24' ] );
+
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.7';
+		static::assertSame( 'publish', $this->visit( $post_id, $token, true ) );
+
+		$_SERVER['REMOTE_ADDR'] = '198.51.100.7';
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
+	}
+
+	public function test_a_blocked_ip_sees_a_plain_not_found_not_an_explanation(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [ '203.0.113.0/24' ] );
+
+		$_SERVER['REMOTE_ADDR'] = '198.51.100.7';
+
+		// Denied like an unknown token: no notice page that would confirm the
+		// draft (or the link) exists to someone outside the allowlist.
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$gate->maybe_render_notice();
+		static::assertTrue( true, 'No wp_die was triggered for a blocked IP.' );
+	}
+
+	public function test_a_blocked_ip_spends_no_slot(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 1, 1, [ '203.0.113.0/24' ] );
+
+		$_SERVER['REMOTE_ADDR'] = '198.51.100.7';
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
+		static::assertSame( 0, $this->repository->all_for_post( $post_id )[0]->use_count() );
+	}
+
+	public function test_the_client_ip_filter_overrides_remote_addr(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [ '203.0.113.0/24' ] );
+
+		// A host behind its own proxy supplies the trusted address by filter.
+		$_SERVER['REMOTE_ADDR'] = '10.0.0.1';
+		add_filter( 'live_previews_client_ip', static fn (): string => '203.0.113.7' );
+
+		static::assertSame( 'publish', $this->visit( $post_id, $token, true ) );
 	}
 
 	public function test_an_expired_link_shows_a_friendly_notice(): void {

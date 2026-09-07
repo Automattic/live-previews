@@ -44,12 +44,14 @@ final class PreviewLinkService {
 	 * the persisted record keeps only its hash. The caller (the REST adapter)
 	 * builds the shareable URL from the post ID and this token.
 	 *
-	 * @param int      $post_id     Post to preview.
-	 * @param int      $ttl_seconds How long the link stays valid, in seconds.
-	 * @param int|null $max_uses    Maximum distinct viewers, or null for unlimited.
-	 * @param int      $created_by  ID of the user issuing the link.
+	 * @param int          $post_id     Post to preview.
+	 * @param int          $ttl_seconds How long the link stays valid, in seconds.
+	 * @param int|null     $max_uses    Maximum distinct viewers, or null for unlimited.
+	 * @param int          $created_by  ID of the user issuing the link.
+	 * @param list<string> $allowed_ips CIDR ranges to restrict the link to, or
+	 *                                  empty for no per-link restriction.
 	 */
-	public function mint( int $post_id, int $ttl_seconds, ?int $max_uses, int $created_by ): Token {
+	public function mint( int $post_id, int $ttl_seconds, ?int $max_uses, int $created_by, array $allowed_ips = [] ): Token {
 		$token = Token::generate();
 		$now   = $this->clock->now();
 
@@ -60,7 +62,8 @@ final class PreviewLinkService {
 				$now + $ttl_seconds,
 				$max_uses,
 				$created_by,
-				$now
+				$now,
+				$allowed_ips
 			)
 		);
 
@@ -111,15 +114,18 @@ final class PreviewLinkService {
 	 * @param string|null $viewer_id Slot ID this visitor presented, if any. It is
 	 *                               only honoured when the link actually issued
 	 *                               it, so a made-up value grants nothing.
+	 * @param string|null $client_ip The visitor's true client IP, or null when it
+	 *                               could not be resolved (which fails closed if
+	 *                               the link or platform carries an allowlist).
 	 */
-	public function authorize( int $post_id, Token $candidate, ?string $viewer_id = null ): AccessDecision {
+	public function authorize( int $post_id, Token $candidate, ?string $viewer_id = null, ?string $client_ip = null ): AccessDecision {
 		$link = $this->repository->find( $post_id, $candidate );
 
 		$holds_slot = null !== $link
 			&& null !== $viewer_id
 			&& $link->holds_slot( $viewer_id );
 
-		return $this->policy->decide( $link, $this->clock->now(), $holds_slot );
+		return $this->policy->decide( $link, $this->clock->now(), $holds_slot, $client_ip );
 	}
 
 	/**
@@ -149,7 +155,7 @@ final class PreviewLinkService {
 	 * the author may have revoked the link entirely. A caller that loses the race
 	 * gets null and must deny, which is what closes the check-then-act window.
 	 */
-	public function claim_slot( int $post_id, Token $candidate ): ?string {
+	public function claim_slot( int $post_id, Token $candidate, ?string $client_ip = null ): ?string {
 		$viewer_id = bin2hex( random_bytes( self::VIEWER_ID_BYTES ) );
 
 		for ( $attempt = 0; $attempt < self::CLAIM_ATTEMPTS; $attempt++ ) {
@@ -160,8 +166,9 @@ final class PreviewLinkService {
 			}
 
 			// No viewer ID passed: this is a brand-new slot, so the exhaustion
-			// rule must apply in full.
-			if ( ! $this->policy->decide( $link, $this->clock->now() )->is_allowed() ) {
+			// rule must apply in full. The client IP is re-checked too, since
+			// this is the write that actually spends a slot.
+			if ( ! $this->policy->decide( $link, $this->clock->now(), false, $client_ip )->is_allowed() ) {
 				return null;
 			}
 

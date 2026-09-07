@@ -95,7 +95,7 @@ final class PreviewGate {
 			}
 
 			$post_id  = (int) $post->ID;
-			$decision = $this->service->authorize( $post_id, $token, $this->viewer_id );
+			$decision = $this->service->authorize( $post_id, $token, $this->viewer_id, $this->client_ip() );
 
 			if ( ! $decision->is_allowed() ) {
 				// Remember a dead-but-real link so template_redirect can explain
@@ -146,7 +146,7 @@ final class PreviewGate {
 			return true;
 		}
 
-		$viewer_id = $this->service->claim_slot( $post_id, $token );
+		$viewer_id = $this->service->claim_slot( $post_id, $token, $this->client_ip() );
 
 		if ( null === $viewer_id ) {
 			return false;
@@ -274,6 +274,49 @@ final class PreviewGate {
 		$raw = sanitize_text_field( wp_unslash( (string) $_GET[ self::TOKEN_QUERY_VAR ] ) );
 
 		return '' === $raw ? null : $raw;
+	}
+
+	/**
+	 * The visitor's true client IP, or null when it cannot be resolved (which
+	 * fails closed for any link carrying an IP allowlist).
+	 *
+	 * `REMOTE_ADDR` is used because on the VIP platform the edge rewrites it to
+	 * the true client address before PHP runs — it is the trusted source there,
+	 * where `X-Forwarded-For` is attacker-appendable and must not be read. A
+	 * host behind a different reverse proxy (where `REMOTE_ADDR` is the proxy)
+	 * can supply its own trusted source through the filter.
+	 */
+	private function client_ip(): ?string {
+		// phpcs:disable WordPressVIPMinimum.Variables.ServerVariables.UserControlledHeaders, WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___SERVER__REMOTE_ADDR__ -- On VIP the edge rewrites REMOTE_ADDR to the true client IP (unlike X-Forwarded-For it is not client-spoofable there), the value is validated with FILTER_VALIDATE_IP below, and preview requests are never page-cached (unique token query string + nocache headers).
+		/**
+		 * Psalm's globals stub types REMOTE_ADDR as always set, but some SAPIs
+		 * (CLI) genuinely omit it, so the runtime guard stays.
+		 *
+		 * @psalm-suppress RedundantCondition, TypeDoesNotContainType
+		 */
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+		// phpcs:enable
+
+		/**
+		 * Filters the client IP checked against a preview link's IP allowlist.
+		 *
+		 * Defaults to `REMOTE_ADDR`, which is correct on WordPress VIP and on any
+		 * host where PHP talks directly to the client. A site behind another
+		 * reverse proxy should return the address from its proxy's trusted
+		 * header here — and never a raw `X-Forwarded-For`, which visitors can
+		 * spoof.
+		 *
+		 * @param string $remote_addr The client IP, or '' if unknown.
+		 */
+		$ip = apply_filters( 'live_previews_client_ip', $remote_addr );
+
+		if ( ! is_string( $ip ) || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return null;
+		}
+
+		return $ip;
 	}
 
 	/**

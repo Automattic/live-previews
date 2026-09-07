@@ -56,10 +56,14 @@
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
 
-	<!-- Tests simulate HTTP request state (cookies, user-agent) to exercise the
-	     preview gate. These VIP cache-constraint rules target shipped runtime code,
-	     not test doubles, so exclude them under /tests/. -->
+	<!-- Tests simulate HTTP request state (cookies, user-agent, client IP) to
+	     exercise the preview gate. These VIP cache-constraint and header rules
+	     target shipped runtime code, not test doubles, so exclude them under
+	     /tests/. -->
 	<rule ref="WordPressVIPMinimum.Variables.RestrictedVariables">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPressVIPMinimum.Variables.ServerVariables">
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
 </ruleset>

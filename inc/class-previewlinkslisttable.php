@@ -44,6 +44,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 			'post'       => esc_html__( 'Post', 'live-previews' ),
 			'created_by' => esc_html__( 'Created by', 'live-previews' ),
 			'usage'      => esc_html__( 'Uses', 'live-previews' ),
+			'ip_ranges'  => esc_html__( 'IP ranges', 'live-previews' ),
 			'expiry'     => esc_html__( 'Expires', 'live-previews' ),
 			'status'     => esc_html__( 'Status', 'live-previews' ),
 			'token'      => esc_html__( 'Link', 'live-previews' ),
@@ -134,6 +135,28 @@ final class PreviewLinksListTable extends WP_List_Table {
 				'%d / %s',
 				$item->use_count(),
 				null === $max ? '∞' : (string) $max
+			)
+		);
+	}
+
+	/**
+	 * The link's own IP restriction. Central Dashboard ranges apply to every
+	 * link and are not repeated per row. Read-only, like the rest of the table:
+	 * a link is immutable once shared, so to change its ranges you revoke it and
+	 * mint a fresh one — the same rule as every other property of a link.
+	 */
+	public function column_ip_ranges( PreviewLink $item ): string {
+		$ranges = $item->allowed_ips();
+
+		if ( [] === $ranges ) {
+			return esc_html( '—' );
+		}
+
+		return implode(
+			'<br />',
+			array_map(
+				static fn ( string $range ): string => sprintf( '<code>%s</code>', esc_html( $range ) ),
+				$ranges
 			)
 		);
 	}

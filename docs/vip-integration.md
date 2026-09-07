@@ -54,12 +54,21 @@ Optional values:
   working rather than seeing a "not found" page. Defaults to 21 days when it is
   absent or unusable, and the `live_previews_dead_link_grace_period` filter
   still overrides whatever the platform sends.
+- `ip_allowlist`: IP addresses or CIDR ranges (IPv4 or IPv6, comma- or
+  newline-separated) that every preview link accepts — a shared baseline of
+  trusted networks, set once. Each link can add further ranges of its own when
+  it is generated; the gate allows a request when the client IP matches *any*
+  range in the combined set (a union, so per-link ranges widen access, never
+  narrow it). Absent or empty means links carry no IP restriction beyond what
+  they set individually — the pre-allowlist behaviour. Unusable entries are
+  silently dropped rather than half-applied.
 
 Example valid config:
 
 ```php
 define( 'VIP_LIVE_PREVIEWS_CONFIG', [
 	'dead_link_grace_period' => 604800, // 7 days.
+	'ip_allowlist'           => '203.0.113.0/24, 2001:db8::/32',
 ] );
 ```
 

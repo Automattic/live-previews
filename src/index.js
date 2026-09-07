@@ -29,6 +29,7 @@ const REST_BASE = '/live-previews/v1/preview-links';
 const settings = window.livePreviews || {
 	expirationOptions: [],
 	defaultExpiration: 28800,
+	hasCentralIpRanges: false,
 };
 
 const expirationOptions = ( settings.expirationOptions || [] ).map( ( option ) => ( {
@@ -94,6 +95,7 @@ function usageLabel( link ) {
 function GenerateModal( { postId, onClose } ) {
 	const [ expiration, setExpiration ] = useState( String( settings.defaultExpiration ) );
 	const [ maxUses, setMaxUses ] = useState( '' );
+	const [ allowedIps, setAllowedIps ] = useState( '' );
 	const [ url, setUrl ] = useState( '' );
 	const [ isBusy, setBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
@@ -111,6 +113,10 @@ function GenerateModal( { postId, onClose } ) {
 					post_id: postId,
 					expiration: parseInt( expiration, 10 ),
 					max_uses: '' === maxUses ? null : parseInt( maxUses, 10 ),
+					allowed_ips: allowedIps
+						.split( /[\s,]+/ )
+						.map( ( range ) => range.trim() )
+						.filter( ( range ) => '' !== range ),
 				},
 			} );
 
@@ -156,6 +162,25 @@ function GenerateModal( { postId, onClose } ) {
 				help={ __( 'Number of distinct viewers. Leave empty for unlimited.', 'live-previews' ) }
 				value={ maxUses }
 				onChange={ setMaxUses }
+				__next40pxDefaultSize
+				__nextHasNoMarginBottom
+			/>
+
+			<TextControl
+				label={ __( 'Allowed IP ranges', 'live-previews' ) }
+				help={
+					settings.hasCentralIpRanges
+						? __(
+								'Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6). Some IP ranges have already been added in the VIP Dashboard and apply to every link; these are added to them. Leave empty to add none.',
+								'live-previews'
+						  )
+						: __(
+								'Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6), e.g. 203.0.113.0/24. Leave empty for no IP restriction. Note that IP restrictions limit where a link can be opened from, not who opens it.',
+								'live-previews'
+						  )
+				}
+				value={ allowedIps }
+				onChange={ setAllowedIps }
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
 			/>
@@ -262,6 +287,15 @@ function ManageModal( { postId, onClose } ) {
 							<div style={ { color: '#757575', fontSize: '12px' } }>
 								{ timeUntil( link.expires_at ) }
 							</div>
+							{ Array.isArray( link.allowed_ips ) && link.allowed_ips.length > 0 && (
+								<div style={ { color: '#757575', fontSize: '12px' } }>
+									{ sprintf(
+										/* translators: %s: comma-separated IP ranges. */
+										__( 'Restricted to %s', 'live-previews' ),
+										link.allowed_ips.join( ', ' )
+									) }
+								</div>
+							) }
 						</FlexBlock>
 						<FlexItem>
 							<Button variant="tertiary" isDestructive onClick={ () => revoke( link.id ) }>

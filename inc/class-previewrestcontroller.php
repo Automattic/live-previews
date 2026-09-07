@@ -108,18 +108,26 @@ final class PreviewRestController {
 					'callback'            => [ $this, 'create_link' ],
 					'permission_callback' => [ $this, 'can_manage_links' ],
 					'args'                => $post_id_arg + [
-						'expiration' => [
+						'expiration'  => [
 							'required' => true,
 							'type'     => 'integer',
 							'enum'     => self::allowed_expirations(),
 						],
-						'max_uses'   => [
+						'max_uses'    => [
 							// Null (or omitted) means unlimited; otherwise a positive
 							// integer up to the guard limit.
 							'type'    => [ 'integer', 'null' ],
 							'default' => null,
 							'minimum' => 1,
 							'maximum' => self::MAX_USES_LIMIT,
+						],
+						'allowed_ips' => [
+							// The schema only checks "array of strings"; whether each
+							// entry is a real CIDR range is validated in the minter,
+							// so REST and the abilities channel reject identically.
+							'type'    => 'array',
+							'items'   => [ 'type' => 'string' ],
+							'default' => [],
 						],
 					],
 				],
@@ -186,15 +194,29 @@ final class PreviewRestController {
 		$max_uses_param = $request->get_param( 'max_uses' );
 		$max_uses       = null === $max_uses_param ? null : (int) $max_uses_param;
 
-		// A WP_Error from the minter (e.g. a missing post) passes straight
-		// through: rest_ensure_response() returns it unchanged and the REST
-		// server renders it with its status.
+		/** @var mixed $allowed_ips_param */
+		$allowed_ips_param = $request->get_param( 'allowed_ips' );
+		$allowed_ips       = [];
+
+		if ( is_array( $allowed_ips_param ) ) {
+			/** @var mixed $range */
+			foreach ( $allowed_ips_param as $range ) {
+				if ( is_string( $range ) ) {
+					$allowed_ips[] = $range;
+				}
+			}
+		}
+
+		// A WP_Error from the minter (e.g. a missing post, or an invalid IP
+		// range) passes straight through: rest_ensure_response() returns it
+		// unchanged and the REST server renders it with its status.
 		return rest_ensure_response(
 			$this->minter->mint(
 				(int) $request->get_param( 'post_id' ),
 				(int) $request->get_param( 'expiration' ),
 				$max_uses,
-				'rest'
+				'rest',
+				$allowed_ips
 			)
 		);
 	}

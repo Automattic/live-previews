@@ -18,6 +18,7 @@ class ConfigTest extends WP_UnitTestCase {
 		static::assertTrue( $config->is_ready() );
 		static::assertSame( [], $config->missing_fields() );
 		static::assertSame( 604800, $config->get( 'dead_link_grace_period' ) );
+		static::assertSame( '', $config->get( 'ip_allowlist' ) );
 	}
 
 	/**

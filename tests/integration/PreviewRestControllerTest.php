@@ -134,6 +134,43 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertSame( 400, $this->create_link( $post_id, HOUR_IN_SECONDS, 0 )->get_status() );
 	}
 
+	public function test_a_link_can_carry_an_ip_allowlist(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = $this->create_link( $post_id, HOUR_IN_SECONDS, null, [ '203.0.113.0/24', '2001:db8::/32' ] );
+
+		static::assertSame( 200, $response->get_status() );
+		static::assertSame(
+			[ '203.0.113.0/24', '2001:db8::/32' ],
+			( new PostMetaTokenRepository() )->all_for_post( $post_id )[0]->allowed_ips()
+		);
+	}
+
+	public function test_an_invalid_ip_range_is_rejected_not_silently_dropped(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = $this->create_link( $post_id, HOUR_IN_SECONDS, null, [ '203.0.113.0/24', 'office' ] );
+
+		// The author must be told, or they would believe a restriction exists.
+		static::assertSame( 400, $response->get_status() );
+		static::assertCount( 0, ( new PostMetaTokenRepository() )->all_for_post( $post_id ) );
+	}
+
+	public function test_listing_includes_the_ip_allowlist(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$this->create_link( $post_id, HOUR_IN_SECONDS, null, [ '203.0.113.0/24' ] );
+
+		$request = new WP_REST_Request( 'GET', self::ROUTE );
+		$request->set_query_params( [ 'post_id' => $post_id ] );
+		$data = (array) rest_do_request( $request )->get_data();
+
+		static::assertSame( [ '203.0.113.0/24' ], $data[0]['allowed_ips'] );
+	}
+
 	public function test_listing_returns_live_links_only(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
@@ -213,13 +250,17 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertSame( 403, rest_do_request( $request )->get_status() );
 	}
 
-	private function create_link( int $post_id, int $expiration, ?int $max_uses = null ): \WP_REST_Response {
+	/**
+	 * @param list<string> $allowed_ips
+	 */
+	private function create_link( int $post_id, int $expiration, ?int $max_uses = null, array $allowed_ips = [] ): \WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', self::ROUTE );
 		$request->set_body_params(
 			[
-				'post_id'    => $post_id,
-				'expiration' => $expiration,
-				'max_uses'   => $max_uses,
+				'post_id'     => $post_id,
+				'expiration'  => $expiration,
+				'max_uses'    => $max_uses,
+				'allowed_ips' => $allowed_ips,
 			]
 		);
 

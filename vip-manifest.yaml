@@ -47,6 +47,18 @@ runtime_config:
         How long an expired or revoked preview link is kept, in seconds, so a
         reviewer who returns to a stale link is told why it stopped working
         rather than seeing a "not found" page. Defaults to 21 days.
+    - key: ip_allowlist
+      label: Trusted IP ranges
+      type: text
+      required: false
+      help: >-
+        IP addresses or CIDR ranges (IPv4 or IPv6, comma- or newline-separated)
+        that every preview link accepts, e.g. your office networks. Each link
+        can add further ranges of its own when it is generated; a link must
+        match any one range in the combined set. Leave empty to apply no IP
+        restriction beyond what individual links set. Note this is a shared
+        convenience baseline — it can only widen where links work, and IP
+        restrictions limit where a link opens from, not who opens it.
 
 telemetry:
   # Single word, no underscores: the leading token is the Tracks source and must
@@ -62,7 +74,8 @@ telemetry:
         - expiration
         - max_uses
         - channel
-      note: Usage metadata only — never the token, content, or PII. `channel` records how the link was requested (`rest` or `ability`).
+        - has_ip_allowlist
+      note: Usage metadata only — never the token, content, or PII. `channel` records how the link was requested (`rest` or `ability`). `has_ip_allowlist` records only whether per-link IP ranges were set, never the ranges themselves.
 
 release:
   plugin_version: 1.0.0

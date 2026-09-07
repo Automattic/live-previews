@@ -12,6 +12,16 @@ namespace Automattic\LivePreviews;
 final class EditorAssets {
 	private const HANDLE = 'live-previews-editor';
 
+	/**
+	 * Whether central IP ranges are configured in the VIP Dashboard, so the
+	 * Generate modal can say they already apply to every link.
+	 */
+	private bool $has_central_ip_ranges;
+
+	public function __construct( bool $has_central_ip_ranges = false ) {
+		$this->has_central_ip_ranges = $has_central_ip_ranges;
+	}
+
 	public function register(): void {
 		add_action( 'enqueue_block_editor_assets', [ $this, 'enqueue' ] );
 	}
@@ -58,8 +68,9 @@ final class EditorAssets {
 		// Hand the editor the same expiration options the endpoint validates.
 		$data = wp_json_encode(
 			[
-				'expirationOptions' => PreviewRestController::expiration_options(),
-				'defaultExpiration' => PreviewRestController::default_expiration(),
+				'expirationOptions'  => PreviewRestController::expiration_options(),
+				'defaultExpiration'  => PreviewRestController::default_expiration(),
+				'hasCentralIpRanges' => $this->has_central_ip_ranges,
 			]
 		);
 

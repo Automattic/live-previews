@@ -133,8 +133,81 @@ final class AccessPolicyTest extends TestCase {
 		);
 	}
 
+	public function test_no_ranges_anywhere_means_no_ip_restriction(): void {
+		$link = $this->link( [] );
+
+		// Even an unresolvable client IP is fine when nothing is restricted.
+		self::assertTrue( $this->policy->decide( $link, self::NOW, false, null )->is_allowed() );
+		self::assertTrue( $this->policy->decide( $link, self::NOW, false, '203.0.113.7' )->is_allowed() );
+	}
+
+	public function test_a_client_inside_a_per_link_range_is_allowed(): void {
+		$link = $this->link( [ 'allowed_ips' => [ '203.0.113.0/24' ] ] );
+
+		self::assertTrue( $this->policy->decide( $link, self::NOW, false, '203.0.113.7' )->is_allowed() );
+	}
+
+	public function test_a_client_outside_the_per_link_range_is_denied(): void {
+		$link = $this->link( [ 'allowed_ips' => [ '203.0.113.0/24' ] ] );
+
+		$decision = $this->policy->decide( $link, self::NOW, false, '198.51.100.7' );
+
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_IP_BLOCKED, $decision->reason() );
+	}
+
+	public function test_central_ranges_apply_to_a_link_without_its_own(): void {
+		$policy = new AccessPolicy( [ '198.51.100.0/24' ] );
+		$link   = $this->link( [] );
+
+		self::assertTrue( $policy->decide( $link, self::NOW, false, '198.51.100.7' )->is_allowed() );
+		self::assertFalse( $policy->decide( $link, self::NOW, false, '203.0.113.7' )->is_allowed() );
+	}
+
+	public function test_central_and_per_link_ranges_are_a_union(): void {
+		$policy = new AccessPolicy( [ '198.51.100.0/24' ] );
+		$link   = $this->link( [ 'allowed_ips' => [ '203.0.113.0/24' ] ] );
+
+		// Matching either source is enough: per-link ranges widen, never narrow.
+		self::assertTrue( $policy->decide( $link, self::NOW, false, '198.51.100.7' )->is_allowed() );
+		self::assertTrue( $policy->decide( $link, self::NOW, false, '203.0.113.7' )->is_allowed() );
+		self::assertFalse( $policy->decide( $link, self::NOW, false, '192.0.2.1' )->is_allowed() );
+	}
+
+	public function test_an_unresolvable_ip_fails_closed_when_ranges_exist(): void {
+		$link = $this->link( [ 'allowed_ips' => [ '203.0.113.0/24' ] ] );
+
+		self::assertSame(
+			AccessDecision::REASON_IP_BLOCKED,
+			$this->policy->decide( $link, self::NOW, false, null )->reason()
+		);
+	}
+
+	public function test_the_ip_check_is_absolute_even_for_a_slot_holder(): void {
+		$link = $this->link( [
+			'allowed_ips' => [ '203.0.113.0/24' ],
+			'max_uses'    => 3,
+			'viewers'     => self::slots( 1 ),
+		] );
+
+		self::assertFalse( $this->policy->decide( $link, self::NOW, true, '198.51.100.7' )->is_allowed() );
+	}
+
+	public function test_a_blocked_ip_learns_nothing_about_expiry(): void {
+		$link = $this->link( [
+			'allowed_ips' => [ '203.0.113.0/24' ],
+			'expires_at'  => self::NOW - 1,
+		] );
+
+		// IP wins over expiry, so the gate 404s instead of explaining the link.
+		self::assertSame(
+			AccessDecision::REASON_IP_BLOCKED,
+			$this->policy->decide( $link, self::NOW, false, '198.51.100.7' )->reason()
+		);
+	}
+
 	/**
-	 * @param array{expires_at?: int, max_uses?: int|null, viewers?: list<string>, revoked_at?: int|null} $overrides
+	 * @param array{expires_at?: int, max_uses?: int|null, viewers?: list<string>, revoked_at?: int|null, allowed_ips?: list<string>} $overrides
 	 */
 	private function link( array $overrides ): PreviewLink {
 		return new PreviewLink(
@@ -145,7 +218,9 @@ final class AccessPolicyTest extends TestCase {
 			1,
 			self::NOW - 100,
 			$overrides['viewers'] ?? [],
-			$overrides['revoked_at'] ?? null
+			$overrides['revoked_at'] ?? null,
+			'',
+			$overrides['allowed_ips'] ?? []
 		);
 	}
 
