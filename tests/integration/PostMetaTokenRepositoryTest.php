@@ -114,19 +114,71 @@ class PostMetaTokenRepositoryTest extends WP_UnitTestCase {
 		static::assertTrue( $reloaded->is_revoked() );
 	}
 
+	public function test_revokes_every_live_link_on_a_post(): void {
+		$post = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+
+		$this->save_link( $post, 'aaaa' );
+		$this->save_link( $post, 'bbbb' );
+
+		static::assertSame( 2, $this->repository->revoke_all_for_post( $post, 1234 ) );
+
+		foreach ( $this->repository->all_for_post( $post ) as $link ) {
+			static::assertSame( 1234, $link->revoked_at() );
+		}
+
+		// Idempotent: already-revoked links are not counted again.
+		static::assertSame( 0, $this->repository->revoke_all_for_post( $post, 5678 ) );
+	}
+
+	public function test_revokes_only_one_creators_links_on_a_post(): void {
+		$post = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+
+		$this->save_link( $post, 'aaaa', 7 );
+		$this->save_link( $post, 'bbbb', 8 );
+
+		static::assertSame( 1, $this->repository->revoke_by_creator_for_post( $post, 7, 1234 ) );
+
+		foreach ( $this->repository->all_for_post( $post ) as $link ) {
+			static::assertSame( 7 === $link->created_by(), $link->is_revoked() );
+		}
+	}
+
+	/**
+	 * The creator filter matches against the serialised row in SQL, so prove it
+	 * against real postmeta — including that user 1 does not match user 11.
+	 */
+	public function test_filters_the_listing_by_creator(): void {
+		$post = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+
+		$this->save_link( $post, 'aaaa', 1 );
+		$this->save_link( $post, 'bbbb', 11 );
+		$this->save_link( $post, 'cccc', 11 );
+
+		static::assertSame( 1, $this->repository->count_links( 1 ) );
+		static::assertSame( 2, $this->repository->count_links( 11 ) );
+		static::assertSame( 3, $this->repository->count_links() );
+
+		$links = $this->repository->page_of_links( 0, 10, 11 );
+
+		static::assertCount( 2, $links );
+		foreach ( $links as $link ) {
+			static::assertSame( 11, $link->created_by() );
+		}
+	}
+
 	public function test_is_empty_without_links(): void {
 		static::assertSame( 0, $this->repository->count_links() );
 		static::assertSame( [], $this->repository->page_of_links( 0, 10 ) );
 	}
 
-	private function save_link( int $post_id, string $hint ): void {
+	private function save_link( int $post_id, string $hint, int $created_by = 1 ): void {
 		$this->repository->save(
 			new PreviewLink(
 				$post_id,
 				Token::generate()->hash(),
 				time() + HOUR_IN_SECONDS,
 				null,
-				1,
+				$created_by,
 				time(),
 				[],
 				null,

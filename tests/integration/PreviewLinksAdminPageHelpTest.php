@@ -27,10 +27,9 @@ class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 
-		$this->page = new PreviewLinksAdminPage(
-			new PreviewLinkService( new PostMetaTokenRepository(), new AccessPolicy(), new SystemClock() ),
-			new SystemClock()
-		);
+		$service = new PreviewLinkService( new PostMetaTokenRepository(), new AccessPolicy(), new SystemClock() );
+
+		$this->page = new PreviewLinksAdminPage( $service, new SystemClock(), new BulkLinkRevoker( $service ) );
 	}
 
 	public function tear_down(): void {

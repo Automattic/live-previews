@@ -22,7 +22,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 
 		$this->repository = new PostMetaTokenRepository();
 		$this->service    = new PreviewLinkService( $this->repository, new AccessPolicy(), new SystemClock() );
-		$this->page       = new PreviewLinksAdminPage( $this->service, new SystemClock() );
+		$this->page       = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ) );
 
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 	}
@@ -32,15 +32,20 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 			$_GET['action'],
 			$_GET['post'],
 			$_GET['token'],
+			$_GET['creator'],
 			$_GET['_wpnonce'],
 			$_REQUEST['action'],
 			$_REQUEST['_wpnonce'],
 			$_POST['action'],
 			$_POST['links'],
+			$_POST['lp_enabled'],
+			$_POST['lp_all'],
 			$_POST['_wpnonce']
 		);
 
 		set_current_screen( 'front' );
+		BulkLinkRevoker::unschedule();
+
 		parent::tear_down();
 	}
 
@@ -55,7 +60,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	 * restricts every link.
 	 */
 	public function test_central_ip_ranges_are_stated_above_the_table(): void {
-		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), [ '203.0.113.0/24', '2001:db8::/32' ] );
+		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ), null, [ '203.0.113.0/24', '2001:db8::/32' ] );
 
 		$output = $this->rendered( $page );
 
@@ -120,6 +125,115 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 
 		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
 			static::assertTrue( $link->is_revoked() );
+		}
+	}
+
+	/**
+	 * Select-all-across-pages on a creator-filtered view sweeps everything
+	 * that person created, site-wide, within the table's own capability.
+	 */
+	public function test_select_all_on_a_creator_filter_revokes_everything_they_created(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
+
+		$this->submit_bulk_revoke( true );
+		$_GET['creator'] = '7';
+
+		static::assertSame( 1, $this->page->process_request() );
+
+		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
+			static::assertSame( 7 === $link->created_by(), $link->is_revoked() );
+		}
+	}
+
+	public function test_unfiltered_select_all_revokes_every_link_for_an_administrator(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
+		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
+
+		$this->submit_bulk_revoke( true );
+
+		static::assertSame( 2, $this->page->process_request() );
+
+		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
+			static::assertTrue( $link->is_revoked() );
+		}
+	}
+
+	/**
+	 * Unfiltered select-all is the break-glass "revoke everything", whose
+	 * blast radius exceeds the table's own gate: editor is not enough.
+	 */
+	public function test_an_editor_cannot_select_all_links_site_wide(): void {
+		$this->submit_bulk_revoke( true );
+
+		$this->expectException( \WPDieException::class );
+
+		$this->page->process_request();
+	}
+
+	/**
+	 * Simulate the table's bulk-revoke submission, optionally upgraded by the
+	 * "select all across pages" offer.
+	 */
+	private function submit_bulk_revoke( bool $select_all ): void {
+		$nonce                = wp_create_nonce( 'bulk-' . PreviewLinksListTable::PLURAL );
+		$_REQUEST['action']   = 'revoke';
+		$_POST['action']      = 'revoke';
+		$_POST['_wpnonce']    = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		if ( $select_all ) {
+			$_POST['lp_all'] = '1';
+		}
+	}
+
+	public function test_an_administrator_can_disable_and_enable_links(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$toggle = new LinkToggle();
+
+		// The slider submits the new state: no checkbox means "disabled".
+		$this->submit_toggle( false );
+		static::assertSame( 'disabled', $this->page->process_toggle() );
+		static::assertTrue( $toggle->is_disabled() );
+
+		$this->submit_toggle( true );
+		static::assertSame( 'enabled', $this->page->process_toggle() );
+		static::assertFalse( $toggle->is_disabled() );
+	}
+
+	public function test_an_ordinary_view_carries_no_toggle(): void {
+		static::assertNull( $this->page->process_toggle() );
+	}
+
+	/**
+	 * The switch silently stops every link on the site working, so an editor's
+	 * capability is not enough to flip it.
+	 */
+	public function test_an_editor_cannot_disable_links(): void {
+		$this->submit_toggle( false );
+
+		$this->expectException( \WPDieException::class );
+
+		$this->page->process_toggle();
+	}
+
+	/**
+	 * Simulate the toggle slider's form submission asking for the given state.
+	 */
+	private function submit_toggle( bool $enabled ): void {
+		$nonce                = wp_create_nonce( 'live_previews_toggle_links' );
+		$_POST['action']      = 'toggle_links';
+		$_POST['_wpnonce']    = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		if ( $enabled ) {
+			$_POST['lp_enabled'] = '1';
+		} else {
+			unset( $_POST['lp_enabled'] );
 		}
 	}
 }

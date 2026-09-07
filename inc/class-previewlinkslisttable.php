@@ -21,8 +21,9 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 	private PreviewLinkService $service;
 	private int $now;
+	private LinkToggle $toggle;
 
-	public function __construct( PreviewLinkService $service, int $now ) {
+	public function __construct( PreviewLinkService $service, int $now, ?LinkToggle $toggle = null ) {
 		parent::__construct(
 			[
 				'singular' => 'preview-link',
@@ -33,6 +34,43 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 		$this->service = $service;
 		$this->now     = $now;
+		$this->toggle  = $toggle ?? new LinkToggle();
+	}
+
+	/**
+	 * The site-wide enable/disable slider, on the same line as the bulk
+	 * actions. The checkbox belongs to the small `lp-toggle` form the admin
+	 * page renders *outside* this table's own form (forms cannot nest), wired
+	 * up via the HTML `form` attribute.
+	 *
+	 * @param string $which 'top' or 'bottom'.
+	 */
+	protected function extra_tablenav( $which ): void {
+		if ( 'top' !== $which || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$enabled = ! $this->toggle->is_disabled();
+
+		echo '<div class="alignleft actions">';
+		echo '<label class="lp-switch">';
+		printf(
+			'<input type="checkbox" name="lp_enabled" value="1" form="lp-toggle" %s onchange="document.getElementById(\'lp-toggle\').submit()" />',
+			checked( $enabled, true, false )
+		);
+		echo '<span class="lp-track" aria-hidden="true"></span>';
+		printf(
+			'<span>%s</span>',
+			$enabled
+				? esc_html__( 'Preview links are enabled', 'live-previews' )
+				: esc_html__( 'Preview links are disabled', 'live-previews' )
+		);
+		echo '</label>';
+		printf(
+			'<noscript><button type="submit" class="button" form="lp-toggle">%s</button></noscript>',
+			esc_html__( 'Apply', 'live-previews' )
+		);
+		echo '</div>';
 	}
 
 	/**
@@ -69,10 +107,11 @@ final class PreviewLinksListTable extends WP_List_Table {
 	public function prepare_items(): void {
 		$per_page = $this->get_items_per_page( PreviewLinksAdminPage::PER_PAGE_OPTION, PreviewLinksAdminPage::DEFAULT_PER_PAGE );
 		$offset   = ( $this->get_pagenum() - 1 ) * $per_page;
+		$creator  = PreviewLinksAdminPage::requested_creator();
 
-		$this->items = $this->service->page_of_links( $offset, $per_page );
+		$this->items = $this->service->page_of_links( $offset, $per_page, $creator );
 
-		$total = $this->service->count_links();
+		$total = $this->service->count_links( $creator );
 
 		$this->set_pagination_args(
 			[
@@ -119,12 +158,20 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 		$user = get_userdata( $user_id );
 
-		if ( false !== $user ) {
-			return esc_html( $user->display_name );
-		}
-
 		/* translators: %d: user ID */
-		return esc_html( sprintf( __( 'User #%d', 'live-previews' ), $user_id ) );
+		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
+
+		// The name links to the creator-filtered view of this table, which is
+		// where the "revoke everything this user created" action lives.
+		$url = add_query_arg(
+			[
+				'page'    => PreviewLinksAdminPage::SLUG,
+				'creator' => $user_id,
+			],
+			admin_url( 'admin.php' )
+		);
+
+		return sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $name ) );
 	}
 
 	public function column_usage( PreviewLink $item ): string {

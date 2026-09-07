@@ -59,6 +59,21 @@ interface TokenRepository {
 	public function revoke( PreviewLink $link, int $revoked_at ): void;
 
 	/**
+	 * Revoke every not-yet-revoked link on a post, returning how many were
+	 * revoked. The per-post building block the bulk-revoke sweep drives; each row
+	 * keeps its own `revoked_at` so it stays the source of truth and the gate can
+	 * still explain "this link was revoked".
+	 */
+	public function revoke_all_for_post( int $post_id, int $revoked_at ): int;
+
+	/**
+	 * Revoke every not-yet-revoked link on a post that the given user created,
+	 * returning how many were revoked. Backs offboarding: when a user is removed,
+	 * the links they issued stop working.
+	 */
+	public function revoke_by_creator_for_post( int $post_id, int $created_by, int $revoked_at ): int;
+
+	/**
 	 * Delete every link for a post, live or not. Used when a post is published or
 	 * trashed and its preview links become meaningless.
 	 */
@@ -91,15 +106,18 @@ interface TokenRepository {
 	 * run it only off the request path (an editor-gated admin screen) and never
 	 * from the gate.
 	 *
-	 * @param int $offset Rows to skip.
-	 * @param int $limit  Maximum rows to return.
+	 * @param int      $offset     Rows to skip.
+	 * @param int      $limit      Maximum rows to return.
+	 * @param int|null $created_by Only links created by this user, or null for all.
 	 * @return list<PreviewLink>
 	 */
-	public function page_of_links( int $offset, int $limit ): array;
+	public function page_of_links( int $offset, int $limit, ?int $created_by = null ): array;
 
 	/**
 	 * How many links are issued across every post, for paginating
 	 * {@see page_of_links()}.
+	 *
+	 * @param int|null $created_by Only links created by this user, or null for all.
 	 */
-	public function count_links(): int;
+	public function count_links( ?int $created_by = null ): int;
 }

@@ -96,6 +96,22 @@ final class PreviewLinkService {
 	}
 
 	/**
+	 * Revoke every not-yet-revoked link on a post, returning how many were
+	 * revoked. One per-post step of the site-wide break-glass sweep.
+	 */
+	public function revoke_all_for_post( int $post_id ): int {
+		return $this->repository->revoke_all_for_post( $post_id, $this->clock->now() );
+	}
+
+	/**
+	 * Revoke every not-yet-revoked link on a post that the given user created,
+	 * returning how many were revoked. One per-post step of the offboarding sweep.
+	 */
+	public function revoke_for_post_by_creator( int $post_id, int $created_by ): int {
+		return $this->repository->revoke_by_creator_for_post( $post_id, $created_by, $this->clock->now() );
+	}
+
+	/**
 	 * Forget every link for a post. Called when a post is published or trashed
 	 * and its preview links no longer mean anything.
 	 */
@@ -204,18 +220,19 @@ final class PreviewLinkService {
 
 	/**
 	 * A page of every issued link across the site, newest first, for the admin
-	 * table.
+	 * table — optionally only the links a given user created.
 	 *
 	 * @return list<PreviewLink>
 	 */
-	public function page_of_links( int $offset, int $limit ): array {
-		return $this->repository->page_of_links( $offset, $limit );
+	public function page_of_links( int $offset, int $limit, ?int $created_by = null ): array {
+		return $this->repository->page_of_links( $offset, $limit, $created_by );
 	}
 
 	/**
-	 * How many links exist across the site, for paginating the admin table.
+	 * How many links exist across the site (or by one creator), for paginating
+	 * the admin table.
 	 */
-	public function count_links(): int {
-		return $this->repository->count_links();
+	public function count_links( ?int $created_by = null ): int {
+		return $this->repository->count_links( $created_by );
 	}
 }
