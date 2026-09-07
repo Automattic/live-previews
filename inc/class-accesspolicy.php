@@ -13,11 +13,29 @@ namespace Automattic\LivePreviews;
  * not here, so that a page whose render fires several queries cannot burn its
  * own link mid-load.
  *
- * Order matters. Revocation and expiry are absolute and are checked first, so
- * holding a slot never resurrects a link the author killed or one that simply
- * ran out of time. Only the viewer cap is relaxed for an existing slot-holder.
+ * Order matters. The IP check comes first: a visitor outside the allowlist must
+ * learn nothing, not even that the link once existed or has expired, so it is
+ * checked before the reasons the gate is willing to explain. Revocation and
+ * expiry are absolute and come next, so holding a slot never resurrects a link
+ * the author killed or one that simply ran out of time. Only the viewer cap is
+ * relaxed for an existing slot-holder.
  */
 final class AccessPolicy {
+	/**
+	 * @var list<string> Central CIDR ranges from the VIP Dashboard config that
+	 *                   apply to every link, unioned with each link's own ranges.
+	 */
+	private array $central_ip_ranges;
+
+	/**
+	 * @param list<string> $central_ip_ranges Central CIDR ranges applying to
+	 *                                        every link. Empty when the platform
+	 *                                        config carries none.
+	 */
+	public function __construct( array $central_ip_ranges = [] ) {
+		$this->central_ip_ranges = $central_ip_ranges;
+	}
+
 	/**
 	 * @param PreviewLink|null $link             The link on record for the post,
 	 *                                           or null if no link matched the
@@ -32,10 +50,23 @@ final class AccessPolicy {
 	 *                                           against the link before passing
 	 *                                           true — see
 	 *                                           {@see PreviewLink::holds_slot()}.
+	 * @param string|null      $client_ip        The visitor's true client IP, or
+	 *                                           null if it could not be resolved.
+	 *                                           Only consulted when the combined
+	 *                                           allowlist is non-empty; an
+	 *                                           unresolvable IP then fails closed.
 	 */
-	public function decide( ?PreviewLink $link, int $now, bool $viewer_holds_slot = false ): AccessDecision {
+	public function decide( ?PreviewLink $link, int $now, bool $viewer_holds_slot = false, ?string $client_ip = null ): AccessDecision {
 		if ( null === $link ) {
 			return AccessDecision::deny( AccessDecision::REASON_NOT_FOUND );
+		}
+
+		// Union of the central baseline and the link's own ranges; either side
+		// may be empty. No ranges at all means no IP restriction.
+		$ranges = [ ...$this->central_ip_ranges, ...$link->allowed_ips() ];
+
+		if ( [] !== $ranges && ( null === $client_ip || ! IpAllowlist::matches( $client_ip, $ranges ) ) ) {
+			return AccessDecision::deny( AccessDecision::REASON_IP_BLOCKED );
 		}
 
 		if ( $link->is_revoked() ) {

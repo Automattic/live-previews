@@ -23,6 +23,7 @@ but runs on any host.
 - Show a friendly notice when a link has expired, been revoked, or been exhausted, while unknown links stay a plain 404 so drafts cannot be enumerated. How much of the reason is disclosed is filterable, for sites that would rather say less. ([#15](https://github.com/Automattic/live-previews/pull/15), [#31](https://github.com/Automattic/live-previews/pull/31))
 - Sweep expired and revoked links automatically after a retention period, so a reviewer returning to a stale link is told why it stopped working rather than seeing a 404. The period is set from the VIP Dashboard through the optional `dead_link_grace_period` value and overridden by the `live_previews_dead_link_grace_period` filter, falling back to 21 days whenever the value is absent or unusable — a blank field never means "delete links the moment they expire". ([#32](https://github.com/Automattic/live-previews/pull/32))
 - Create and list preview links through the Abilities API, so MCP clients, the AI Client, and the abilities REST runner mint links under the same rules as the editor. ([#28](https://github.com/Automattic/live-previews/pull/28), [#30](https://github.com/Automattic/live-previews/pull/30))
+- Restrict where a preview link can be opened from with an optional IP allowlist: per-link CIDR ranges (IPv4 and IPv6) set when generating the link, unioned with an optional central baseline set once in the VIP Dashboard through the `ip_allowlist` value. A link must pass both the token checks and the IP check; with no ranges anywhere, behaviour is unchanged. Visitors outside the allowlist see a plain 404, learning nothing about the draft. Per-link ranges are shown in the editor's Manage modal and on the Preview Links screen. ([#45](https://github.com/Automattic/live-previews/pull/45))
 - Report whether the cleanup sweep is scheduled and actually running, as a Site Health check under Tools → Site Health.
 - Ship translatable strings with a bundled POT, so the plugin can be localised without a WordPress.org language pack.
 
@@ -32,7 +33,7 @@ but runs on any host.
 
 ### Notes for VIP
 
-- Every value in `VIP_LIVE_PREVIEWS_CONFIG` is optional. Defining the constant is what enables the integration; `dead_link_grace_period` is the only value the plugin reads, and it runs on its built-in defaults without it. ([#35](https://github.com/Automattic/live-previews/pull/35))
+- Every value in `VIP_LIVE_PREVIEWS_CONFIG` is optional. Defining the constant is what enables the integration; the plugin reads only `dead_link_grace_period` and `ip_allowlist`, and it runs on its built-in defaults without them. ([#35](https://github.com/Automattic/live-previews/pull/35))
 - VIP support links in contextual help appear only on VIP-hosted sites, where VIP support can answer them; elsewhere they point at the plugin's own support channel. ([#35](https://github.com/Automattic/live-previews/pull/35))
 
 [Unreleased]: https://github.com/Automattic/live-previews/commits/develop

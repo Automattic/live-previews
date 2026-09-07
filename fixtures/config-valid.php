@@ -12,4 +12,9 @@
 return [
 	// 7 days, in seconds.
 	'dead_link_grace_period' => 604800,
+	// Deliberately empty: this fixture backs the local dev-env and the
+	// integration bootstrap, where a populated central allowlist would block
+	// every local visitor (their address is never in a real customer range).
+	// Set ranges in a git-ignored config-local.php to exercise the baseline.
+	'ip_allowlist'           => '',
 ];

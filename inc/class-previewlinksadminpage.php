@@ -29,12 +29,24 @@ final class PreviewLinksAdminPage {
 	private PreviewLinkService $service;
 	private Clock $clock;
 
+	/**
+	 * @var list<string> Central CIDR ranges from the VIP Dashboard config. Shown
+	 *                   above the table so an auditor can see the baseline every
+	 *                   link accepts, which no per-row column repeats.
+	 */
+	private array $central_ip_ranges;
+
 	/** Built lazily on the screen load, then reused when rendering the page. */
 	private ?PreviewLinksListTable $table = null;
 
-	public function __construct( PreviewLinkService $service, Clock $clock ) {
-		$this->service = $service;
-		$this->clock   = $clock;
+	/**
+	 * @param list<string> $central_ip_ranges Central CIDR ranges applying to
+	 *                                        every link, or empty for none.
+	 */
+	public function __construct( PreviewLinkService $service, Clock $clock, array $central_ip_ranges = [] ) {
+		$this->service           = $service;
+		$this->clock             = $clock;
+		$this->central_ip_ranges = $central_ip_ranges;
 	}
 
 	public function register(): void {
@@ -125,6 +137,7 @@ final class PreviewLinksAdminPage {
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Preview Links', 'live-previews' ) );
 
+		$this->maybe_render_central_ranges();
 		$this->maybe_render_notice();
 
 		echo '<form method="post">';
@@ -178,6 +191,32 @@ final class PreviewLinksAdminPage {
 		}
 
 		return $count;
+	}
+
+	/**
+	 * State the central baseline once, above the table. The IP ranges column
+	 * shows only each link's own ranges, so without this line a table full of
+	 * dashes would read as "no IP restrictions" on a site where the Dashboard
+	 * restricts every link.
+	 */
+	private function maybe_render_central_ranges(): void {
+		if ( [] === $this->central_ip_ranges ) {
+			return;
+		}
+
+		$ranges = implode(
+			', ',
+			array_map(
+				static fn ( string $range ): string => sprintf( '<code>%s</code>', esc_html( $range ) ),
+				$this->central_ip_ranges
+			)
+		);
+
+		printf(
+			'<p>%s %s</p>',
+			esc_html__( 'IP ranges set in the VIP Dashboard apply to every link, in addition to any ranges shown per link below:', 'live-previews' ),
+			$ranges // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Each range is passed through esc_html() above; the only markup is static <code> tags.
+		);
 	}
 
 	private function maybe_render_notice(): void {
@@ -266,6 +305,7 @@ final class PreviewLinksAdminPage {
 		$reading .= '<li>' . esc_html__( 'Exhausted: reached its limit on distinct viewers.', 'live-previews' ) . '</li>';
 		$reading .= '<li>' . esc_html__( 'Revoked: switched off by hand.', 'live-previews' ) . '</li>';
 		$reading .= '</ul><p>' . esc_html__( 'Uses counts distinct viewers against the cap; an infinity sign means no cap.', 'live-previews' ) . '</p>';
+		$reading .= '<p>' . esc_html__( 'IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one.', 'live-previews' ) . '</p>';
 
 		$screen->add_help_tab(
 			[

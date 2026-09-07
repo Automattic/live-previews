@@ -68,6 +68,52 @@ class PostMetaTokenRepositoryTest extends WP_UnitTestCase {
 		static::assertSame( 'ab12', $links[0]->token_hint() );
 	}
 
+	public function test_round_trips_the_ip_allowlist(): void {
+		$post = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+
+		$this->repository->save(
+			new PreviewLink( $post, 'a-hash', 2000, null, 1, 1000, [], null, 'ab12', [ '203.0.113.0/24', '2001:db8::/32' ] )
+		);
+
+		static::assertSame(
+			[ '203.0.113.0/24', '2001:db8::/32' ],
+			$this->repository->all_for_post( $post )[0]->allowed_ips()
+		);
+	}
+
+	public function test_a_row_stored_before_the_allowlist_existed_is_still_revocable(): void {
+		$post = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+
+		// A pre-allowlist row has no allowed_ips key at all. The revoke write is
+		// a compare-and-swap against the exact stored array, so the rebuilt link
+		// must serialise back to the same bytes or the revoke silently no-ops.
+		add_post_meta(
+			$post,
+			PostMetaTokenRepository::META_KEY,
+			[
+				'version'    => 2,
+				'token_hash' => 'legacy-hash',
+				'expires_at' => time() + HOUR_IN_SECONDS,
+				'max_uses'   => null,
+				'created_by' => 1,
+				'created_at' => time() - HOUR_IN_SECONDS,
+				'viewers'    => [],
+				'revoked_at' => null,
+				'token_hint' => 'ab12',
+			]
+		);
+
+		$link = $this->repository->find_by_hash( $post, 'legacy-hash' );
+		static::assertNotNull( $link );
+		static::assertSame( [], $link->allowed_ips() );
+
+		$this->repository->revoke( $link, time() );
+
+		$reloaded = $this->repository->find_by_hash( $post, 'legacy-hash' );
+		static::assertNotNull( $reloaded );
+		static::assertTrue( $reloaded->is_revoked() );
+	}
+
 	public function test_is_empty_without_links(): void {
 		static::assertSame( 0, $this->repository->count_links() );
 		static::assertSame( [], $this->repository->page_of_links( 0, 10 ) );

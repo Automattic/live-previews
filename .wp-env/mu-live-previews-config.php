@@ -20,6 +20,11 @@ if ( ! defined( 'VIP_LIVE_PREVIEWS_CONFIG' ) ) {
 			// 7 days, in seconds — not the 21-day default, so it is obvious when
 			// the injected value is the one in use.
 			'dead_link_grace_period' => 604800,
+			// No central IP ranges locally: links restrict by IP only when a
+			// range is set per link. Add documentation-range CIDRs here (e.g.
+			// '203.0.113.0/24') to exercise the central baseline and the
+			// editor's "already added in the VIP Dashboard" notice.
+			'ip_allowlist'           => '',
 		]
 	);
 }

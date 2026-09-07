@@ -14,6 +14,7 @@ final class AccessDecision {
 	public const REASON_EXPIRED        = 'expired';
 	public const REASON_REVOKED        = 'revoked';
 	public const REASON_EXHAUSTED      = 'exhausted';
+	public const REASON_IP_BLOCKED     = 'ip_blocked';
 
 	private bool $allowed;
 	private string $reason;

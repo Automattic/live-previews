@@ -72,11 +72,11 @@ final class PreviewAbilities {
 					'type'       => 'object',
 					'required'   => [ 'post_id' ],
 					'properties' => [
-						'post_id'    => [
+						'post_id'     => [
 							'type'        => 'integer',
 							'description' => __( 'ID of the draft to generate a preview link for.', 'live-previews' ),
 						],
-						'expiration' => [
+						'expiration'  => [
 							'type'        => 'integer',
 							// Mirrors the REST endpoint's accepted lifetimes so both
 							// channels honour the same (filterable) set.
@@ -84,12 +84,18 @@ final class PreviewAbilities {
 							'default'     => PreviewRestController::default_expiration(),
 							'description' => __( 'How long the link stays valid, in seconds.', 'live-previews' ),
 						],
-						'max_uses'   => [
+						'max_uses'    => [
 							'type'        => [ 'integer', 'null' ],
 							'default'     => null,
 							'minimum'     => 1,
 							'maximum'     => PreviewRestController::MAX_USES_LIMIT,
 							'description' => __( 'Maximum number of distinct viewers, or null for unlimited.', 'live-previews' ),
+						],
+						'allowed_ips' => [
+							'type'        => 'array',
+							'items'       => [ 'type' => 'string' ],
+							'default'     => [],
+							'description' => __( 'IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Empty means no IP restriction.', 'live-previews' ),
 						],
 					],
 				],
@@ -147,19 +153,24 @@ final class PreviewAbilities {
 					'items' => [
 						'type'       => 'object',
 						'properties' => [
-							'id'         => [
+							'id'          => [
 								'type'        => 'string',
 								'description' => __( 'Token hash identifying the link.', 'live-previews' ),
 							],
-							'token_hint' => [
+							'token_hint'  => [
 								'type'        => 'string',
 								'description' => __( 'Last few characters of the token, to recognise the link.', 'live-previews' ),
 							],
-							'created_at' => [ 'type' => 'integer' ],
-							'expires_at' => [ 'type' => 'integer' ],
-							'max_uses'   => [ 'type' => [ 'integer', 'null' ] ],
-							'use_count'  => [ 'type' => 'integer' ],
-							'exhausted'  => [ 'type' => 'boolean' ],
+							'created_at'  => [ 'type' => 'integer' ],
+							'expires_at'  => [ 'type' => 'integer' ],
+							'max_uses'    => [ 'type' => [ 'integer', 'null' ] ],
+							'use_count'   => [ 'type' => 'integer' ],
+							'exhausted'   => [ 'type' => 'boolean' ],
+							'allowed_ips' => [
+								'type'        => 'array',
+								'items'       => [ 'type' => 'string' ],
+								'description' => __( 'IP ranges the link is restricted to; empty means no per-link restriction.', 'live-previews' ),
+							],
 						],
 					],
 				],
@@ -205,7 +216,18 @@ final class PreviewAbilities {
 		$expiration = isset( $input['expiration'] ) ? (int) $input['expiration'] : PreviewRestController::default_expiration();
 		$max_uses   = isset( $input['max_uses'] ) ? (int) $input['max_uses'] : null;
 
-		return $this->minter->mint( $post_id, $expiration, $max_uses, 'ability' );
+		$allowed_ips = [];
+
+		if ( isset( $input['allowed_ips'] ) && is_array( $input['allowed_ips'] ) ) {
+			/** @var mixed $range */
+			foreach ( $input['allowed_ips'] as $range ) {
+				if ( is_string( $range ) ) {
+					$allowed_ips[] = $range;
+				}
+			}
+		}
+
+		return $this->minter->mint( $post_id, $expiration, $max_uses, 'ability', $allowed_ips );
 	}
 
 	/**
@@ -221,7 +243,7 @@ final class PreviewAbilities {
 
 	/**
 	 * @param mixed $input The schema-validated ability input.
-	 * @return list<array{id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool}>
+	 * @return list<array{id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool, allowed_ips: list<string>}>
 	 */
 	public function list_links( $input ): array {
 		$post_id = is_array( $input ) && isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;

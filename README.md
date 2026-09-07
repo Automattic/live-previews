@@ -16,6 +16,12 @@ A preview link carries its token in the query string (`?p=13&preview=true&lp-tok
 
 Practically every cache already bypasses on `preview=true` and on unrecognised query strings, and VIP guarantees it. If a cache is misconfigured, the visible symptom is that per-viewer limits stop counting correctly, because the gate reads and sets a per-viewer cookie. The worse and quieter failure is a cached copy of an unlocked draft being served to somebody with no token at all, so it is worth confirming rather than assuming.
 
+### IP allowlists need the true client IP
+
+A preview link can optionally be restricted to IP ranges (set per link when generating it, plus an optional central baseline on VIP). The gate reads the visitor's address from `REMOTE_ADDR`, which is correct on WordPress VIP — the edge rewrites it to the true client IP — and on any host where PHP talks directly to the client. Behind another reverse proxy, `REMOTE_ADDR` is the proxy's address, so every visitor would fail the check (the gate fails closed rather than trusting a spoofable `X-Forwarded-For`). Such hosts should return the address from their proxy's trusted header via the `live_previews_client_ip` filter. Links without IP ranges are unaffected either way.
+
+Note that IP allowlisting constrains *where* a link can be opened from, not *who* opens it — VPNs, mobile networks, and carrier-grade NAT all blur it — so it layers on top of the token controls rather than replacing them.
+
 ### Scheduled events must run
 
 Expired and revoked links are kept for a grace period so the gate can tell a visitor *why* their link stopped working, then removed by a daily `live_previews_prune_links` event. If scheduled events never fire, nothing breaks for visitors — expiry is checked when a link is opened, not by the sweep — but the rows accumulate indefinitely.

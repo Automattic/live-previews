@@ -58,6 +58,26 @@ final class PreviewLinkServiceTest extends TestCase {
 		self::assertSame( AccessDecision::REASON_NOT_FOUND, $decision->reason() );
 	}
 
+	public function test_minted_ip_ranges_are_persisted_and_enforced(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1, [ '203.0.113.0/24' ] );
+
+		$stored = $this->repository->all_for_post( self::POST_ID );
+		self::assertSame( [ '203.0.113.0/24' ], $stored[0]->allowed_ips() );
+
+		self::assertTrue( $this->service->authorize( self::POST_ID, $token, null, '203.0.113.7' )->is_allowed() );
+
+		$decision = $this->service->authorize( self::POST_ID, $token, null, '198.51.100.7' );
+		self::assertFalse( $decision->is_allowed() );
+		self::assertSame( AccessDecision::REASON_IP_BLOCKED, $decision->reason() );
+	}
+
+	public function test_a_slot_cannot_be_claimed_from_a_blocked_ip(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 5, 1, [ '203.0.113.0/24' ] );
+
+		self::assertNull( $this->service->claim_slot( self::POST_ID, $token, '198.51.100.7' ) );
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token, '203.0.113.7' ) );
+	}
+
 	public function test_a_token_does_not_authorize_a_different_post(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, null, 1 );
 

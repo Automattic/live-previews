@@ -38,7 +38,14 @@ final class PreviewLink {
 	private string $token_hint;
 
 	/**
-	 * @param list<string> $viewers Opaque IDs of viewers already holding a slot.
+	 * @var list<string> CIDR ranges this link is restricted to, on top of any
+	 *                   central ranges. Empty means no per-link restriction.
+	 */
+	private array $allowed_ips;
+
+	/**
+	 * @param list<string> $viewers     Opaque IDs of viewers already holding a slot.
+	 * @param list<string> $allowed_ips CIDR ranges this link is restricted to.
 	 */
 	public function __construct(
 		int $post_id,
@@ -49,23 +56,27 @@ final class PreviewLink {
 		int $created_at,
 		array $viewers = [],
 		?int $revoked_at = null,
-		string $token_hint = ''
+		string $token_hint = '',
+		array $allowed_ips = []
 	) {
-		$this->post_id    = $post_id;
-		$this->token_hash = $token_hash;
-		$this->expires_at = $expires_at;
-		$this->max_uses   = $max_uses;
-		$this->created_by = $created_by;
-		$this->created_at = $created_at;
-		$this->viewers    = $viewers;
-		$this->revoked_at = $revoked_at;
-		$this->token_hint = $token_hint;
+		$this->post_id     = $post_id;
+		$this->token_hash  = $token_hash;
+		$this->expires_at  = $expires_at;
+		$this->max_uses    = $max_uses;
+		$this->created_by  = $created_by;
+		$this->created_at  = $created_at;
+		$this->viewers     = $viewers;
+		$this->revoked_at  = $revoked_at;
+		$this->token_hint  = $token_hint;
+		$this->allowed_ips = $allowed_ips;
 	}
 
 	/**
 	 * Issue a brand-new link for a freshly generated token.
 	 *
-	 * @param int|null $max_uses Maximum distinct viewers, or null for unlimited.
+	 * @param int|null     $max_uses    Maximum distinct viewers, or null for unlimited.
+	 * @param list<string> $allowed_ips CIDR ranges to restrict the link to, or empty
+	 *                                  for no per-link restriction.
 	 */
 	public static function issue(
 		int $post_id,
@@ -73,7 +84,8 @@ final class PreviewLink {
 		int $expires_at,
 		?int $max_uses,
 		int $created_by,
-		int $created_at
+		int $created_at,
+		array $allowed_ips = []
 	): self {
 		return new self(
 			$post_id,
@@ -84,7 +96,8 @@ final class PreviewLink {
 			$created_at,
 			[],
 			null,
-			substr( $token->value(), -4 )
+			substr( $token->value(), -4 ),
+			$allowed_ips
 		);
 	}
 
@@ -137,6 +150,16 @@ final class PreviewLink {
 	 */
 	public function token_hint(): string {
 		return $this->token_hint;
+	}
+
+	/**
+	 * The CIDR ranges this link is restricted to. Empty means the link adds no
+	 * IP restriction of its own (any central ranges still apply).
+	 *
+	 * @return list<string>
+	 */
+	public function allowed_ips(): array {
+		return $this->allowed_ips;
 	}
 
 	/**
@@ -221,7 +244,8 @@ final class PreviewLink {
 			$this->created_at,
 			[ ...$this->viewers, $viewer_id ],
 			$this->revoked_at,
-			$this->token_hint
+			$this->token_hint,
+			$this->allowed_ips
 		);
 	}
 
@@ -239,7 +263,8 @@ final class PreviewLink {
 			$this->created_at,
 			$this->viewers,
 			$revoked_at,
-			$this->token_hint
+			$this->token_hint,
+			$this->allowed_ips
 		);
 	}
 }

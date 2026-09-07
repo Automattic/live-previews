@@ -5,11 +5,11 @@ namespace Automattic\LivePreviews;
 /**
  * Composition root: assembles the object graph and registers its hooks.
  *
- * Nothing here reads {@see Config}. The runtime config constant carries no data
- * yet, and on VIP its presence is what enables the integration in the first
- * place — so a plugin that is running has, by definition, a config that is
- * present. Config stays as the reader for the first value the platform does
- * send; there is simply nothing to read today.
+ * The one config value read here is the optional `ip_allowlist` key: central
+ * CIDR ranges set once in the VIP Dashboard that apply to every preview link,
+ * unioned with each link's own ranges. It is read defensively — absent, empty,
+ * or malformed all mean "no central ranges" — so the plugin never depends on
+ * the Dashboard side existing.
  */
 final class Plugin {
 	/** @var self|null */
@@ -46,13 +46,17 @@ final class Plugin {
 			dirname( plugin_basename( VIP_LIVE_PREVIEWS_FILE ) ) . '/languages'
 		);
 
+		// Central IP ranges from the VIP Dashboard, if any. Untrusted customer
+		// input: anything unusable is dropped rather than half-applied.
+		$central_ip_ranges = IpAllowlist::sanitize( Config::get_instance()->get( 'ip_allowlist' ) );
+
 		// Composition root: assemble the domain graph once (no container) and
 		// share it between minting (REST) and enforcement (the gate). Swapping
 		// storage, clock, or policy is a one-line change here.
 		$clock   = new SystemClock();
 		$service = new PreviewLinkService(
 			new PostMetaTokenRepository(),
-			new AccessPolicy(),
+			new AccessPolicy( $central_ip_ranges ),
 			$clock
 		);
 		$minter  = new PreviewLinkMinter( $service );
@@ -63,10 +67,10 @@ final class Plugin {
 		( new PreviewGate( $service ) )->register();
 		( new PublishCleanup( $service ) )->register();
 		( new LinkGarbageCollector( $service ) )->register();
-		( new EditorAssets() )->register();
+		( new EditorAssets( [] !== $central_ip_ranges ) )->register();
 
 		// Site-wide audit + revoke table for editors.
-		( new PreviewLinksAdminPage( $service, $clock ) )->register();
+		( new PreviewLinksAdminPage( $service, $clock, $central_ip_ranges ) )->register();
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.
