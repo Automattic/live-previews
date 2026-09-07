@@ -70,7 +70,7 @@ final class Plugin {
 		( new EditorAssets( [] !== $central_ip_ranges ) )->register();
 
 		// Site-wide audit + revoke table for editors.
-		( new PreviewLinksAdminPage( $service, $clock ) )->register();
+		( new PreviewLinksAdminPage( $service, $clock, $central_ip_ranges ) )->register();
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.

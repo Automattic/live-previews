@@ -171,11 +171,11 @@ function GenerateModal( { postId, onClose } ) {
 				help={
 					settings.hasCentralIpRanges
 						? __(
-								'Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6). Some IP ranges have already been added in the VIP Dashboard and apply to every link; these are added to them. Leave empty to add none.',
+								'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
 								'live-previews'
 						  )
 						: __(
-								'Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6), e.g. 203.0.113.0/24. Leave empty for no IP restriction. Note that IP restrictions limit where a link can be opened from, not who opens it.',
+								'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
 								'live-previews'
 						  )
 				}
@@ -264,6 +264,15 @@ function ManageModal( { postId, onClose } ) {
 				<Notice status="error" onRemove={ () => setError( '' ) }>
 					{ error }
 				</Notice>
+			) }
+
+			{ settings.hasCentralIpRanges && (
+				<p style={ { color: '#757575', fontSize: '12px', marginTop: 0 } }>
+					{ __(
+						'IP ranges added in the VIP Dashboard also apply to every link, in addition to any restriction shown per link.',
+						'live-previews'
+					) }
+				</p>
 			) }
 
 			{ null === links && <Spinner /> }

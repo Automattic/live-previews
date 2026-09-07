@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-07T07:57:27+00:00\n"
+"POT-Creation-Date: 2026-09-07T14:33:53+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: live-previews\n"
@@ -139,94 +139,98 @@ msgstr ""
 msgid "\"%s\" is not a valid IP address or CIDR range."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:56
-#: inc/class-previewlinksadminpage.php:57
-#: inc/class-previewlinksadminpage.php:126
+#: inc/class-previewlinksadminpage.php:68
+#: inc/class-previewlinksadminpage.php:69
+#: inc/class-previewlinksadminpage.php:138
 msgid "Preview Links"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:119
+#: inc/class-previewlinksadminpage.php:131
 msgid "You are not allowed to manage preview links."
 msgstr ""
 
+#: inc/class-previewlinksadminpage.php:217
+msgid "IP ranges set in the VIP Dashboard apply to every link, in addition to any ranges shown per link below:"
+msgstr ""
+
 #. translators: %d: number of preview links revoked
-#: inc/class-previewlinksadminpage.php:197
+#: inc/class-previewlinksadminpage.php:236
 #, php-format
 msgid "%d preview link revoked."
 msgid_plural "%d preview links revoked."
 msgstr[0] ""
 msgstr[1] ""
 
-#: inc/class-previewlinksadminpage.php:218
+#: inc/class-previewlinksadminpage.php:257
 msgid "Links per page"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:257
+#: inc/class-previewlinksadminpage.php:296
 msgid "Overview"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:258
+#: inc/class-previewlinksadminpage.php:297
 msgid "This screen lists every preview link across the site, so you can see at a glance which drafts are shared, how far each link has been used, and when it expires. It is read-only apart from revoking, and is shown to editors because they can already view the drafts these links point at."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:262
+#: inc/class-previewlinksadminpage.php:301
 msgid "The table identifies a link by the last four characters of its token and can revoke it, but it never shows or re-copies the shareable URL: only a hash of the token is stored, never the token itself. If a link is lost, revoke it and generate a fresh one from the post editor."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:263
+#: inc/class-previewlinksadminpage.php:302
 #: inc/class-previewlinkslisttable.php:49
 msgid "Status"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:264
+#: inc/class-previewlinksadminpage.php:303
 msgid "Active: the link works."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:265
+#: inc/class-previewlinksadminpage.php:304
 msgid "Expired: past its expiry time."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:266
+#: inc/class-previewlinksadminpage.php:305
 msgid "Exhausted: reached its limit on distinct viewers."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:267
+#: inc/class-previewlinksadminpage.php:306
 msgid "Revoked: switched off by hand."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:268
+#: inc/class-previewlinksadminpage.php:307
 msgid "Uses counts distinct viewers against the cap; an infinity sign means no cap."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:269
+#: inc/class-previewlinksadminpage.php:308
 msgid "IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:274
+#: inc/class-previewlinksadminpage.php:313
 msgid "Reading a row"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:282
+#: inc/class-previewlinksadminpage.php:321
 msgid "Revoking"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:283
+#: inc/class-previewlinksadminpage.php:322
 msgid "Revoking a link stops it working immediately. For a short period the visitor sees a \"no longer available\" notice, and after that a plain \"not found\" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action."
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:301
+#: inc/class-previewlinksadminpage.php:340
 msgid "WordPress VIP documentation"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:302
+#: inc/class-previewlinksadminpage.php:341
 msgid "Contact VIP support"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:305
+#: inc/class-previewlinksadminpage.php:344
 msgid "Support forum"
 msgstr ""
 
-#: inc/class-previewlinksadminpage.php:308
+#: inc/class-previewlinksadminpage.php:347
 msgid "For more information"
 msgstr ""
 
@@ -456,11 +460,11 @@ msgid "Allowed IP ranges"
 msgstr ""
 
 #: build/index.js:4
-msgid "Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6). Some IP ranges have already been added in the VIP Dashboard and apply to every link; these are added to them. Leave empty to add none."
+msgid "Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none."
 msgstr ""
 
 #: build/index.js:4
-msgid "Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6), e.g. 203.0.113.0/24. Leave empty for no IP restriction. Note that IP restrictions limit where a link can be opened from, not who opens it."
+msgid "Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction."
 msgstr ""
 
 #: build/index.js:4
@@ -490,6 +494,10 @@ msgstr ""
 #: build/index.js:4
 #: build/index.js:5
 msgid "Manage preview links"
+msgstr ""
+
+#: build/index.js:4
+msgid "IP ranges added in the VIP Dashboard also apply to every link, in addition to any restriction shown per link."
 msgstr ""
 
 #: build/index.js:4
