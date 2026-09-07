@@ -38,6 +38,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 			$_REQUEST['_wpnonce'],
 			$_POST['action'],
 			$_POST['links'],
+			$_POST['lp_enabled'],
 			$_POST['_wpnonce']
 		);
 
@@ -182,19 +183,12 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 		$toggle = new LinkToggle();
 
-		$nonce                = wp_create_nonce( 'live_previews_disable_links' );
-		$_GET['action']       = 'disable_links';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
-
+		// The slider submits the new state: no checkbox means "disabled".
+		$this->submit_toggle( false );
 		static::assertSame( 'disabled', $this->page->process_toggle() );
 		static::assertTrue( $toggle->is_disabled() );
 
-		$nonce                = wp_create_nonce( 'live_previews_enable_links' );
-		$_GET['action']       = 'enable_links';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
-
+		$this->submit_toggle( true );
 		static::assertSame( 'enabled', $this->page->process_toggle() );
 		static::assertFalse( $toggle->is_disabled() );
 	}
@@ -208,13 +202,26 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	 * capability is not enough to flip it.
 	 */
 	public function test_an_editor_cannot_disable_links(): void {
-		$nonce                = wp_create_nonce( 'live_previews_disable_links' );
-		$_GET['action']       = 'disable_links';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
+		$this->submit_toggle( false );
 
 		$this->expectException( \WPDieException::class );
 
 		$this->page->process_toggle();
+	}
+
+	/**
+	 * Simulate the toggle slider's form submission asking for the given state.
+	 */
+	private function submit_toggle( bool $enabled ): void {
+		$nonce                = wp_create_nonce( 'live_previews_toggle_links' );
+		$_POST['action']      = 'toggle_links';
+		$_POST['_wpnonce']    = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		if ( $enabled ) {
+			$_POST['lp_enabled'] = '1';
+		} else {
+			unset( $_POST['lp_enabled'] );
+		}
 	}
 }

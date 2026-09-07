@@ -363,7 +363,7 @@ function LivePreviewsPanel() {
 				{ __( 'Generate preview link', 'live-previews' ) }
 			</Button>
 
-			<Button variant="tertiary" onClick={ () => setOpenModal( 'manage' ) } disabled={ ! postId }>
+			<Button variant="secondary" onClick={ () => setOpenModal( 'manage' ) } disabled={ ! postId }>
 				{ __( 'Manage preview links', 'live-previews' ) }
 			</Button>
 
