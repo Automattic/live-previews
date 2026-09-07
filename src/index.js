@@ -30,6 +30,7 @@ const settings = window.livePreviews || {
 	expirationOptions: [],
 	defaultExpiration: 28800,
 	hasCentralIpRanges: false,
+	linksDisabled: false,
 };
 
 const expirationOptions = ( settings.expirationOptions || [] ).map( ( option ) => ( {
@@ -141,6 +142,15 @@ function GenerateModal( { postId, onClose } ) {
 
 	return (
 		<Modal title={ __( 'Generate preview link', 'live-previews' ) } onRequestClose={ onClose }>
+			{ settings.linksDisabled && (
+				<Notice status="warning" isDismissible={ false }>
+					{ __(
+						'Preview links are currently disabled site-wide. You can generate new links, but they will not work until an administrator re-enables preview links.',
+						'live-previews'
+					) }
+				</Notice>
+			) }
+
 			<Notice status="warning" isDismissible={ false }>
 				{ __( 'Anyone with this link will be able to preview the post.', 'live-previews' ) }
 			</Notice>
@@ -260,6 +270,15 @@ function ManageModal( { postId, onClose } ) {
 
 	return (
 		<Modal title={ __( 'Manage preview links', 'live-previews' ) } onRequestClose={ onClose }>
+			{ settings.linksDisabled && (
+				<Notice status="warning" isDismissible={ false }>
+					{ __(
+						'Preview links are currently disabled site-wide. None of the links below work until an administrator re-enables preview links.',
+						'live-previews'
+					) }
+				</Notice>
+			) }
+
 			{ error && (
 				<Notice status="error" onRemove={ () => setError( '' ) }>
 					{ error }

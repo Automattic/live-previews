@@ -35,6 +35,7 @@ final class PreviewLinksAdminPage {
 	private PreviewLinkService $service;
 	private Clock $clock;
 	private BulkLinkRevoker $revoker;
+	private LinkToggle $toggle;
 
 	/**
 	 * @var list<string> Central CIDR ranges from the VIP Dashboard config. Shown
@@ -50,10 +51,11 @@ final class PreviewLinksAdminPage {
 	 * @param list<string> $central_ip_ranges Central CIDR ranges applying to
 	 *                                        every link, or empty for none.
 	 */
-	public function __construct( PreviewLinkService $service, Clock $clock, BulkLinkRevoker $revoker, array $central_ip_ranges = [] ) {
+	public function __construct( PreviewLinkService $service, Clock $clock, BulkLinkRevoker $revoker, ?LinkToggle $toggle = null, array $central_ip_ranges = [] ) {
 		$this->service           = $service;
 		$this->clock             = $clock;
 		$this->revoker           = $revoker;
+		$this->toggle            = $toggle ?? new LinkToggle();
 		$this->central_ip_ranges = $central_ip_ranges;
 	}
 
@@ -105,6 +107,13 @@ final class PreviewLinksAdminPage {
 			return;
 		}
 
+		$toggled = $this->process_toggle();
+
+		if ( null !== $toggled ) {
+			wp_safe_redirect( add_query_arg( 'lp_toggled', $toggled, $this->page_url() ) );
+			exit;
+		}
+
 		$revoked = $this->process_request();
 
 		if ( null === $revoked ) {
@@ -121,6 +130,37 @@ final class PreviewLinksAdminPage {
 
 		wp_safe_redirect( add_query_arg( $args, $this->page_url() ) );
 		exit;
+	}
+
+	/**
+	 * Flip the site-wide switch if the request asks for it.
+	 *
+	 * @return string|null 'disabled' or 'enabled' when the switch was flipped,
+	 *                     null when the request carried no toggle action.
+	 */
+	public function process_toggle(): ?string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified below via check_admin_referer() before anything changes.
+		$get_action = isset( $_GET['action'] ) && is_string( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+
+		if ( 'disable_links' !== $get_action && 'enable_links' !== $get_action ) {
+			return null;
+		}
+
+		check_admin_referer( 'live_previews_' . $get_action );
+
+		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+			wp_die( esc_html__( 'You are not allowed to change whether preview links work on this site.', 'live-previews' ) );
+		}
+
+		if ( 'disable_links' === $get_action ) {
+			$this->toggle->disable();
+
+			return 'disabled';
+		}
+
+		$this->toggle->enable();
+
+		return 'enabled';
 	}
 
 	/**
@@ -182,6 +222,7 @@ final class PreviewLinksAdminPage {
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Preview Links', 'live-previews' ) );
 
+		$this->maybe_render_disabled_banner();
 		$this->maybe_render_central_ranges();
 		$this->maybe_render_notice();
 		$this->maybe_render_creator_filter();
@@ -191,8 +232,94 @@ final class PreviewLinksAdminPage {
 		$table->display();
 		echo '</form>';
 
+		$this->render_toggle_control();
 		$this->maybe_render_revoke_all();
 		echo '</div>';
+	}
+
+	/**
+	 * A loud, undismissable banner while the site-wide switch is off. This is
+	 * deliberately the one piece of out-of-band state in the plugin, so every
+	 * editor on this screen must see it — a table of "Active" links that quietly
+	 * do not work would generate exactly the support tickets it exists to avoid.
+	 */
+	private function maybe_render_disabled_banner(): void {
+		if ( ! $this->toggle->is_disabled() ) {
+			return;
+		}
+
+		$since = $this->toggle->disabled_at();
+		$actor = $this->toggle->disabled_by();
+
+		$who = null;
+		if ( null !== $actor && 0 !== $actor ) {
+			$user = get_userdata( $actor );
+			$who  = false !== $user ? $user->display_name : null;
+		}
+
+		$format = (string) get_option( 'date_format' ) . ' ' . (string) get_option( 'time_format' );
+		$when   = null !== $since ? wp_date( $format, $since ) : false;
+
+		if ( null !== $who && false !== $when ) {
+			/* translators: 1: user display name, 2: date and time */
+			$detail = sprintf( __( 'Disabled by %1$s on %2$s.', 'live-previews' ), $who, $when );
+		} elseif ( false !== $when ) {
+			/* translators: %s: date and time */
+			$detail = sprintf( __( 'Disabled on %s.', 'live-previews' ), $when );
+		} else {
+			$detail = '';
+		}
+
+		printf(
+			'<div class="notice notice-warning"><p><strong>%s</strong> %s %s</p></div>',
+			esc_html__( 'Preview links are disabled site-wide.', 'live-previews' ),
+			esc_html__( 'No preview link works while this is off — including newly generated ones. Each link keeps its own expiry and usage, and links that are still valid start working again when re-enabled.', 'live-previews' ),
+			esc_html( $detail )
+		);
+	}
+
+	/**
+	 * The site-wide enable/disable switch, for administrators. Disabling is a
+	 * reversible pause — the first response to a suspected leak — where the
+	 * revoke actions below are permanent.
+	 */
+	private function render_toggle_control(): void {
+		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+			return;
+		}
+
+		$disabled = $this->toggle->is_disabled();
+		$action   = $disabled ? 'enable_links' : 'disable_links';
+
+		$url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'   => self::SLUG,
+					'action' => $action,
+				],
+				admin_url( 'admin.php' )
+			),
+			'live_previews_' . $action
+		);
+
+		if ( $disabled ) {
+			printf(
+				'<p><a href="%s" class="button button-primary">%s</a> %s</p>',
+				esc_url( $url ),
+				esc_html__( 'Enable preview links', 'live-previews' ),
+				esc_html__( 'Links that are still valid start working again immediately.', 'live-previews' )
+			);
+
+			return;
+		}
+
+		printf(
+			'<p><a href="%s" class="button" onclick="return confirm(%s);">%s</a> %s</p>',
+			esc_url( $url ),
+			esc_attr( (string) wp_json_encode( __( 'Disable all preview links? No link will work until re-enabled, but nothing is revoked: links that are still valid resume working when you enable them again.', 'live-previews' ) ) ),
+			esc_html__( 'Disable all preview links', 'live-previews' ),
+			esc_html__( 'Temporarily stops every link working, without revoking anything. Use this first if you suspect links are being misused.', 'live-previews' )
+		);
 	}
 
 	/**
@@ -342,6 +469,20 @@ final class PreviewLinksAdminPage {
 	}
 
 	private function maybe_render_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read only to render a result notice after our own post-toggle redirect; no action is taken here.
+		$toggled = isset( $_GET['lp_toggled'] ) && is_string( $_GET['lp_toggled'] ) ? sanitize_key( wp_unslash( $_GET['lp_toggled'] ) ) : '';
+
+		if ( 'disabled' === $toggled || 'enabled' === $toggled ) {
+			printf(
+				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+				'disabled' === $toggled
+					? esc_html__( 'Preview links disabled. No link will work until they are enabled again.', 'live-previews' )
+					: esc_html__( 'Preview links enabled. Links that are still valid work again.', 'live-previews' )
+			);
+
+			return;
+		}
+
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read only to render a result notice after our own post-revoke redirect; no action is taken here.
 		if ( ! isset( $_GET['lp_revoked'] ) ) {
 			return;
@@ -447,7 +588,8 @@ final class PreviewLinksAdminPage {
 				'id'      => 'live-previews-revoking',
 				'title'   => __( 'Revoking', 'live-previews' ),
 				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>'
-					. '<p>' . esc_html__( 'To revoke everything one person created — when someone leaves, for example — click their name in the Created by column, then use "Revoke all links by" that user; it covers every link of theirs on the site, not just the rows shown. Administrators also see a "Revoke all preview links" switch below the table that revokes every link on the site at once. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>',
+					. '<p>' . esc_html__( 'To revoke everything one person created — when someone leaves, for example — click their name in the Created by column, then use "Revoke all links by" that user; it covers every link of theirs on the site, not just the rows shown. Administrators also see a "Revoke all preview links" switch below the table that revokes every link on the site at once. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>'
+				. '<p>' . esc_html__( 'If you suspect links are being misused but are not yet sure, administrators can instead disable all preview links below the table. That is a reversible pause, not a revocation: no link works while disabled, and links that are still valid resume working when re-enabled.', 'live-previews' ) . '</p>',
 			]
 		);
 

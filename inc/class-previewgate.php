@@ -35,7 +35,11 @@ final class PreviewGate {
 	/** Marks a request that was withheld because the client looks automated. */
 	private const REASON_AUTOMATED = 'automated_client';
 
+	/** Marks a request withheld because the site-wide toggle is off. */
+	private const REASON_DISABLED = 'links_disabled';
+
 	private PreviewLinkService $service;
+	private LinkToggle $toggle;
 
 	/** The slot ID this visitor holds, once resolved or claimed. */
 	private ?string $viewer_id = null;
@@ -46,8 +50,9 @@ final class PreviewGate {
 	/** Reason the main query's preview was withheld, for the friendly notice. */
 	private ?string $denial_reason = null;
 
-	public function __construct( PreviewLinkService $service ) {
+	public function __construct( PreviewLinkService $service, ?LinkToggle $toggle = null ) {
 		$this->service = $service;
+		$this->toggle  = $toggle ?? new LinkToggle();
 	}
 
 	public function register(): void {
@@ -91,6 +96,13 @@ final class PreviewGate {
 			// Leave authors and editors to WordPress's own preview: they can
 			// already see the draft, so a spent link must not lock them out.
 			if ( current_user_can( 'edit_post', (int) $post->ID ) ) {
+				continue;
+			}
+
+			// The site-wide switch pauses every link without touching its state:
+			// the row still says what it said, it just is not honoured right now.
+			if ( $this->toggle->is_disabled() ) {
+				$this->remember_denial( self::REASON_DISABLED );
 				continue;
 			}
 
@@ -170,6 +182,7 @@ final class PreviewGate {
 			AccessDecision::REASON_REVOKED,
 			AccessDecision::REASON_EXHAUSTED,
 			self::REASON_AUTOMATED,
+			self::REASON_DISABLED,
 		];
 
 		if ( in_array( $reason, $explainable, true ) ) {
@@ -203,6 +216,7 @@ final class PreviewGate {
 			AccessDecision::REASON_EXPIRED   => __( 'This preview link has expired.', 'live-previews' ),
 			AccessDecision::REASON_REVOKED   => __( 'This preview link has been revoked.', 'live-previews' ),
 			AccessDecision::REASON_EXHAUSTED => __( 'This preview link has reached its viewing limit.', 'live-previews' ),
+			self::REASON_DISABLED            => __( 'Preview links are temporarily disabled on this site.', 'live-previews' ),
 		];
 
 		/**
@@ -219,7 +233,7 @@ final class PreviewGate {
 		 *
 		 * @param bool   $disclose Whether to state the specific reason. Default true.
 		 * @param string $reason   Machine reason, one of AccessDecision::REASON_EXPIRED,
-		 *                         REASON_REVOKED, or REASON_EXHAUSTED.
+		 *                         REASON_REVOKED, REASON_EXHAUSTED, or 'links_disabled'.
 		 */
 		$disclose = (bool) apply_filters( 'live_previews_disclose_denial_reason', true, $this->denial_reason );
 
@@ -227,11 +241,17 @@ final class PreviewGate {
 			? ( $specific[ $this->denial_reason ] ?? $generic )
 			: $generic;
 
+		// While the site-wide switch is off, a fresh link would not work either,
+		// so "ask for a new link" would send the visitor on a pointless errand.
+		$advice = $disclose && self::REASON_DISABLED === $this->denial_reason
+			? __( 'Please try again later.', 'live-previews' )
+			: __( 'Ask the author to share a new preview link.', 'live-previews' );
+
 		wp_die(
 			sprintf(
 				'<p>%s</p><p>%s</p>',
 				esc_html( $message ),
-				esc_html__( 'Ask the author to share a new preview link.', 'live-previews' )
+				esc_html( $advice )
 			),
 			esc_html__( 'Preview unavailable', 'live-previews' ),
 			[ 'response' => 410 ]

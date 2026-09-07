@@ -64,10 +64,14 @@ final class Plugin {
 		$rest_controller = new PreviewRestController( $service, $minter );
 		add_action( 'rest_api_init', [ $rest_controller, 'register_routes' ] );
 
-		( new PreviewGate( $service ) )->register();
+		// The site-wide enable/disable switch: a reversible pause the gate
+		// honours, distinct from revocation.
+		$toggle = new LinkToggle();
+
+		( new PreviewGate( $service, $toggle ) )->register();
 		( new PublishCleanup( $service ) )->register();
 		( new LinkGarbageCollector( $service ) )->register();
-		( new EditorAssets( [] !== $central_ip_ranges ) )->register();
+		( new EditorAssets( [] !== $central_ip_ranges, $toggle->is_disabled() ) )->register();
 
 		// Bulk revocation: the break-glass sweep, offboarding on user deletion,
 		// and the customer-facing revoke-user-links action.
@@ -75,7 +79,7 @@ final class Plugin {
 		$revoker->register();
 
 		// Site-wide audit + revoke table for editors.
-		( new PreviewLinksAdminPage( $service, $clock, $revoker, $central_ip_ranges ) )->register();
+		( new PreviewLinksAdminPage( $service, $clock, $revoker, $toggle, $central_ip_ranges ) )->register();
 
 		// Expose link creation to MCP, the AI Client, and the abilities REST
 		// runner. Shares the same minter as the REST endpoint above.

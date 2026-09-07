@@ -28,12 +28,13 @@ Expired and revoked links are kept for a grace period so the gate can tell a vis
 
 There is a **Preview link cleanup** check under Tools → Site Health that reports whether the sweep is scheduled and whether it has actually run recently, so a stalled sweep is visible rather than silent.
 
-## Bulk revocation and offboarding
+## Disabling links, bulk revocation, and offboarding
 
-Beyond revoking a single link, the Preview Links screen offers two bulk actions, and a hook wires revocation into user offboarding.
+Beyond revoking a single link, the Preview Links screen offers a site-wide switch and two bulk actions, and a hook wires revocation into user offboarding.
 
+- **Disable all preview links (reversible pause).** Administrators (`manage_options`) can temporarily disable every preview link from the Preview Links screen. Nothing is revoked: each link keeps its own expiry and usage, no link works while disabled, and links that are still valid resume working when re-enabled. This is the first response to a *suspected* leak — free to flip on suspicion and free to flip back on a false alarm, where revoking everything would force re-minting and re-sharing every in-flight link. While disabled, the Preview Links screen shows a banner recording who disabled links and when, and the editor's Generate and Manage modals warn that links (including newly generated ones) will not work until re-enabled. Visitors see a "temporarily disabled" notice, subject to the same `live_previews_disclose_denial_reason` filter as other reasons.
 - **Revoke by creator.** Click a name in the **Created by** column to filter the table to that person's links, then use **Revoke all links by** that user. This revokes every link they created across the whole site, not just the rows shown.
-- **Revoke all (break-glass).** Administrators (`manage_options`) see a **Revoke all preview links** switch below the table that revokes every link on the site. Use it when shared drafts must stop being reachable — for example, if links are suspected of being used to leak drafts.
+- **Revoke all (break-glass).** Administrators see a **Revoke all preview links** switch below the table that revokes every link on the site. Use it when a leak is confirmed and shared drafts must stop being reachable permanently.
 
 Both act in bounded batches; on a site with a very large number of shared posts the sweep finishes in the background within a few minutes, and links on not-yet-swept posts keep working until their batch is reached.
 

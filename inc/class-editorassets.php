@@ -18,8 +18,15 @@ final class EditorAssets {
 	 */
 	private bool $has_central_ip_ranges;
 
-	public function __construct( bool $has_central_ip_ranges = false ) {
+	/**
+	 * Whether the site-wide switch is off, so both modals can warn that links —
+	 * including newly generated ones — will not work until it is re-enabled.
+	 */
+	private bool $links_disabled;
+
+	public function __construct( bool $has_central_ip_ranges = false, bool $links_disabled = false ) {
 		$this->has_central_ip_ranges = $has_central_ip_ranges;
+		$this->links_disabled        = $links_disabled;
 	}
 
 	public function register(): void {
@@ -71,6 +78,7 @@ final class EditorAssets {
 				'expirationOptions'  => PreviewRestController::expiration_options(),
 				'defaultExpiration'  => PreviewRestController::default_expiration(),
 				'hasCentralIpRanges' => $this->has_central_ip_ranges,
+				'linksDisabled'      => $this->links_disabled,
 			]
 		);
 

@@ -58,7 +58,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	 * restricts every link.
 	 */
 	public function test_central_ip_ranges_are_stated_above_the_table(): void {
-		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ), [ '203.0.113.0/24', '2001:db8::/32' ] );
+		$page = new PreviewLinksAdminPage( $this->service, new SystemClock(), new BulkLinkRevoker( $this->service ), null, [ '203.0.113.0/24', '2001:db8::/32' ] );
 
 		$output = $this->rendered( $page );
 
@@ -176,5 +176,45 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		$this->expectException( \WPDieException::class );
 
 		$this->page->process_request();
+	}
+
+	public function test_an_administrator_can_disable_and_enable_links(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$toggle = new LinkToggle();
+
+		$nonce                = wp_create_nonce( 'live_previews_disable_links' );
+		$_GET['action']       = 'disable_links';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		static::assertSame( 'disabled', $this->page->process_toggle() );
+		static::assertTrue( $toggle->is_disabled() );
+
+		$nonce                = wp_create_nonce( 'live_previews_enable_links' );
+		$_GET['action']       = 'enable_links';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		static::assertSame( 'enabled', $this->page->process_toggle() );
+		static::assertFalse( $toggle->is_disabled() );
+	}
+
+	public function test_an_ordinary_view_carries_no_toggle(): void {
+		static::assertNull( $this->page->process_toggle() );
+	}
+
+	/**
+	 * The switch silently stops every link on the site working, so an editor's
+	 * capability is not enough to flip it.
+	 */
+	public function test_an_editor_cannot_disable_links(): void {
+		$nonce                = wp_create_nonce( 'live_previews_disable_links' );
+		$_GET['action']       = 'disable_links';
+		$_GET['_wpnonce']     = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		$this->expectException( \WPDieException::class );
+
+		$this->page->process_toggle();
 	}
 }
