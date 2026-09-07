@@ -187,26 +187,27 @@ final class PreviewLinksAdminPage {
 			return $this->service->revoke( $post_id, $token ) ? 1 : 0;
 		}
 
-		if ( 'revoke_creator' === $get_action ) {
-			$creator = self::requested_creator();
-
-			check_admin_referer( 'live_previews_revoke_creator_' . (string) $creator );
-
-			return null === $creator ? 0 : $this->revoker->revoke_by_creator( $creator );
-		}
-
-		if ( 'revoke_all' === $get_action ) {
-			check_admin_referer( 'live_previews_revoke_all' );
-
-			if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
-				wp_die( esc_html__( 'You are not allowed to revoke all preview links.', 'live-previews' ) );
-			}
-
-			return $this->revoker->revoke_all();
-		}
-
 		if ( 'revoke' === $this->requested_bulk_action() ) {
 			check_admin_referer( 'bulk-' . PreviewLinksListTable::PLURAL );
+
+			// "Select all across pages" upgrades the bulk revoke from the ticked
+			// rows to the whole filtered set, the way Gmail's select-all does.
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
+			if ( isset( $_POST['lp_all'] ) && '' !== $_POST['lp_all'] ) {
+				$creator = self::requested_creator();
+
+				if ( null !== $creator ) {
+					return $this->revoker->revoke_by_creator( $creator );
+				}
+
+				// Unfiltered select-all is the break-glass "revoke everything",
+				// whose blast radius warrants more than the table's own gate.
+				if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+					wp_die( esc_html__( 'You are not allowed to revoke all preview links.', 'live-previews' ) );
+				}
+
+				return $this->revoker->revoke_all();
+			}
 
 			return $this->revoke_selected();
 		}
@@ -225,65 +226,156 @@ final class PreviewLinksAdminPage {
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Preview Links', 'live-previews' ) );
 
-		$this->render_toggle();
+		$this->render_toggle_form();
 		$this->maybe_render_disabled_banner();
 		$this->maybe_render_central_ranges();
 		$this->maybe_render_notice();
 		$this->maybe_render_creator_filter();
 
-		echo '<form method="post">';
+		echo '<form method="post" id="lp-links">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( self::SLUG ) );
+		echo '<input type="hidden" name="lp_all" value="" id="lp-all" />';
+		$this->maybe_render_select_all( $table );
 		$table->display();
 		echo '</form>';
 
-		$this->maybe_render_revoke_all();
 		echo '</div>';
 	}
 
 	/**
-	 * The site-wide enable/disable switch, as a toggle slider at the top of the
-	 * screen. Deliberately undramatic — disabling is a reversible pause, so it
-	 * gets a settings-style control rather than a warning-laden button; the
-	 * banner below carries the loudness while links are off.
-	 *
-	 * The control is a real checkbox (so it is keyboard- and screen-reader
-	 * accessible) dressed as a slider; wp-admin ships no toggle component, so
-	 * the few styles it needs are scoped here. It submits on change, with a
-	 * plain Apply button for the no-JavaScript case.
+	 * The small form behind the enable/disable slider. The visible control
+	 * lives on the table's bulk-actions line ({@see
+	 * PreviewLinksListTable::extra_tablenav()}), inside the table's own form
+	 * where a second <form> cannot nest — so its checkbox points here via the
+	 * HTML `form` attribute, and this form carries the nonce and action.
 	 */
-	private function render_toggle(): void {
+	private function render_toggle_form(): void {
 		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
 			return;
 		}
 
-		$enabled = ! $this->toggle->is_disabled();
-
 		echo '<style>
-			.lp-toggle { margin: 8px 0 4px; }
-			.lp-toggle .lp-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-			.lp-toggle input[type="checkbox"] { position: absolute; opacity: 0; width: 36px; height: 20px; margin: 0; cursor: pointer; }
-			.lp-toggle .lp-track { box-sizing: border-box; width: 36px; height: 20px; border-radius: 10px; background: #8c8f94; position: relative; transition: background 0.15s ease; }
-			.lp-toggle .lp-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
-			.lp-toggle input:checked ~ .lp-track { background: #2271b1; }
-			.lp-toggle input:checked ~ .lp-track::before { transform: translateX(16px); }
-			.lp-toggle input:focus-visible ~ .lp-track { outline: 2px solid #2271b1; outline-offset: 2px; }
+			.lp-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 24px; }
+			.lp-switch input[type="checkbox"] { position: absolute; opacity: 0; width: 36px; height: 20px; margin: 0; cursor: pointer; }
+			.lp-switch .lp-track { box-sizing: border-box; width: 36px; height: 20px; border-radius: 10px; background: #8c8f94; position: relative; transition: background 0.15s ease; }
+			.lp-switch .lp-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+			.lp-switch input:checked ~ .lp-track { background: #2271b1; }
+			.lp-switch input:checked ~ .lp-track::before { transform: translateX(16px); }
+			.lp-switch input:focus-visible ~ .lp-track { outline: 2px solid #2271b1; outline-offset: 2px; }
+			#lp-select-all { background: #f6f7f7; border: 1px solid #c3c4c7; padding: 8px 12px; margin: 4px 0 8px; }
 		</style>';
 
-		echo '<form method="post" class="lp-toggle" action="' . esc_url( $this->page_url() ) . '">';
+		echo '<form method="post" id="lp-toggle" action="' . esc_url( $this->page_url() ) . '">';
 		wp_nonce_field( 'live_previews_toggle_links' );
-		echo '<input type="hidden" name="action" value="toggle_links" />';
-		echo '<label class="lp-switch">';
-		printf( '<input type="checkbox" name="lp_enabled" value="1" %s onchange="this.form.submit()" />', checked( $enabled, true, false ) );
-		echo '<span class="lp-track" aria-hidden="true"></span>';
+		echo '<input type="hidden" name="action" value="toggle_links" /></form>';
+	}
+
+	/**
+	 * The Gmail-style "select all across pages" offer, shown once the header
+	 * checkbox selects the whole page. Ticking it upgrades the ordinary bulk
+	 * Revoke — dropdown plus Apply, two deliberate steps — to the whole
+	 * filtered set, so revoking everything a user made (filter to them first)
+	 * and the break-glass revoke-everything are the same familiar flow rather
+	 * than separate always-visible controls.
+	 */
+	private function maybe_render_select_all( PreviewLinksListTable $table ): void {
+		$creator = self::requested_creator();
+		$total   = $this->service->count_links( $creator );
+
+		// Pointless when one page holds everything; the header checkbox
+		// already selects the whole set.
+		if ( $total <= count( $table->items ) ) {
+			return;
+		}
+
+		// Site-wide select-all is the break-glass revoke; only offer it to
+		// those allowed to pull that handle. A creator-filtered select-all is
+		// within the table's own capability.
+		if ( null === $creator && ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
+			return;
+		}
+
+		if ( null !== $creator ) {
+			/* translators: 1: number of links, 2: user display name */
+			$offer = sprintf( __( 'Select all %1$d links created by %2$s', 'live-previews' ), $total, $this->creator_name( $creator ) );
+			/* translators: 1: number of links, 2: user display name */
+			$active = sprintf( __( 'All %1$d links created by %2$s are selected.', 'live-previews' ), $total, $this->creator_name( $creator ) );
+		} else {
+			/* translators: %d: number of links */
+			$offer = sprintf( __( 'Select all %d links across the whole site', 'live-previews' ), $total );
+			/* translators: %d: number of links */
+			$active = sprintf( __( 'All %d links across the whole site are selected.', 'live-previews' ), $total );
+		}
+
 		printf(
-			'<span>%s</span>',
-			$enabled
-				? esc_html__( 'Preview links are enabled', 'live-previews' )
-				: esc_html__( 'Preview links are disabled', 'live-previews' )
+			'<div id="lp-select-all" hidden>
+				<span id="lp-select-all-offer">%s <button type="button" class="button-link" id="lp-select-all-btn">%s</button></span>
+				<span id="lp-select-all-active" hidden>%s <button type="button" class="button-link" id="lp-clear-selection-btn">%s</button></span>
+			</div>',
+			esc_html__( 'All links on this page are selected.', 'live-previews' ),
+			esc_html( $offer ),
+			esc_html( $active ),
+			esc_html__( 'Clear selection', 'live-previews' )
 		);
-		echo '</label>';
-		printf( '<noscript><button type="submit" class="button">%s</button></noscript>', esc_html__( 'Apply', 'live-previews' ) );
-		echo '</form>';
+
+		echo '<script>
+			( function () {
+				var form    = document.getElementById( "lp-links" );
+				var all     = document.getElementById( "lp-all" );
+				var banner  = document.getElementById( "lp-select-all" );
+				var offer   = document.getElementById( "lp-select-all-offer" );
+				var active  = document.getElementById( "lp-select-all-active" );
+				var masters = [ "cb-select-all-1", "cb-select-all-2" ]
+					.map( function ( id ) { return document.getElementById( id ); } )
+					.filter( Boolean );
+
+				function reset() {
+					all.value     = "";
+					banner.hidden = true;
+					offer.hidden  = false;
+					active.hidden = true;
+				}
+
+				masters.forEach( function ( cb ) {
+					cb.addEventListener( "change", function () {
+						if ( cb.checked ) {
+							banner.hidden = false;
+						} else {
+							reset();
+						}
+					} );
+				} );
+
+				// Unticking any row narrows the selection again.
+				form.addEventListener( "change", function ( event ) {
+					var input = event.target;
+					if ( input.name === "links[]" && ! input.checked ) {
+						reset();
+					}
+				} );
+
+				document.getElementById( "lp-select-all-btn" ).addEventListener( "click", function () {
+					all.value     = "1";
+					offer.hidden  = true;
+					active.hidden = false;
+				} );
+
+				document.getElementById( "lp-clear-selection-btn" ).addEventListener( "click", function () {
+					reset();
+					form.querySelectorAll( ".check-column input[type=checkbox]" ).forEach( function ( cb ) {
+						cb.checked = false;
+					} );
+				} );
+			} )();
+		</script>';
+	}
+
+	/** A creator's display name, or a placeholder when the account is gone. */
+	private function creator_name( int $user_id ): string {
+		$user = get_userdata( $user_id );
+
+		/* translators: %d: user ID */
+		return false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
 	}
 
 	/**
@@ -329,8 +421,9 @@ final class PreviewLinksAdminPage {
 
 
 	/**
-	 * When the table is filtered to one creator, say so and offer the sweep that
-	 * revokes everything they created — the whole set, not just this page.
+	 * When the table is filtered to one creator, say so. Revoking everything
+	 * they created is the select-all-across-pages flow on this filtered view,
+	 * not a separate control.
 	 */
 	private function maybe_render_creator_filter(): void {
 		$creator = self::requested_creator();
@@ -339,66 +432,14 @@ final class PreviewLinksAdminPage {
 			return;
 		}
 
-		$user = get_userdata( $creator );
-		/* translators: %d: user ID */
-		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $creator );
-
-		$revoke_url = wp_nonce_url(
-			add_query_arg(
-				[
-					'page'    => self::SLUG,
-					'action'  => 'revoke_creator',
-					'creator' => $creator,
-				],
-				admin_url( 'admin.php' )
-			),
-			'live_previews_revoke_creator_' . $creator
-		);
-
 		printf(
-			'<p>%s <a href="%s">%s</a> | <a href="%s" class="button-link button-link-delete" onclick="return confirm(%s);">%s</a></p>',
+			'<p>%s <a href="%s">%s</a></p>',
 			esc_html(
 				/* translators: %s: user display name */
-				sprintf( __( 'Showing links created by %s.', 'live-previews' ), $name )
+				sprintf( __( 'Showing links created by %s.', 'live-previews' ), $this->creator_name( $creator ) )
 			),
 			esc_url( $this->page_url() ),
-			esc_html__( 'Show all creators', 'live-previews' ),
-			esc_url( $revoke_url ),
-			esc_attr( (string) wp_json_encode( __( 'Revoke every preview link this user created, across the whole site? This cannot be undone.', 'live-previews' ) ) ),
-			esc_html(
-				/* translators: %s: user display name */
-				sprintf( __( 'Revoke all links by %s', 'live-previews' ), $name )
-			)
-		);
-	}
-
-	/**
-	 * The break-glass switch: revoke every live link on the site. Shown only to
-	 * administrators, behind its own confirmation, because its blast radius far
-	 * exceeds the table's per-row and bulk revokes.
-	 */
-	private function maybe_render_revoke_all(): void {
-		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
-			return;
-		}
-
-		$url = wp_nonce_url(
-			add_query_arg(
-				[
-					'page'   => self::SLUG,
-					'action' => 'revoke_all',
-				],
-				admin_url( 'admin.php' )
-			),
-			'live_previews_revoke_all'
-		);
-
-		printf(
-			'<p><a href="%s" class="button-link button-link-delete" onclick="return confirm(%s);">%s</a> — %s</p>',
-			esc_url( $url ),
-			esc_attr( (string) wp_json_encode( __( 'Revoke EVERY preview link on this site? Every shared draft immediately stops being viewable. This cannot be undone.', 'live-previews' ) ) ),
-			esc_html__( 'Revoke all preview links', 'live-previews' ),
-			esc_html__( 'Permanently revokes every link on the site, for a confirmed leak. To pause links reversibly instead, use the toggle at the top of this screen.', 'live-previews' )
+			esc_html__( 'Show all creators', 'live-previews' )
 		);
 	}
 
@@ -594,8 +635,8 @@ final class PreviewLinksAdminPage {
 				'id'      => 'live-previews-revoking',
 				'title'   => __( 'Revoking', 'live-previews' ),
 				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>'
-					. '<p>' . esc_html__( 'To revoke everything one person created — when someone leaves, for example — click their name in the Created by column, then use "Revoke all links by" that user; it covers every link of theirs on the site, not just the rows shown. Administrators also see a "Revoke all preview links" switch below the table that revokes every link on the site at once. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>'
-				. '<p>' . esc_html__( 'If you suspect links are being misused but are not yet sure, administrators can instead switch preview links off with the toggle at the top of this screen. That is a reversible pause, not a revocation: no link works while disabled, and links that are still valid resume working when re-enabled.', 'live-previews' ) . '</p>',
+					. '<p>' . esc_html__( 'To revoke at scale, tick the checkbox in the table header. If more links exist than the page shows, you are offered "Select all" across every page — covering the whole site, or, if you first clicked a name in the Created by column, everything that person created (useful when someone leaves). Then apply the Revoke bulk action as usual. Selecting every link site-wide is limited to administrators. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>'
+				. '<p>' . esc_html__( 'If you suspect links are being misused but are not yet sure, administrators can instead switch preview links off with the toggle next to the bulk actions. That is a reversible pause, not a revocation: no link works while disabled, and links that are still valid resume working when re-enabled.', 'live-previews' ) . '</p>',
 			]
 		);
 
@@ -636,7 +677,7 @@ final class PreviewLinksAdminPage {
 				require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 			}
 
-			$this->table = new PreviewLinksListTable( $this->service, $this->clock->now() );
+			$this->table = new PreviewLinksListTable( $this->service, $this->clock->now(), $this->toggle );
 		}
 
 		return $this->table;

@@ -39,6 +39,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 			$_POST['action'],
 			$_POST['links'],
 			$_POST['lp_enabled'],
+			$_POST['lp_all'],
 			$_POST['_wpnonce']
 		);
 
@@ -127,16 +128,17 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_the_creator_action_revokes_everything_that_user_created(): void {
+	/**
+	 * Select-all-across-pages on a creator-filtered view sweeps everything
+	 * that person created, site-wide, within the table's own capability.
+	 */
+	public function test_select_all_on_a_creator_filter_revokes_everything_they_created(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
 
-		$nonce                = wp_create_nonce( 'live_previews_revoke_creator_7' );
-		$_GET['action']       = 'revoke_creator';
-		$_GET['creator']      = '7';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
+		$this->submit_bulk_revoke( true );
+		$_GET['creator'] = '7';
 
 		static::assertSame( 1, $this->page->process_request() );
 
@@ -145,17 +147,14 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_an_administrator_can_revoke_every_link_on_the_site(): void {
+	public function test_unfiltered_select_all_revokes_every_link_for_an_administrator(): void {
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
 
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 7 );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 8 );
 
-		$nonce                = wp_create_nonce( 'live_previews_revoke_all' );
-		$_GET['action']       = 'revoke_all';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
+		$this->submit_bulk_revoke( true );
 
 		static::assertSame( 2, $this->page->process_request() );
 
@@ -165,18 +164,31 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The break-glass switch has a far larger blast radius than the table's
-	 * per-row revokes, so an editor's capability is not enough for it.
+	 * Unfiltered select-all is the break-glass "revoke everything", whose
+	 * blast radius exceeds the table's own gate: editor is not enough.
 	 */
-	public function test_an_editor_cannot_revoke_every_link_on_the_site(): void {
-		$nonce                = wp_create_nonce( 'live_previews_revoke_all' );
-		$_GET['action']       = 'revoke_all';
-		$_GET['_wpnonce']     = $nonce;
-		$_REQUEST['_wpnonce'] = $nonce;
+	public function test_an_editor_cannot_select_all_links_site_wide(): void {
+		$this->submit_bulk_revoke( true );
 
 		$this->expectException( \WPDieException::class );
 
 		$this->page->process_request();
+	}
+
+	/**
+	 * Simulate the table's bulk-revoke submission, optionally upgraded by the
+	 * "select all across pages" offer.
+	 */
+	private function submit_bulk_revoke( bool $select_all ): void {
+		$nonce                = wp_create_nonce( 'bulk-' . PreviewLinksListTable::PLURAL );
+		$_REQUEST['action']   = 'revoke';
+		$_POST['action']      = 'revoke';
+		$_POST['_wpnonce']    = $nonce;
+		$_REQUEST['_wpnonce'] = $nonce;
+
+		if ( $select_all ) {
+			$_POST['lp_all'] = '1';
+		}
 	}
 
 	public function test_an_administrator_can_disable_and_enable_links(): void {
