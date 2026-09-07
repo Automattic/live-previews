@@ -110,7 +110,9 @@ final class PreviewLinksAdminPage {
 		$toggled = $this->process_toggle();
 
 		if ( null !== $toggled ) {
-			wp_safe_redirect( add_query_arg( 'lp_toggled', $toggled, $this->page_url() ) );
+			// No success notice on the other side: the slider's new position and
+			// the warning banner (while disabled) already say everything.
+			wp_safe_redirect( $this->page_url() );
 			exit;
 		}
 
@@ -318,8 +320,10 @@ final class PreviewLinksAdminPage {
 			esc_html__( 'Clear selection', 'live-previews' )
 		);
 
+		// The table (and with it the header checkbox this script binds to)
+		// renders after this point, so wait for the DOM to finish.
 		echo '<script>
-			( function () {
+			document.addEventListener( "DOMContentLoaded", function () {
 				var form    = document.getElementById( "lp-links" );
 				var all     = document.getElementById( "lp-all" );
 				var banner  = document.getElementById( "lp-select-all" );
@@ -366,7 +370,7 @@ final class PreviewLinksAdminPage {
 						cb.checked = false;
 					} );
 				} );
-			} )();
+			} );
 		</script>';
 	}
 
@@ -516,20 +520,6 @@ final class PreviewLinksAdminPage {
 	}
 
 	private function maybe_render_notice(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read only to render a result notice after our own post-toggle redirect; no action is taken here.
-		$toggled = isset( $_GET['lp_toggled'] ) && is_string( $_GET['lp_toggled'] ) ? sanitize_key( wp_unslash( $_GET['lp_toggled'] ) ) : '';
-
-		if ( 'disabled' === $toggled || 'enabled' === $toggled ) {
-			printf(
-				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
-				'disabled' === $toggled
-					? esc_html__( 'Preview links disabled. No link will work until they are enabled again.', 'live-previews' )
-					: esc_html__( 'Preview links enabled. Links that are still valid work again.', 'live-previews' )
-			);
-
-			return;
-		}
-
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read only to render a result notice after our own post-revoke redirect; no action is taken here.
 		if ( ! isset( $_GET['lp_revoked'] ) ) {
 			return;
