@@ -31,8 +31,7 @@ final class RevokeCommand {
 	 * : The post whose link to revoke.
 	 *
 	 * [<link>]
-	 * : The link to revoke: a token hint as shown by `wp live-previews list`,
-	 * or a full link id.
+	 * : The link to revoke: a token hint as shown by `wp live-previews list`, or a full link id.
 	 *
 	 * [--all]
 	 * : Revoke every live link for the post.

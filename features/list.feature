@@ -30,12 +30,22 @@ Feature: Preview links can be listed from the command line
 		When I run `wp live-previews list {POST_ID} --format=csv`
 		Then STDOUT should contain:
 			"""
-			token_hint,created_at,expires_at,expires_in,use_count,max_uses,allowed_ips
+			token_hint,created_by,created_at,expires_at,expires_in,use_count,max_uses,allowed_ips
 			"""
 		When I run `wp live-previews list {POST_ID} --format=count`
 		Then STDOUT should be:
 			"""
 			1
+			"""
+
+	Scenario: The creator is attributed when minting with --user
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		And I run `wp live-previews create {POST_ID} --user=admin --porcelain`
+		When I run `wp live-previews list {POST_ID} --field=created_by`
+		Then STDOUT should contain:
+			"""
+			admin
 			"""
 
 	Scenario: The token hint is the last characters of the token
