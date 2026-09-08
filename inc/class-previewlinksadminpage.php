@@ -72,6 +72,7 @@ final class PreviewLinksAdminPage {
 
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'add_menu' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
 		// Registered on init, not the page load: core saves screen options in
 		// wp-admin/admin.php before the load-{hook} action fires, and a custom
@@ -100,6 +101,51 @@ final class PreviewLinksAdminPage {
 			add_action( "load-{$hook}", [ $this, 'handle_actions' ] );
 			add_action( "load-{$hook}", [ $this, 'configure_screen' ] );
 		}
+	}
+
+	/**
+	 * Enqueue the select-all wiring on this screen only.
+	 *
+	 * The script is built by @wordpress/scripts into build/admin.js. As with
+	 * {@see EditorAssets}, an unbuilt checkout skips the enqueue rather than
+	 * fatal: the banner then simply stays hidden, and the ordinary per-page
+	 * bulk revoke still works.
+	 */
+	public function enqueue_assets( string $hook_suffix ): void {
+		if ( self::SCREEN_ID !== $hook_suffix ) {
+			return;
+		}
+
+		$asset_file = plugin_dir_path( VIP_LIVE_PREVIEWS_FILE ) . 'build/admin.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		// $asset_file is derived solely from the plugin's own directory and a
+		// hard-coded, build-generated filename, never from user input, so the
+		// variable include is safe.
+		/** @var mixed $asset */
+		$asset = require $asset_file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable
+		if ( ! is_array( $asset ) ) {
+			return;
+		}
+
+		/** @var list<string> $dependencies */
+		$dependencies = isset( $asset['dependencies'] ) && is_array( $asset['dependencies'] )
+			? $asset['dependencies']
+			: [];
+		$version      = isset( $asset['version'] ) && is_string( $asset['version'] )
+			? $asset['version']
+			: VIP_LIVE_PREVIEWS_VERSION;
+
+		wp_enqueue_script(
+			'live-previews-admin',
+			plugins_url( 'build/admin.js', VIP_LIVE_PREVIEWS_FILE ),
+			$dependencies,
+			$version,
+			true
+		);
 	}
 
 	public function handle_actions(): void {
@@ -320,58 +366,8 @@ final class PreviewLinksAdminPage {
 			esc_html__( 'Clear selection', 'live-previews' )
 		);
 
-		// The table (and with it the header checkbox this script binds to)
-		// renders after this point, so wait for the DOM to finish.
-		echo '<script>
-			document.addEventListener( "DOMContentLoaded", function () {
-				var form    = document.getElementById( "lp-links" );
-				var all     = document.getElementById( "lp-all" );
-				var banner  = document.getElementById( "lp-select-all" );
-				var offer   = document.getElementById( "lp-select-all-offer" );
-				var active  = document.getElementById( "lp-select-all-active" );
-				var masters = [ "cb-select-all-1", "cb-select-all-2" ]
-					.map( function ( id ) { return document.getElementById( id ); } )
-					.filter( Boolean );
-
-				function reset() {
-					all.value     = "";
-					banner.hidden = true;
-					offer.hidden  = false;
-					active.hidden = true;
-				}
-
-				masters.forEach( function ( cb ) {
-					cb.addEventListener( "change", function () {
-						if ( cb.checked ) {
-							banner.hidden = false;
-						} else {
-							reset();
-						}
-					} );
-				} );
-
-				// Unticking any row narrows the selection again.
-				form.addEventListener( "change", function ( event ) {
-					var input = event.target;
-					if ( input.name === "links[]" && ! input.checked ) {
-						reset();
-					}
-				} );
-
-				document.getElementById( "lp-select-all-btn" ).addEventListener( "click", function () {
-					all.value     = "1";
-					offer.hidden  = true;
-					active.hidden = false;
-				} );
-
-				document.getElementById( "lp-clear-selection-btn" ).addEventListener( "click", function () {
-					reset();
-					form.querySelectorAll( ".check-column input[type=checkbox]" ).forEach( function ( cb ) {
-						cb.checked = false;
-					} );
-				} );
-			} );
-		</script>';
+		// The wiring that binds this banner to the table's checkboxes lives in
+		// src/admin.js, enqueued by enqueue_assets() on this screen only.
 	}
 
 	/** A creator's display name, or a placeholder when the account is gone. */
