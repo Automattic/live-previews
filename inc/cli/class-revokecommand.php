@@ -111,11 +111,7 @@ final class RevokeCommand {
 		$matches = [];
 
 		foreach ( $links as $link ) {
-			if ( $link->is_revoked() ) {
-				continue;
-			}
-
-			if ( $link->token_hash() === $identifier || $link->token_hint() === $identifier ) {
+			if ( ! $link->is_revoked() && $link->is_identified_by( $identifier ) ) {
 				$matches[] = $link;
 			}
 		}

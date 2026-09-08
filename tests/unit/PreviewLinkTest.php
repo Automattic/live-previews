@@ -44,6 +44,31 @@ final class PreviewLinkTest extends TestCase {
 		self::assertFalse( $link->is_revoked() );
 	}
 
+	public function test_the_creator_is_known_only_when_a_user_was_recorded(): void {
+		$by_user = new PreviewLink( 13, 'hash', 2000, null, 7, 1000 );
+		$by_none = new PreviewLink( 13, 'hash', 2000, null, 0, 1000 );
+
+		self::assertTrue( $by_user->has_known_creator() );
+		self::assertFalse( $by_none->has_known_creator() );
+	}
+
+	public function test_ip_restriction_reflects_the_links_own_ranges(): void {
+		$restricted = new PreviewLink( 13, 'hash', 2000, null, 1, 1000, [], null, '', [ '203.0.113.0/24' ] );
+		$open       = new PreviewLink( 13, 'hash', 2000, null, 1, 1000 );
+
+		self::assertTrue( $restricted->has_ip_restriction() );
+		self::assertFalse( $open->has_ip_restriction() );
+	}
+
+	public function test_a_link_is_identified_by_its_hash_or_hint_but_never_blank(): void {
+		$link = new PreviewLink( 13, 'full-hash', 2000, null, 1, 1000, [], null, 'ab3f' );
+
+		self::assertTrue( $link->is_identified_by( 'full-hash' ) );
+		self::assertTrue( $link->is_identified_by( 'ab3f' ) );
+		self::assertFalse( $link->is_identified_by( 'b3f' ), 'A partial hint must not match.' );
+		self::assertFalse( $link->is_identified_by( '' ), 'A blank identifier must never match.' );
+	}
+
 	public function test_an_unlimited_link_is_never_exhausted(): void {
 		$link = new PreviewLink( 13, 'hash', 2000, null, 1, 1000, self::slots( 9999 ) );
 

@@ -117,7 +117,7 @@ final class ListCommand {
 				'post_id'     => $link->post_id(),
 				'id'          => $row['id'],
 				'token_hint'  => $row['token_hint'],
-				'created_by'  => self::creator_label( $link->created_by() ),
+				'created_by'  => self::creator_label( $link ),
 				'created_at'  => gmdate( 'Y-m-d H:i:s', $row['created_at'] ),
 				'expires_at'  => gmdate( 'Y-m-d H:i:s', $row['expires_at'] ),
 				'expires_in'  => human_time_diff( $now, $row['expires_at'] ),
@@ -151,14 +151,14 @@ final class ListCommand {
 	 * user's display name, a placeholder for a deleted user, and an em dash
 	 * when no user was recorded (e.g. minted from WP-CLI without --user).
 	 */
-	private static function creator_label( int $user_id ): string {
-		if ( 0 === $user_id ) {
+	private static function creator_label( PreviewLink $link ): string {
+		if ( ! $link->has_known_creator() ) {
 			return '—';
 		}
 
-		$user = get_userdata( $user_id );
+		$user = get_userdata( $link->created_by() );
 
-		return false !== $user ? $user->display_name : sprintf( 'User #%d', $user_id );
+		return false !== $user ? $user->display_name : sprintf( 'User #%d', $link->created_by() );
 	}
 
 	/**
