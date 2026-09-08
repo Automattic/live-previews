@@ -26,6 +26,7 @@
 # Sources and fixtures that are compiled or dev-only
 /src
 /tests
+/features
 /fixtures
 /docs
 /wordpress.stubs
@@ -40,6 +41,7 @@
 /vendor
 
 # Tooling configuration
+/behat.yml
 /phpcs.xml.dist
 /phpunit.xml.dist
 /phpunit-unit.xml.dist

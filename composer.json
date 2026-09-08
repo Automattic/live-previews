@@ -7,7 +7,9 @@
     "php": "^8.2"
   },
   "require-dev": {
+    "automattic/behat-wp-env-context": "^0.1.0",
     "automattic/vipwpcs": "^3",
+    "behat/behat": "^3.7",
     "johnpbloch/wordpress-core": "^6.9 || ^7.0",
     "php-stubs/wordpress-stubs": "^6.9 || ^7.0",
     "phpcompatibility/phpcompatibility-wp": "^2",
@@ -23,6 +25,11 @@
       "inc/"
     ]
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Automattic\\LivePreviews\\Tests\\Behat\\": "tests/behat/"
+    }
+  },
   "config": {
     "allow-plugins": {
       "dealerdirect/phpcodesniffer-composer-installer": true
@@ -33,6 +40,8 @@
     "sort-packages": true
   },
   "scripts": {
+    "behat": "behat --colors",
+    "behat-rerun": "behat --colors --rerun",
     "i18n": [
       "@i18n:pot",
       "@i18n:json"
@@ -41,6 +50,7 @@
     "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
     "phpcbf": "phpcbf",
     "phpcs": "phpcs",
+    "prepare-behat-tests": "wp-env start",
     "psalm": "psalm",
     "test": [
       "@test:unit",
@@ -53,6 +63,9 @@
     "test:unit": "phpunit -c phpunit-unit.xml.dist"
   },
   "scripts-descriptions": {
+    "behat": "Run the WP-CLI Behat feature tests (needs a running wp-env; see prepare-behat-tests)",
+    "behat-rerun": "Rerun only the Behat scenarios that failed last time",
+    "prepare-behat-tests": "Start the wp-env environment the Behat tests run against",
     "i18n": "Regenerate the POT file and any JSON catalogues (needs WP-CLI and a current `npm run build`)",
     "i18n:json": "Split translated PO files into the JSON catalogues the editor script loads",
     "i18n:pot": "Regenerate languages/live-previews.pot from the PHP and the built editor script",

@@ -68,9 +68,11 @@ final class Plugin {
 		// honours, distinct from revocation.
 		$toggle = new LinkToggle();
 
+		$collector = new LinkGarbageCollector( $service );
+
 		( new PreviewGate( $service, $toggle ) )->register();
 		( new PublishCleanup( $service ) )->register();
-		( new LinkGarbageCollector( $service ) )->register();
+		$collector->register();
 		( new EditorAssets( [] !== $central_ip_ranges, $toggle->is_disabled() ) )->register();
 
 		// Bulk revocation: the break-glass sweep, offboarding on user deletion,
@@ -88,6 +90,14 @@ final class Plugin {
 		// Surfaces whether the cleanup sweep is actually running, which is the
 		// one part of the plugin that depends on cron firing.
 		( new SiteHealth( $clock ) )->register();
+
+		// The `wp live-previews` commands, sharing the same graph as every
+		// other surface. Loaded only under WP-CLI: the CLI classes are the one
+		// part of the plugin the flat first-party autoloader does not map.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			require_once __DIR__ . '/cli/register-commands.php';
+			Cli\register_commands( $service, $minter, $collector );
+		}
 	}
 	// @codeCoverageIgnoreEnd
 }
