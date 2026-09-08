@@ -7,7 +7,10 @@
  */
 
 import { registerPlugin } from '@wordpress/plugins';
-import { PluginDocumentSettingPanel, store as editorStore } from '@wordpress/editor';
+import {
+	PluginDocumentSettingPanel,
+	store as editorStore,
+} from '@wordpress/editor';
 import { useSelect } from '@wordpress/data';
 import { useEffect, useState } from '@wordpress/element';
 import {
@@ -33,13 +36,16 @@ const settings = window.livePreviews || {
 	linksDisabled: false,
 };
 
-const expirationOptions = ( settings.expirationOptions || [] ).map( ( option ) => ( {
-	label: option.label,
-	value: String( option.seconds ),
-} ) );
+const expirationOptions = ( settings.expirationOptions || [] ).map(
+	( option ) => ( {
+		label: option.label,
+		value: String( option.seconds ),
+	} )
+);
 
 /**
  * A short, human relative time until a Unix timestamp, e.g. "in about 5 hours".
+ * @param {number} targetSeconds Unix timestamp, in seconds.
  */
 function timeUntil( targetSeconds ) {
 	const remaining = targetSeconds - Math.floor( Date.now() / 1000 );
@@ -57,8 +63,16 @@ function timeUntil( targetSeconds ) {
 	const units = [
 		[ 86400, __( 'day', 'live-previews' ), __( 'days', 'live-previews' ) ],
 		[ 3600, __( 'hour', 'live-previews' ), __( 'hours', 'live-previews' ) ],
-		[ 60, __( 'minute', 'live-previews' ), __( 'minutes', 'live-previews' ) ],
-		[ 1, __( 'second', 'live-previews' ), __( 'seconds', 'live-previews' ) ],
+		[
+			60,
+			__( 'minute', 'live-previews' ),
+			__( 'minutes', 'live-previews' ),
+		],
+		[
+			1,
+			__( 'second', 'live-previews' ),
+			__( 'seconds', 'live-previews' ),
+		],
 	];
 
 	for ( const [ size, singular, plural ] of units ) {
@@ -80,7 +94,12 @@ function usageLabel( link ) {
 	if ( null === link.max_uses ) {
 		return sprintf(
 			/* translators: %d: number of times the link has been viewed. */
-			_n( '%d view · no limit', '%d views · no limit', link.use_count, 'live-previews' ),
+			_n(
+				'%d view · no limit',
+				'%d views · no limit',
+				link.use_count,
+				'live-previews'
+			),
 			link.use_count
 		);
 	}
@@ -94,7 +113,9 @@ function usageLabel( link ) {
 }
 
 function GenerateModal( { postId, onClose } ) {
-	const [ expiration, setExpiration ] = useState( String( settings.defaultExpiration ) );
+	const [ expiration, setExpiration ] = useState(
+		String( settings.defaultExpiration )
+	);
 	const [ maxUses, setMaxUses ] = useState( '' );
 	const [ allowedIps, setAllowedIps ] = useState( '' );
 	const [ url, setUrl ] = useState( '' );
@@ -126,14 +147,17 @@ function GenerateModal( { postId, onClose } ) {
 			try {
 				await window.navigator.clipboard.writeText( response.url );
 				setCopied( true );
-			} catch ( clipboardError ) {
+			} catch {
 				// Clipboard access can be denied; the link is shown for manual copy.
 				setCopied( false );
 			}
 		} catch ( requestError ) {
 			setError(
 				requestError.message ||
-					__( 'The preview link could not be generated.', 'live-previews' )
+					__(
+						'The preview link could not be generated.',
+						'live-previews'
+					)
 			);
 		} finally {
 			setBusy( false );
@@ -141,7 +165,10 @@ function GenerateModal( { postId, onClose } ) {
 	};
 
 	return (
-		<Modal title={ __( 'Generate preview link', 'live-previews' ) } onRequestClose={ onClose }>
+		<Modal
+			title={ __( 'Generate preview link', 'live-previews' ) }
+			onRequestClose={ onClose }
+		>
 			{ settings.linksDisabled && (
 				<Notice status="warning" isDismissible={ false }>
 					{ __(
@@ -152,7 +179,10 @@ function GenerateModal( { postId, onClose } ) {
 			) }
 
 			<Notice status="warning" isDismissible={ false }>
-				{ __( 'Anyone with this link will be able to preview the post.', 'live-previews' ) }
+				{ __(
+					'Anyone with this link will be able to preview the post.',
+					'live-previews'
+				) }
 			</Notice>
 
 			<SelectControl
@@ -169,7 +199,10 @@ function GenerateModal( { postId, onClose } ) {
 				min={ 1 }
 				step={ 1 }
 				label={ __( 'Maximum uses', 'live-previews' ) }
-				help={ __( 'Number of distinct viewers. Leave empty for unlimited.', 'live-previews' ) }
+				help={ __(
+					'Number of distinct viewers. Leave empty for unlimited.',
+					'live-previews'
+				) }
 				value={ maxUses }
 				onChange={ setMaxUses }
 				__next40pxDefaultSize
@@ -210,7 +243,10 @@ function GenerateModal( { postId, onClose } ) {
 					help={
 						copied
 							? __( 'Copied to clipboard.', 'live-previews' )
-							: __( 'Copy this link to share it.', 'live-previews' )
+							: __(
+									'Copy this link to share it.',
+									'live-previews'
+							  )
 					}
 					__nextHasNoMarginBottom
 				/>
@@ -241,7 +277,10 @@ function ManageModal( { postId, onClose } ) {
 			} );
 			setLinks( data );
 		} catch ( requestError ) {
-			setError( requestError.message || __( 'Could not load links.', 'live-previews' ) );
+			setError(
+				requestError.message ||
+					__( 'Could not load links.', 'live-previews' )
+			);
 			setLinks( [] );
 		}
 	};
@@ -249,7 +288,10 @@ function ManageModal( { postId, onClose } ) {
 	useEffect( () => {
 		load();
 		// Re-render every 30 seconds so the "expires in …" labels stay current.
-		const timer = window.setInterval( () => setTick( ( t ) => t + 1 ), 30000 );
+		const timer = window.setInterval(
+			() => setTick( ( t ) => t + 1 ),
+			30000
+		);
 		return () => window.clearInterval( timer );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
@@ -263,13 +305,19 @@ function ManageModal( { postId, onClose } ) {
 			} );
 		} catch ( requestError ) {
 			// Put it back and surface the problem if the revoke did not stick.
-			setError( requestError.message || __( 'Could not revoke the link.', 'live-previews' ) );
+			setError(
+				requestError.message ||
+					__( 'Could not revoke the link.', 'live-previews' )
+			);
 			load();
 		}
 	};
 
 	return (
-		<Modal title={ __( 'Manage preview links', 'live-previews' ) } onRequestClose={ onClose }>
+		<Modal
+			title={ __( 'Manage preview links', 'live-previews' ) }
+			onRequestClose={ onClose }
+		>
 			{ settings.linksDisabled && (
 				<Notice status="warning" isDismissible={ false }>
 					{ __(
@@ -286,7 +334,13 @@ function ManageModal( { postId, onClose } ) {
 			) }
 
 			{ settings.hasCentralIpRanges && (
-				<p style={ { color: '#757575', fontSize: '12px', marginTop: 0 } }>
+				<p
+					style={ {
+						color: '#757575',
+						fontSize: '12px',
+						marginTop: 0,
+					} }
+				>
 					{ __(
 						'IP ranges added in the VIP Dashboard also apply to every link, in addition to any restriction shown per link.',
 						'live-previews'
@@ -302,31 +356,58 @@ function ManageModal( { postId, onClose } ) {
 
 			{ null !== links &&
 				links.map( ( link ) => (
-					<Flex key={ link.id } align="center" style={ { padding: '8px 0', borderBottom: '1px solid #f0f0f0' } }>
+					<Flex
+						key={ link.id }
+						align="center"
+						style={ {
+							padding: '8px 0',
+							borderBottom: '1px solid #f0f0f0',
+						} }
+					>
 						<FlexBlock>
 							<div>
 								{ usageLabel( link ) }
 								{ link.token_hint && (
-									<code style={ { marginLeft: '8px', color: '#757575' } }>
+									<code
+										style={ {
+											marginLeft: '8px',
+											color: '#757575',
+										} }
+									>
 										{ `····${ link.token_hint }` }
 									</code>
 								) }
 							</div>
-							<div style={ { color: '#757575', fontSize: '12px' } }>
+							<div
+								style={ { color: '#757575', fontSize: '12px' } }
+							>
 								{ timeUntil( link.expires_at ) }
 							</div>
-							{ Array.isArray( link.allowed_ips ) && link.allowed_ips.length > 0 && (
-								<div style={ { color: '#757575', fontSize: '12px' } }>
-									{ sprintf(
-										/* translators: %s: comma-separated IP ranges. */
-										__( 'Restricted to %s', 'live-previews' ),
-										link.allowed_ips.join( ', ' )
-									) }
-								</div>
-							) }
+							{ Array.isArray( link.allowed_ips ) &&
+								link.allowed_ips.length > 0 && (
+									<div
+										style={ {
+											color: '#757575',
+											fontSize: '12px',
+										} }
+									>
+										{ sprintf(
+											/* translators: %s: comma-separated IP ranges. */
+											__(
+												'Restricted to %s',
+												'live-previews'
+											),
+											link.allowed_ips.join( ', ' )
+										) }
+									</div>
+								) }
 						</FlexBlock>
 						<FlexItem>
-							<Button variant="tertiary" isDestructive onClick={ () => revoke( link.id ) }>
+							<Button
+								variant="tertiary"
+								isDestructive
+								onClick={ () => revoke( link.id ) }
+							>
 								{ __( 'Revoke', 'live-previews' ) }
 							</Button>
 						</FlexItem>
@@ -353,7 +434,10 @@ function LivePreviewsPanel() {
 	}
 
 	return (
-		<PluginDocumentSettingPanel name="live-previews" title={ __( 'Live Previews', 'live-previews' ) }>
+		<PluginDocumentSettingPanel
+			name="live-previews"
+			title={ __( 'Live Previews', 'live-previews' ) }
+		>
 			<Button
 				variant="secondary"
 				onClick={ () => setOpenModal( 'generate' ) }
@@ -363,16 +447,26 @@ function LivePreviewsPanel() {
 				{ __( 'Generate preview link', 'live-previews' ) }
 			</Button>
 
-			<Button variant="secondary" onClick={ () => setOpenModal( 'manage' ) } disabled={ ! postId }>
+			<Button
+				variant="secondary"
+				onClick={ () => setOpenModal( 'manage' ) }
+				disabled={ ! postId }
+			>
 				{ __( 'Manage preview links', 'live-previews' ) }
 			</Button>
 
 			{ 'generate' === openModal && (
-				<GenerateModal postId={ postId } onClose={ () => setOpenModal( '' ) } />
+				<GenerateModal
+					postId={ postId }
+					onClose={ () => setOpenModal( '' ) }
+				/>
 			) }
 
 			{ 'manage' === openModal && (
-				<ManageModal postId={ postId } onClose={ () => setOpenModal( '' ) } />
+				<ManageModal
+					postId={ postId }
+					onClose={ () => setOpenModal( '' ) }
+				/>
 			) }
 		</PluginDocumentSettingPanel>
 	);

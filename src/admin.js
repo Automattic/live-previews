@@ -7,17 +7,17 @@
  * than one page of links to offer, so bail quietly when it is absent.
  */
 document.addEventListener( 'DOMContentLoaded', function () {
-	var form = document.getElementById( 'lp-links' );
-	var all = document.getElementById( 'lp-all' );
-	var banner = document.getElementById( 'lp-select-all' );
+	const form = document.getElementById( 'lp-links' );
+	const all = document.getElementById( 'lp-all' );
+	const banner = document.getElementById( 'lp-select-all' );
 
 	if ( ! form || ! all || ! banner ) {
 		return;
 	}
 
-	var offer = document.getElementById( 'lp-select-all-offer' );
-	var active = document.getElementById( 'lp-select-all-active' );
-	var masters = [ 'cb-select-all-1', 'cb-select-all-2' ]
+	const offer = document.getElementById( 'lp-select-all-offer' );
+	const active = document.getElementById( 'lp-select-all-active' );
+	const masters = [ 'cb-select-all-1', 'cb-select-all-2' ]
 		.map( function ( id ) {
 			return document.getElementById( id );
 		} )
@@ -42,7 +42,7 @@ document.addEventListener( 'DOMContentLoaded', function () {
 
 	// Unticking any row narrows the selection again.
 	form.addEventListener( 'change', function ( event ) {
-		var input = event.target;
+		const input = event.target;
 		if ( input.name === 'links[]' && ! input.checked ) {
 			reset();
 		}
@@ -60,10 +60,10 @@ document.addEventListener( 'DOMContentLoaded', function () {
 		.getElementById( 'lp-clear-selection-btn' )
 		.addEventListener( 'click', function () {
 			reset();
-			form.querySelectorAll( '.check-column input[type=checkbox]' ).forEach(
-				function ( cb ) {
-					cb.checked = false;
-				}
-			);
+			form.querySelectorAll(
+				'.check-column input[type=checkbox]'
+			).forEach( function ( cb ) {
+				cb.checked = false;
+			} );
 		} );
 } );

@@ -7,11 +7,16 @@ rulesets, plus [PHPCompatibilityWP](https://github.com/PHPCompatibility/PHPCompa
 pinned to the VIP platform PHP baseline. The ruleset lives in
 [`phpcs.xml.dist`](../phpcs.xml.dist).
 
-| Purpose                    | Command           |
-| -------------------------- | ----------------- |
-| Check                      | `composer phpcs`  |
-| Auto-fix what can be fixed | `composer phpcbf` |
-| Static analysis (Psalm)    | `composer psalm`  |
+JavaScript in `src/` is linted by [`@wordpress/scripts`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-scripts/)
+(ESLint with the WordPress ruleset, including Prettier formatting).
+
+| Purpose                    | Command                      |
+| -------------------------- | ---------------------------- |
+| Check (PHP)                | `composer phpcs`             |
+| Auto-fix what can be fixed | `composer phpcbf`            |
+| Static analysis (Psalm)    | `composer psalm`             |
+| Check (JavaScript)         | `npm run lint:js`            |
+| Auto-fix JavaScript        | `npm run lint:js -- --fix`   |
 
 CI runs both on every push and pull request (`lint.yml`,
 `static-code-analysis.yml`).
