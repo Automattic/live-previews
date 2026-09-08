@@ -38,12 +38,14 @@ jobs:
           npm ci
           npm run build
 
-          # An empty build/ would produce a ZIP whose editor panel silently
-          # never loads, so fail loudly here instead.
-          if [ ! -s build/index.js ] || [ ! -s build/index.asset.php ]; then
-            echo "::error::npm run build did not produce build/index.js and build/index.asset.php"
-            exit 1
-          fi
+          # An empty build/ would produce a ZIP whose editor panel and
+          # admin select-all silently never load, so fail loudly here instead.
+          for f in build/index.js build/index.asset.php build/admin.js build/admin.asset.php; do
+            if [ ! -s "$f" ]; then
+              echo "::error::npm run build did not produce $f"
+              exit 1
+            fi
+          done
 
       - name: Check the tag matches the plugin version
         env:
