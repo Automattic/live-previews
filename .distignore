@@ -42,6 +42,7 @@
 
 # Tooling configuration
 /behat.yml
+/eslint.config.cjs
 /phpcs.xml.dist
 /phpunit.xml.dist
 /phpunit-unit.xml.dist
