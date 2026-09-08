@@ -52,6 +52,19 @@ final class PreviewLinkServiceBulkRevokeTest extends TestCase {
 		self::assertSame( 0, $this->service->revoke_all_for_post( 10 ) );
 	}
 
+	public function test_revoke_live_for_post_leaves_dead_links_untouched(): void {
+		$this->service->mint( 10, 3600, null, 1 ); // Live.
+		$this->service->mint( 10, 0, null, 1 );    // Already expired at NOW.
+		$this->service->mint( 10, 3600, null, 1 ); // Revoked below.
+		$this->service->revoke( 10, $this->repository->all_for_post( 10 )[2]->token_hash() );
+
+		self::assertSame( 1, $this->service->revoke_live_for_post( 10 ) );
+
+		// The expired link keeps telling a returning visitor "expired", not
+		// "revoked" — dead links are left exactly as they died.
+		self::assertFalse( $this->repository->all_for_post( 10 )[1]->is_revoked() );
+	}
+
 	public function test_revoke_by_creator_leaves_other_creators_links_alone(): void {
 		$this->service->mint( 10, 3600, null, 1 );
 		$this->service->mint( 10, 3600, null, 2 );

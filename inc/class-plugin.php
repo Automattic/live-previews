@@ -83,9 +83,10 @@ final class Plugin {
 		// Site-wide audit + revoke table for editors.
 		( new PreviewLinksAdminPage( $service, $clock, $revoker, $toggle, $central_ip_ranges ) )->register();
 
-		// Expose link creation to MCP, the AI Client, and the abilities REST
-		// runner. Shares the same minter as the REST endpoint above.
-		( new PreviewAbilities( $service, $minter ) )->register();
+		// Expose link management to MCP, the AI Client, and the abilities REST
+		// runner, mirroring the `wp live-previews` commands. Shares the same
+		// minter and service as the REST endpoint above.
+		( new PreviewAbilities( $service, $minter, $collector, $toggle, $revoker ) )->register();
 
 		// Surfaces whether the cleanup sweep is actually running, which is the
 		// one part of the plugin that depends on cron firing.
@@ -96,7 +97,7 @@ final class Plugin {
 		// part of the plugin the flat first-party autoloader does not map.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once __DIR__ . '/cli/register-commands.php';
-			Cli\register_commands( $service, $minter, $collector, $toggle );
+			Cli\register_commands( $service, $minter, $collector, $toggle, $revoker );
 		}
 
 		// Development-checkout safety net: build/ is not committed, and the

@@ -109,6 +109,13 @@ namespace {
 		 * @return void
 		 */
 		public static function line( $message = '' ) {}
+
+		/**
+		 * @param string                     $question
+		 * @param array<string, string|bool> $assoc_args
+		 * @return void
+		 */
+		public static function confirm( $question, $assoc_args = array() ) {}
 	}
 }
 
@@ -133,6 +140,17 @@ namespace WP_CLI {
 
 namespace WP_CLI\Dispatcher {
 	class CommandNamespace {
+	}
+}
+
+namespace WP_CLI\Fetchers {
+	class User {
+
+		/**
+		 * @param string $arg An id, login, or email; errors out when no user matches.
+		 * @return \WP_User
+		 */
+		public function get_check( $arg ) {}
 	}
 }
 
