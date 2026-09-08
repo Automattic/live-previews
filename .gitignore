@@ -18,3 +18,7 @@ fixtures/config-local.php
 # Local release-ZIP dry runs (see docs/vip-integration.md).
 /dist/
 /*.zip
+
+# Built JavaScript assets: releases build these in CI (see release.yml), and
+# development checkouts build them with `npm run build`.
+/build/

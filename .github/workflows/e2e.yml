@@ -51,6 +51,11 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
+      # build/ is not committed; the dev-env bind-mounts this checkout, so the
+      # editor panel and admin scripts only exist if we build them here.
+      - name: Build plugin assets
+        run: npm run build
+
       - name: Install Playwright dependencies
         timeout-minutes: 10
         run: sudo -E npx playwright install-deps chrome
