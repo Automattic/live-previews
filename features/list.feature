@@ -72,7 +72,7 @@ Feature: Preview links can be listed from the command line
 		When I try `wp live-previews list {POST_ID} --created-by=admin`
 		Then STDERR should be:
 			"""
-			Error: Specify either a post or --created-by, not both.
+			Error: Specify either a post ID or --created-by, not both.
 			"""
 
 	Scenario: The site-wide listing filters by creator

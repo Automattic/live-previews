@@ -37,7 +37,7 @@ final class ListCommand {
 	 * : The post whose links to list. Omit to list every live link on the site, newest first.
 	 *
 	 * [--created-by=<user>]
-	 * : Only the links this user (an ID, login, or email) created — the site-wide listing's creator filter, so it cannot be combined with a post.
+	 * : Only the links this user (an ID, login, or email) created — the site-wide listing's creator filter, so it cannot be combined with a post ID.
 	 *
 	 * [--field=<field>]
 	 * : Print one field for each link.
@@ -96,7 +96,7 @@ final class ListCommand {
 
 		if ( isset( $assoc_args['created-by'] ) && is_string( $assoc_args['created-by'] ) ) {
 			if ( null !== $post_id ) {
-				WP_CLI::error( 'Specify either a post or --created-by, not both.' );
+				WP_CLI::error( 'Specify either a post ID or --created-by, not both.' );
 				return;
 			}
 

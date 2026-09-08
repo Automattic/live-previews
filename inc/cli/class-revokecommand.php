@@ -80,7 +80,7 @@ final class RevokeCommand {
 			: '';
 
 		if ( '' !== $created_by && ( null !== $post_id || $all ) ) {
-			WP_CLI::error( 'Specify --created-by on its own, without a post or --all.' );
+			WP_CLI::error( 'Specify --created-by on its own, without a post ID or --all.' );
 			return;
 		}
 
@@ -91,7 +91,7 @@ final class RevokeCommand {
 
 		if ( null === $post_id ) {
 			if ( ! $all ) {
-				WP_CLI::error( 'Specify a post, --created-by, or --all.' );
+				WP_CLI::error( 'Specify a post ID, --created-by, or --all.' );
 				return;
 			}
 

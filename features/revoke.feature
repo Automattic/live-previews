@@ -73,7 +73,7 @@ Feature: Preview links can be revoked from the command line
 		When I try `wp live-previews revoke`
 		Then STDERR should be:
 			"""
-			Error: Specify a post, --created-by, or --all.
+			Error: Specify a post ID, --created-by, or --all.
 			"""
 
 	Scenario: The creator sweep stands alone
@@ -82,7 +82,7 @@ Feature: Preview links can be revoked from the command line
 		When I try `wp live-previews revoke {POST_ID} --created-by=admin`
 		Then STDERR should be:
 			"""
-			Error: Specify --created-by on its own, without a post or --all.
+			Error: Specify --created-by on its own, without a post ID or --all.
 			"""
 
 	Scenario: Revoke every link one creator made, leaving other creators' links alone
