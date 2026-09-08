@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        wordpress: ['6.9', '7.0']
+        wordpress: ['6.9', '7.1']
     name: E2E Tests on WordPress ${{ matrix.wordpress }}
     steps:
       - name: Check out repository code
