@@ -51,6 +51,15 @@ final class PreviewLinkServiceListingTest extends TestCase {
 		self::assertSame( [], $this->service->page_of_links( 10, 2 ) );
 	}
 
+	public function test_all_links_walks_every_page(): void {
+		// More links than one page (100), so the walk has to keep going.
+		for ( $i = 0; $i < 150; $i++ ) {
+			$this->service->mint( $i + 1, 3600, null, 1 );
+		}
+
+		self::assertCount( 150, $this->service->all_links() );
+	}
+
 	public function test_returns_preview_links_for_the_issuing_posts(): void {
 		$this->service->mint( 10, 3600, null, 1 );
 		$this->service->mint( 20, 3600, null, 1 );

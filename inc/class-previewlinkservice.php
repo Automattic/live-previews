@@ -23,6 +23,9 @@ final class PreviewLinkService {
 	/** Bytes of randomness in a viewer slot ID. 16 bytes = 128 bits. */
 	private const VIEWER_ID_BYTES = 16;
 
+	/** Links fetched per page when walking the site-wide listing. */
+	private const LISTING_PAGE_SIZE = 100;
+
 	private TokenRepository $repository;
 	private AccessPolicy $policy;
 	private Clock $clock;
@@ -101,6 +104,55 @@ final class PreviewLinkService {
 	 */
 	public function revoke_all_for_post( int $post_id ): int {
 		return $this->repository->revoke_all_for_post( $post_id, $this->clock->now() );
+	}
+
+	/**
+	 * Revoke every active link on a post, returning how many were revoked.
+	 *
+	 * Dead links (already revoked or expired) are left alone: there is nothing
+	 * usable to kill, and keeping their state untouched preserves what the gate
+	 * tells a returning visitor. Shared by `wp live-previews revoke --all` and
+	 * the revoke-preview-link ability.
+	 */
+	public function revoke_active_links_for_post( int $post_id ): int {
+		$now     = $this->clock->now();
+		$revoked = 0;
+
+		foreach ( $this->repository->all_for_post( $post_id ) as $link ) {
+			if ( $link->is_dead( $now ) ) {
+				continue;
+			}
+
+			if ( $this->revoke( $post_id, $link->token_hash() ) ) {
+				++$revoked;
+			}
+		}
+
+		return $revoked;
+	}
+
+	/**
+	 * The not-yet-revoked links matching a token hint or full token hash.
+	 *
+	 * A hint is only a few characters, so two links can share one; every match
+	 * is returned and the caller decides what ambiguity means. Pure, so the
+	 * resolution rules are pinned by a unit test without WordPress. Shared by
+	 * `wp live-previews revoke` and the revoke-preview-link ability.
+	 *
+	 * @param list<PreviewLink> $links      Every link issued for the post.
+	 * @param string            $identifier A token hint or a full token hash.
+	 * @return list<PreviewLink>
+	 */
+	public static function matching_links( array $links, string $identifier ): array {
+		$matches = [];
+
+		foreach ( $links as $link ) {
+			if ( ! $link->is_revoked() && $link->is_identified_by( $identifier ) ) {
+				$matches[] = $link;
+			}
+		}
+
+		return $matches;
 	}
 
 	/**
@@ -234,5 +286,27 @@ final class PreviewLinkService {
 	 */
 	public function count_links( ?int $created_by = null ): int {
 		return $this->repository->count_links( $created_by );
+	}
+
+	/**
+	 * Every link on the site, newest first, walked page by page so an unbounded
+	 * listing never turns into one unbounded query — optionally only the links
+	 * a given user created, mirroring the admin table's creator filter. Shared
+	 * by `wp live-previews list` and the list-preview-links ability.
+	 *
+	 * @return list<PreviewLink>
+	 */
+	public function all_links( ?int $created_by = null ): array {
+		$links  = [];
+		$offset = 0;
+
+		do {
+			$page       = $this->page_of_links( $offset, self::LISTING_PAGE_SIZE, $created_by );
+			$page_count = count( $page );
+			$links      = [ ...$links, ...$page ];
+			$offset    += self::LISTING_PAGE_SIZE;
+		} while ( self::LISTING_PAGE_SIZE === $page_count );
+
+		return $links;
 	}
 }

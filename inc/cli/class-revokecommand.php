@@ -2,6 +2,7 @@
 
 namespace Automattic\LivePreviews\Cli;
 
+use Automattic\LivePreviews\BulkLinkRevoker;
 use Automattic\LivePreviews\PreviewLink;
 use Automattic\LivePreviews\PreviewLinkService;
 use WP_CLI;
@@ -12,29 +13,40 @@ use WP_CLI;
  * Revokes through {@see PreviewLinkService::revoke()}, the same path as the
  * editor and the admin table, so a revoked link leaves the tombstone the gate
  * needs to tell a visitor "this link was revoked" rather than a bare 404.
- * `--all` is the incident-response lever: it kills every live link on the post
- * in one command. Behaviour is pinned by features/revoke.feature.
+ * The wider scopes are the incident-response levers, and reuse the admin
+ * page's {@see BulkLinkRevoker}: `<post-id> --all` kills every live link on a
+ * post, `--created-by` is the offboarding sweep, and a bare `--all` is the
+ * break-glass revoke-everything. Behaviour is pinned by
+ * features/revoke.feature.
  */
 final class RevokeCommand {
 	private PreviewLinkService $service;
+	private BulkLinkRevoker $revoker;
 
-	public function __construct( PreviewLinkService $service ) {
+	public function __construct( PreviewLinkService $service, BulkLinkRevoker $revoker ) {
 		$this->service = $service;
+		$this->revoker = $revoker;
 	}
 
 	/**
-	 * Revoke a post's preview link, or all of them.
+	 * Revoke preview links: one link, a post's, a creator's, or all of them.
 	 *
 	 * ## OPTIONS
 	 *
-	 * <post-id>
-	 * : The post whose link to revoke.
+	 * [<post-id>]
+	 * : The post whose link to revoke. Omit for the site-wide scopes.
 	 *
 	 * [<link>]
 	 * : The link to revoke: a token hint as shown by `wp live-previews list`, or a full link id.
 	 *
+	 * [--created-by=<user>]
+	 * : Revoke every link this user (an ID, login, or email) created, across the whole site — e.g. when someone leaves.
+	 *
 	 * [--all]
-	 * : Revoke every live link for the post.
+	 * : With a post, revoke every live link on it. On its own, revoke every live link on the site (asks for confirmation; pass --yes to skip).
+	 *
+	 * [--yes]
+	 * : Skip the confirmation the site-wide --all asks for.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -46,15 +58,46 @@ final class RevokeCommand {
 	 *     $ wp live-previews revoke 123 --all
 	 *     Success: Revoked 2 preview links.
 	 *
+	 *     # Someone left: kill every link they created, site-wide.
+	 *     $ wp live-previews revoke --created-by=jane
+	 *     Success: Revoked 4 preview links.
+	 *
+	 *     # Break glass: kill every live link on the site.
+	 *     $ wp live-previews revoke --all --yes
+	 *     Success: Revoked 12 preview links.
+	 *
 	 * @when after_wp_load
 	 *
 	 * @param string[]                  $args       Positional arguments.
 	 * @param array<string, string|bool> $assoc_args Associative arguments.
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$post_id    = (int) ( $args[0] ?? 0 );
+		$post_id    = isset( $args[0] ) ? (int) $args[0] : null;
 		$identifier = isset( $args[1] ) ? (string) $args[1] : '';
 		$all        = (bool) \WP_CLI\Utils\get_flag_value( $assoc_args, 'all', false );
+		$created_by = isset( $assoc_args['created-by'] ) && is_string( $assoc_args['created-by'] )
+			? $assoc_args['created-by']
+			: '';
+
+		if ( '' !== $created_by && ( null !== $post_id || $all ) ) {
+			WP_CLI::error( 'Specify --created-by on its own, without a post ID or --all.' );
+			return;
+		}
+
+		if ( '' !== $created_by ) {
+			$this->revoke_by_creator( $created_by );
+			return;
+		}
+
+		if ( null === $post_id ) {
+			if ( ! $all ) {
+				WP_CLI::error( 'Specify a post ID, --created-by, or --all.' );
+				return;
+			}
+
+			$this->revoke_everything( $assoc_args );
+			return;
+		}
 
 		if ( $all && '' !== $identifier ) {
 			WP_CLI::error( 'Specify either a link or --all, not both.' );
@@ -66,14 +109,12 @@ final class RevokeCommand {
 			return;
 		}
 
-		$links = $this->service->list_for_post( $post_id );
-
 		if ( $all ) {
-			$this->revoke_all( $post_id, $links );
+			self::report( $this->service->revoke_active_links_for_post( $post_id ) );
 			return;
 		}
 
-		$matches = self::matching_links( $links, $identifier );
+		$matches = PreviewLinkService::matching_links( $this->service->list_for_post( $post_id ), $identifier );
 
 		if ( [] === $matches ) {
 			WP_CLI::error( sprintf( 'No preview link matches "%s".', $identifier ) );
@@ -97,47 +138,34 @@ final class RevokeCommand {
 	}
 
 	/**
-	 * The not-yet-revoked links matching a token hint or full token hash.
-	 *
-	 * A hint is only a few characters, so two links can share one; every match
-	 * is returned and the caller decides what ambiguity means. Pure, so the
-	 * resolution rules are pinned by a unit test without WP-CLI or WordPress.
-	 *
-	 * @param list<PreviewLink> $links      Every link issued for the post.
-	 * @param string            $identifier A token hint or a full token hash.
-	 * @return list<PreviewLink>
+	 * The offboarding sweep: every link the user created, site-wide.
 	 */
-	public static function matching_links( array $links, string $identifier ): array {
-		$matches = [];
+	private function revoke_by_creator( string $user ): void {
+		$fetcher = new \WP_CLI\Fetchers\User();
+		$found   = $fetcher->get_check( $user );
 
-		foreach ( $links as $link ) {
-			if ( ! $link->is_revoked() && $link->is_identified_by( $identifier ) ) {
-				$matches[] = $link;
-			}
-		}
-
-		return $matches;
+		self::report( $this->revoker->revoke_by_creator( (int) $found->ID ), $this->revoker->has_pending_work() );
 	}
 
 	/**
-	 * Revoke every live link on the post. Dead links (already revoked or
-	 * expired) are left alone: there is nothing usable to kill, and keeping
-	 * their state untouched preserves what the gate tells a returning visitor.
+	 * The break-glass sweep, behind the same confirmation the admin page asks
+	 * for — its blast radius is every live link on the site.
 	 *
-	 * @param list<PreviewLink> $links Every link issued for the post.
+	 * @param array<string, string|bool> $assoc_args Associative arguments.
 	 */
-	private function revoke_all( int $post_id, array $links ): void {
-		$now     = time();
-		$revoked = 0;
+	private function revoke_everything( array $assoc_args ): void {
+		WP_CLI::confirm( 'Revoke every live preview link on the site?', $assoc_args );
 
-		foreach ( $links as $link ) {
-			if ( $link->is_dead( $now ) ) {
-				continue;
-			}
+		self::report( $this->revoker->revoke_all(), $this->revoker->has_pending_work() );
+	}
 
-			if ( $this->service->revoke( $post_id, $link->token_hash() ) ) {
-				++$revoked;
-			}
+	/**
+	 * The shared success line, warning first when a sweep was too large for one
+	 * run and continues on cron.
+	 */
+	private static function report( int $revoked, bool $pending = false ): void {
+		if ( $pending ) {
+			WP_CLI::warning( 'The sweep is larger than one run; the rest are being revoked in the background.' );
 		}
 
 		WP_CLI::success(

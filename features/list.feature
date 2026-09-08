@@ -66,6 +66,27 @@ Feature: Preview links can be listed from the command line
 			Warning: Preview links are currently disabled site-wide. None of the listed links will work until an administrator re-enables preview links.
 			"""
 
+	Scenario: The creator filter belongs to the site-wide listing
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I try `wp live-previews list {POST_ID} --created-by=admin`
+		Then STDERR should be:
+			"""
+			Error: Specify either a post ID or --created-by, not both.
+			"""
+
+	Scenario: The site-wide listing filters by creator
+		When I run `wp user create reviewer reviewer@example.com --role=editor --porcelain`
+		And I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		And I run `wp live-previews create {POST_ID} --user=reviewer --porcelain`
+		And I run `wp live-previews create {POST_ID} --user=admin --porcelain`
+		When I run `wp live-previews list --created-by=reviewer --format=count`
+		Then STDOUT should be:
+			"""
+			1
+			"""
+
 	Scenario: Listing the whole site includes every post's links
 		When I run `wp post create --post_status=draft --post_title="First draft" --porcelain`
 		And save STDOUT as {FIRST_ID}

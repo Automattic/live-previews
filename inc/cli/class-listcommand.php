@@ -20,9 +20,6 @@ use WP_Post;
  * Behaviour is pinned by features/list.feature.
  */
 final class ListCommand {
-	/** Links fetched per page when walking the site-wide listing. */
-	private const PAGE_SIZE = 100;
-
 	private PreviewLinkService $service;
 	private LinkToggle $toggle;
 
@@ -38,6 +35,9 @@ final class ListCommand {
 	 *
 	 * [<post-id>]
 	 * : The post whose links to list. Omit to list every live link on the site, newest first.
+	 *
+	 * [--created-by=<user>]
+	 * : Only the links this user (an ID, login, or email) created — the site-wide listing's creator filter, so it cannot be combined with a post ID.
 	 *
 	 * [--field=<field>]
 	 * : Print one field for each link.
@@ -75,6 +75,10 @@ final class ListCommand {
 	 *     $ wp live-previews list 123 --field=token_hint
 	 *     c3d9
 	 *
+	 *     # Everything one user shared, e.g. before offboarding them.
+	 *     $ wp live-previews list --created-by=jane --format=count
+	 *     4
+	 *
 	 * @when after_wp_load
 	 *
 	 * @param string[]                  $args       Positional arguments.
@@ -88,6 +92,18 @@ final class ListCommand {
 			return;
 		}
 
+		$created_by = null;
+
+		if ( isset( $assoc_args['created-by'] ) && is_string( $assoc_args['created-by'] ) ) {
+			if ( null !== $post_id ) {
+				WP_CLI::error( 'Specify either a post ID or --created-by, not both.' );
+				return;
+			}
+
+			$fetcher    = new \WP_CLI\Fetchers\User();
+			$created_by = (int) $fetcher->get_check( $assoc_args['created-by'] )->ID;
+		}
+
 		// The same warning the editor's Manage modal shows. A warning (STDERR)
 		// so table, CSV, and JSON output stay parseable.
 		if ( $this->toggle->is_disabled() ) {
@@ -95,7 +111,7 @@ final class ListCommand {
 		}
 
 		$links = null === $post_id
-			? $this->all_links()
+			? $this->service->all_links( $created_by )
 			: $this->service->list_for_post( $post_id );
 
 		$now   = time();
@@ -159,25 +175,5 @@ final class ListCommand {
 		$user = get_userdata( $link->created_by() );
 
 		return false !== $user ? $user->display_name : sprintf( 'User #%d', $link->created_by() );
-	}
-
-	/**
-	 * Every link on the site, walked page by page so an unbounded listing never
-	 * turns into one unbounded query.
-	 *
-	 * @return list<PreviewLink>
-	 */
-	private function all_links(): array {
-		$links  = [];
-		$offset = 0;
-
-		do {
-			$page       = $this->service->page_of_links( $offset, self::PAGE_SIZE );
-			$page_count = count( $page );
-			$links      = [ ...$links, ...$page ];
-			$offset    += self::PAGE_SIZE;
-		} while ( self::PAGE_SIZE === $page_count );
-
-		return $links;
 	}
 }

@@ -8,13 +8,14 @@ The repository ships fully configured VIP local and cloud development environmen
 
 ## WP-CLI commands
 
-Everything the editor can do with preview links is also available from the shell, under `wp live-previews`. The commands share the exact service graph behind the editor, REST, and the Abilities API, so a link minted or revoked here obeys the same rules and records the same telemetry (with `cli` as its channel). Run `wp help live-previews <command>` for full options and examples.
+Everything the editor and the Preview Links screen can do with preview links is also available from the shell, under `wp live-previews`. The commands share the exact service graph behind the editor, REST, and the Abilities API, so a link minted or revoked here obeys the same rules and records the same telemetry (with `cli` as its channel). Run `wp help live-previews <command>` for full options and examples.
 
 | Command | What it does |
 | ------- | ------------ |
 | `wp live-previews create <post-id>` | Create a link and print its shareable URL (the one moment the secret token exists in plaintext). `--expiration=<seconds>`, `--max-uses=<count>`, and `--allowed-ips=<ranges>` mirror the editor's options; `--porcelain` prints just the URL for scripts. |
-| `wp live-previews list [<post-id>]` | List a post's live links, or every live link on the site when no post is given. Supports `--format=table\|csv\|json\|count\|yaml`, `--fields=`, and `--field=`. |
-| `wp live-previews revoke <post-id> <link>` | Revoke one link, identified by the token hint `list` shows (or a full link id). `--all` revokes every live link on the post — the fastest response when a preview URL leaks. |
+| `wp live-previews list [<post-id>]` | List a post's live links, or every live link on the site when no post is given. `--created-by=<user>` narrows the site-wide listing to one creator, like the admin table's filter. Supports `--format=table\|csv\|json\|count\|yaml`, `--fields=`, and `--field=`. |
+| `wp live-previews revoke [<post-id>] [<link>]` | Revoke one link (a token hint from `list`, or a full link id), a post's live links (`<post-id> --all`), everything one user created (`--created-by=<user>`, for offboarding), or every live link on the site (a bare `--all`, the break-glass lever — it asks for confirmation unless `--yes`). |
+| `wp live-previews disable` / `enable` | Pause every preview link site-wide, or let them work again — the same reversible switch as the Preview Links screen. Nothing is revoked; each link resumes according to its own state. |
 | `wp live-previews prune` | Delete expired and revoked links past their retention period, on demand rather than waiting for the daily sweep. `--grace=0` deletes every dead link immediately. |
 
 There is deliberately no `update` command: a link's token, expiry, and limits are fixed when it is minted, so "editing" a link means revoking it and creating a new one.
@@ -22,6 +23,19 @@ There is deliberately no `update` command: a link's token, expiry, and limits ar
 Because WP-CLI runs without a logged-in user, links minted from the shell are attributed to no one unless the global [`--user=`](https://make.wordpress.org/cli/handbook/references/config/#global-parameters) flag says otherwise.
 
 While preview links are [temporarily disabled site-wide](#disabling-links-bulk-revocation-and-offboarding), `create` and `list` warn — on STDERR, so `--porcelain` and formatted output stay clean — that links will not work until an administrator re-enables them, matching the editor's Generate and Manage modals.
+
+## Abilities (MCP and AI clients)
+
+The same operations are registered with the WordPress [Abilities API](https://developer.wordpress.org/apis/abilities/), so MCP clients (via the [MCP Adapter](https://github.com/WordPress/mcp-adapter)), the WordPress AI Client, and the abilities REST runner drive them under the same rules and permission checks as every other surface. All are `public`, in the `live-previews` category:
+
+| Ability | What it does | Needs |
+| ------- | ------------ | ----- |
+| `live-previews/create-preview-link` | Mint a link for a post (expiration, max uses, IP ranges) and return the shareable URL. | `edit_post` |
+| `live-previews/list-preview-links` | List a post's live links, or — without `post_id` — every live link on the site, optionally filtered by `created_by`. Returns usage, expiry, and a token hint, never the URL. | `edit_post` / `edit_others_posts` |
+| `live-previews/revoke-preview-link` | Revoke one link, a post's links (`all` with `post_id`), a creator's links (`created_by`), or every live link on the site (bare `all`). | `edit_post` / `edit_others_posts` / `manage_options` |
+| `live-previews/prune-preview-links` | Delete expired and revoked links past their retention period; `grace: 0` deletes every dead link immediately. | `manage_options` |
+| `live-previews/set-preview-links-enabled` | Flip the site-wide switch: pause every link, or let them work again. | `manage_options` |
+| `live-previews/get-preview-links-status` | Read whether links currently work, and who paused them when they do not. | `edit_posts` |
 
 ## Hosting requirements
 
