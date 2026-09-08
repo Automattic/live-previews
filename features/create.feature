@@ -1,0 +1,75 @@
+Feature: Preview links can be created from the command line
+
+	The URL a link mints is the only moment the secret token exists in
+	plaintext, so `create` prints it once; everything else in the plugin only
+	ever sees the hash.
+
+	Background:
+		Given a WP installation with the Live Previews plugin
+
+	Scenario: Error when the post does not exist
+		When I try `wp live-previews create 999999`
+		Then STDERR should be:
+			"""
+			Error: The post could not be found.
+			"""
+
+	Scenario: Create a link for a draft with the default lifetime
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I run `wp live-previews create {POST_ID}`
+		Then STDOUT should contain:
+			"""
+			lp-token=
+			"""
+		And STDOUT should contain:
+			"""
+			Success: Link expires
+			"""
+
+	Scenario: Porcelain output is just the URL, for scripts
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I run `wp live-previews create {POST_ID} --expiration=3600 --max-uses=1 --porcelain`
+		Then STDOUT should contain:
+			"""
+			lp-token=
+			"""
+		And STDOUT should not match /Success/
+
+	Scenario: Warn when preview links are disabled site-wide
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		And I run `wp option update live_previews_disabled '{"disabled_at":1757300000,"disabled_by":1}' --format=json`
+		When I run `wp live-previews create {POST_ID}`
+		Then STDOUT should contain:
+			"""
+			Warning: Preview links are currently disabled site-wide. The link was created, but it will not work until an administrator re-enables preview links.
+			"""
+		And STDOUT should contain:
+			"""
+			lp-token=
+			"""
+
+	Scenario: Reject a lifetime outside the allowed set
+		When I try `wp live-previews create 1 --expiration=123`
+		Then STDERR should contain:
+			"""
+			123 is not an allowed lifetime.
+			"""
+
+	Scenario: Reject an out-of-range viewer cap
+		When I try `wp live-previews create 1 --max-uses=0`
+		Then STDERR should be:
+			"""
+			Error: --max-uses must be between 1 and 1000.
+			"""
+
+	Scenario: Reject an invalid IP range
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I try `wp live-previews create {POST_ID} --allowed-ips=999.0.0.1`
+		Then STDERR should contain:
+			"""
+			is not a valid IP address or CIDR range.
+			"""

@@ -22,6 +22,8 @@ validate with `vip-integration validate` before shipping.
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
 | `inc/`                                            | Runtime code (autoloaded via `inc/autoload.php`). `class-config.php`, `class-telemetry.php`, REST handlers. |
+| `inc/cli/`                                        | WP-CLI commands (`wp live-previews`), one class per subcommand. Loaded by explicit `require` under WP-CLI only — the flat autoloader does not map this directory. |
+| `features/`                                       | Behat feature tests, one `.feature` per WP-CLI command, run against wp-env (`composer behat`).              |
 | `src/`                                            | Block-editor JavaScript, compiled into `build/` by `npm run build`.                                        |
 | `languages/`                                      | Translation catalogues. Regenerate the POT with `composer i18n` after changing any translatable string.    |
 | `fixtures/`                                       | Mock runtime configs for local dev and tests — see `fixtures/README.md`.                                   |
@@ -127,8 +129,11 @@ event in the `telemetry` section of `vip-manifest.yaml`.
 ### Tests
 
 - Unit tests (pure PHP, no WordPress) in `tests/unit/`, integration tests (boot
-  WordPress) in `tests/integration/`, e2e in `tests/e2e/` (Playwright). Add tests
-  with the code that needs them; mirror the structure of the existing suites.
+  WordPress) in `tests/integration/`, e2e in `tests/e2e/` (Playwright), and
+  Behat features for the WP-CLI commands in `features/` (context class in
+  `tests/behat/`). Add tests with the code that needs them; mirror the
+  structure of the existing suites. Every WP-CLI subcommand gets a `.feature`
+  file pinning its behaviour.
 - The graceful-degradation behavior above is behavioral — prove it with a test,
   not just a static guard.
 
@@ -167,6 +172,8 @@ composer test            # unit + integration + Playwright e2e (e2e needs the de
 composer test:unit       # fast unit suite only (pure PHP, no WordPress)
 composer test:integration # integration suite only (boots WordPress)
 composer test:e2e        # Playwright only
+composer prepare-behat-tests # start the wp-env the Behat suite runs against
+composer behat           # WP-CLI feature tests (needs the wp-env above)
 composer phpcs          # WordPress VIP coding standards
 composer phpcbf         # auto-fix what PHPCS can
 composer psalm          # static analysis

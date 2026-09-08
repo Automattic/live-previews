@@ -10,6 +10,13 @@
     <include>
       <directory suffix=".php">inc</directory>
     </include>
+    <exclude>
+      <!-- Processing these as uncovered files loads them, and they extend or
+           call WP-CLI classes that do not exist in the integration
+           environment. Their behaviour is pinned by the Behat suite in
+           features/ instead. -->
+      <directory suffix=".php">inc/cli</directory>
+    </exclude>
   </coverage>
   <testsuites>
     <testsuite name="integration">

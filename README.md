@@ -6,6 +6,23 @@ Live Previews is an ordinary WordPress plugin and works on any host, with nothin
 
 The repository ships fully configured VIP local and cloud development environments along with unit tests, end-to-end tests, static analysis, and linting.
 
+## WP-CLI commands
+
+Everything the editor can do with preview links is also available from the shell, under `wp live-previews`. The commands share the exact service graph behind the editor, REST, and the Abilities API, so a link minted or revoked here obeys the same rules and records the same telemetry (with `cli` as its channel). Run `wp help live-previews <command>` for full options and examples.
+
+| Command | What it does |
+| ------- | ------------ |
+| `wp live-previews create <post-id>` | Create a link and print its shareable URL (the one moment the secret token exists in plaintext). `--expiration=<seconds>`, `--max-uses=<count>`, and `--allowed-ips=<ranges>` mirror the editor's options; `--porcelain` prints just the URL for scripts. |
+| `wp live-previews list [<post-id>]` | List a post's live links, or every live link on the site when no post is given. Supports `--format=table\|csv\|json\|count\|yaml`, `--fields=`, and `--field=`. |
+| `wp live-previews revoke <post-id> <link>` | Revoke one link, identified by the token hint `list` shows (or a full link id). `--all` revokes every live link on the post — the fastest response when a preview URL leaks. |
+| `wp live-previews prune` | Delete expired and revoked links past their retention period, on demand rather than waiting for the daily sweep. `--grace=0` deletes every dead link immediately. |
+
+There is deliberately no `update` command: a link's token, expiry, and limits are fixed when it is minted, so "editing" a link means revoking it and creating a new one.
+
+Because WP-CLI runs without a logged-in user, links minted from the shell are attributed to no one unless the global [`--user=`](https://make.wordpress.org/cli/handbook/references/config/#global-parameters) flag says otherwise.
+
+While preview links are [temporarily disabled site-wide](#disabling-links-bulk-revocation-and-offboarding), `create` and `list` warn — on STDERR, so `--porcelain` and formatted output stay clean — that links will not work until an administrator re-enables them, matching the editor's Generate and Manage modals.
+
 ## Hosting requirements
 
 The plugin itself needs nothing beyond WordPress 6.9 and PHP 8.2, and runs on any host. Two things about the hosting environment are worth checking.
@@ -73,6 +90,10 @@ We use [PHPUnit 9](https://phpunit.de/index.html) for both suites. The fast unit
 
 For end-to-end tests we use [Playwright](https://playwright.dev/). The specs live in [/tests/e2e](/tests/e2e).
 
+### WP-CLI feature tests
+
+Each `wp live-previews` command is pinned by a [Behat](https://behat.org/) feature file in [/features](/features), run against a real WordPress in [wp-env](https://www.npmjs.com/package/@wordpress/env) via [automattic/behat-wp-env-context](https://packagist.org/packages/automattic/behat-wp-env-context). Start the environment with `composer prepare-behat-tests`, then run `composer behat` (`composer behat-rerun` repeats only the scenarios that failed).
+
 ### Static analysis
 
 [Psalm](https://psalm.dev/) is a free & open-source static analysis tool that helps identify problems in the code. For it to work properly you will need to annotate the PHP code; see [/inc](/inc) for examples.
@@ -90,6 +111,7 @@ CI runs on every push and pull request:
 | `unit-tests.yml`                       | Fast PHPUnit unit suite (pure PHP, no WordPress) across the PHP baseline (8.2–8.5).                         |
 | `integration-tests.yml`                | PHPUnit integration suite across the VIP platform baseline (PHP 8.2–8.5 × WordPress 6.9.x/latest, single site and multisite). |
 | `e2e.yml`                              | Playwright end-to-end tests against a real `vip dev-env` (WordPress 6.9 and 7.0).                           |
+| `behat.yml`                            | Behat feature tests for the `wp live-previews` WP-CLI commands, against a real wp-env.                      |
 | `lint.yml`                             | PHPCS with the WordPress VIP rulesets.                                                                      |
 | `static-code-analysis.yml`             | Psalm static analysis.                                                                                      |
 | `codeql.yml` / `dependency-review.yml` | Security scanning of code and dependency changes.                                                           |

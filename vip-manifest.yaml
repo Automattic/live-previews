@@ -69,7 +69,7 @@ telemetry:
   events:
     - name: livepreviews_link_created
       type: tracks
-      trigger: A preview link is minted, via REST or the Abilities API.
+      trigger: A preview link is minted, via REST, WP-CLI, or the Abilities API.
       properties:
         - expiration
         - max_uses

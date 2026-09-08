@@ -12,6 +12,7 @@
 
 	<!-- What to scan -->
 	<file>./inc/</file>
+	<file>./tests/behat/</file>
 	<file>./tests/unit/</file>
 	<file>./tests/integration/</file>
 	<!-- Ignoring Files and Folders:

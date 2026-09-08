@@ -115,6 +115,39 @@ final class LinkGarbageCollector {
 		return $deleted;
 	}
 
+	/**
+	 * Sweep every post in one call, for the CLI's `prune` command.
+	 *
+	 * Unlike {@see run()}, this walks its own cursor from the start, so it
+	 * neither reads nor moves the scheduled sweep's stored one, and it does not
+	 * touch the last-run marker — that records whether *cron* is firing, and a
+	 * manual sweep reporting there would mask a broken schedule.
+	 *
+	 * @param int|null $grace_seconds Retention override in seconds (0 deletes
+	 *                                every dead link immediately), or null for
+	 *                                the configured grace period.
+	 * @return int Links deleted.
+	 */
+	public function sweep_all( ?int $grace_seconds = null ): int {
+		$grace   = null === $grace_seconds ? $this->grace_period() : max( 0, $grace_seconds );
+		$deleted = 0;
+		$cursor  = 0;
+
+		while ( true ) {
+			$post_ids = $this->service->post_ids_with_links( $cursor, self::BATCH_SIZE );
+
+			if ( [] === $post_ids ) {
+				return $deleted;
+			}
+
+			foreach ( $post_ids as $post_id ) {
+				$deleted += $this->service->prune_dead( $post_id, $grace );
+			}
+
+			$cursor = (int) end( $post_ids );
+		}
+	}
+
 	private function grace_period(): int {
 		/**
 		 * Filters how long an expired or revoked preview link is kept before the

@@ -1,0 +1,7 @@
+default:
+  suites:
+    default:
+      contexts:
+        - Automattic\LivePreviews\Tests\Behat\FeatureContext
+      paths:
+        - features
