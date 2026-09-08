@@ -55,6 +55,16 @@ export default defineConfig({
             name: 'chromium',
             use: { ...devices['Desktop Chrome'], ...defaultSettings },
             dependencies: ['setup'],
+            // The admin-screen spec revokes every link and pauses the feature
+            // site-wide, which would break the editor journey mid-flight; it
+            // runs in its own project below, after this one finishes.
+            testIgnore: /preview-links-admin\.spec\.ts/,
+        },
+        {
+            name: 'admin',
+            use: { ...devices['Desktop Chrome'], ...defaultSettings },
+            dependencies: ['chromium'],
+            testMatch: /preview-links-admin\.spec\.ts/,
         },
         // {
         //     name: 'firefox',
@@ -71,9 +81,10 @@ export default defineConfig({
             name: 'Mobile Chrome',
             use: { ...devices['Pixel 5'], ...defaultSettings },
             dependencies: ['setup'],
-            // The editor authoring journey is a desktop flow; the mobile editor
-            // chrome differs and adds no coverage, so run it on chromium only.
-            testIgnore: /preview-links\.spec\.ts/,
+            // The editor authoring journey and the admin screen are desktop
+            // flows; the mobile chrome differs and adds no coverage, so run
+            // them on chromium only.
+            testIgnore: /preview-links.*\.spec\.ts/,
         },
     ],
 });
