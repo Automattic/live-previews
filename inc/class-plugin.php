@@ -98,6 +98,11 @@ final class Plugin {
 			require_once __DIR__ . '/cli/register-commands.php';
 			Cli\register_commands( $service, $minter, $collector, $toggle );
 		}
+
+		// Development-checkout safety net: build/ is not committed, and the
+		// enqueues above silently skip a missing build, so remind admins to run
+		// the build rather than leaving them to wonder where the UI went.
+		( new BuildNotice() )->register();
 	}
 	// @codeCoverageIgnoreEnd
 }

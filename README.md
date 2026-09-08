@@ -143,14 +143,20 @@ composer install
 npm i
 ```
 
-4. Create and start a WPVIP local development instance:
+4. Build the JavaScript assets (the `build/` directory is not committed; without this step the editor panel and parts of the Preview Links screen are silently absent, though an admin notice will remind you):
+
+```sh
+npm run build
+```
+
+5. Create and start a WPVIP local development instance:
 
 ```sh
 vip dev-env create
 vip dev-env start
 ```
 
-5. Write code, write tests. Or the other way around! `composer test` runs both suites (the e2e half needs the dev-env from the previous step running — see [/docs/vip-integration.md](/docs/vip-integration.md)).
+6. Write code, write tests. Or the other way around! `composer test` runs both suites (the e2e half needs the dev-env from the previous step running — see [/docs/vip-integration.md](/docs/vip-integration.md)).
 
 📝 For convenience, this repository contains a [vip-dev-env.yml](/.wpvip/vip-dev-env.yml) configuration file; tweak it to your needs. For a more in-depth guide to VIP local development environments, see [our documentation site](https://docs.wpvip.com/vip-local-development-environment/create/).
 
