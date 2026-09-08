@@ -107,14 +107,14 @@ final class PreviewLinkService {
 	}
 
 	/**
-	 * Revoke every live link on a post, returning how many were revoked.
+	 * Revoke every active link on a post, returning how many were revoked.
 	 *
 	 * Dead links (already revoked or expired) are left alone: there is nothing
 	 * usable to kill, and keeping their state untouched preserves what the gate
 	 * tells a returning visitor. Shared by `wp live-previews revoke --all` and
 	 * the revoke-preview-link ability.
 	 */
-	public function revoke_live_links_for_post( int $post_id ): int {
+	public function revoke_active_links_for_post( int $post_id ): int {
 		$now     = $this->clock->now();
 		$revoked = 0;
 

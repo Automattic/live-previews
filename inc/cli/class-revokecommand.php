@@ -110,7 +110,7 @@ final class RevokeCommand {
 		}
 
 		if ( $all ) {
-			self::report( $this->service->revoke_live_links_for_post( $post_id ) );
+			self::report( $this->service->revoke_active_links_for_post( $post_id ) );
 			return;
 		}
 
