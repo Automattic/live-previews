@@ -561,7 +561,7 @@ final class PreviewAbilities {
 
 		if ( $all ) {
 			return [
-				'revoked' => $this->service->revoke_live_for_post( $post_id ),
+				'revoked' => $this->service->revoke_live_links_for_post( $post_id ),
 				'pending' => false,
 			];
 		}

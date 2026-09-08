@@ -114,7 +114,7 @@ final class PreviewLinkService {
 	 * tells a returning visitor. Shared by `wp live-previews revoke --all` and
 	 * the revoke-preview-link ability.
 	 */
-	public function revoke_live_for_post( int $post_id ): int {
+	public function revoke_live_links_for_post( int $post_id ): int {
 		$now     = $this->clock->now();
 		$revoked = 0;
 
