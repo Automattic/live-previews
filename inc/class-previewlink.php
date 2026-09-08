@@ -121,6 +121,14 @@ final class PreviewLink {
 		return $this->created_by;
 	}
 
+	/**
+	 * Whether a user was recorded as creating this link. False for links
+	 * minted without an authenticated user (e.g. WP-CLI without --user).
+	 */
+	public function has_known_creator(): bool {
+		return 0 !== $this->created_by;
+	}
+
 	public function created_at(): int {
 		return $this->created_at;
 	}
@@ -160,6 +168,30 @@ final class PreviewLink {
 	 */
 	public function allowed_ips(): array {
 		return $this->allowed_ips;
+	}
+
+	/**
+	 * Whether this link carries IP ranges of its own. Says nothing about the
+	 * central baseline, which restricts every link and lives with the policy.
+	 */
+	public function has_ip_restriction(): bool {
+		return [] !== $this->allowed_ips;
+	}
+
+	/**
+	 * Whether a caller-supplied identifier names this link: either its full
+	 * token hash, or the short token hint shown wherever links are listed.
+	 *
+	 * A hint is only a few characters, so it may name several links at once;
+	 * the caller decides what ambiguity means. An empty identifier never
+	 * matches, mirroring {@see holds_slot()}.
+	 */
+	public function is_identified_by( string $identifier ): bool {
+		if ( '' === $identifier ) {
+			return false;
+		}
+
+		return hash_equals( $this->token_hash, $identifier ) || $this->token_hint === $identifier;
 	}
 
 	/**

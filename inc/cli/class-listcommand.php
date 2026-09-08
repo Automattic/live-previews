@@ -37,16 +37,13 @@ final class ListCommand {
 	 * ## OPTIONS
 	 *
 	 * [<post-id>]
-	 * : The post whose links to list. Omit to list every live link on the site,
-	 * newest first.
+	 * : The post whose links to list. Omit to list every live link on the site, newest first.
 	 *
 	 * [--field=<field>]
 	 * : Print one field for each link.
 	 *
 	 * [--fields=<fields>]
-	 * : Comma-separated list of fields to show. Available fields: post_id, id,
-	 * token_hint, created_at, expires_at, expires_in, use_count, max_uses,
-	 * allowed_ips.
+	 * : Comma-separated list of fields to show. Available fields: post_id, id, token_hint, created_by, created_at, expires_at, expires_in, use_count, max_uses, allowed_ips.
 	 *
 	 * [--format=<format>]
 	 * : Render output in a particular format.
@@ -64,12 +61,19 @@ final class ListCommand {
 	 *
 	 *     # List a post's live links.
 	 *     $ wp live-previews list 123
+	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
+	 *     | token_hint | created_by | created_at          | expires_at          | expires_in | use_count | max_uses | allowed_ips |
+	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
+	 *     | c3d9       | Gary Jones | 2026-09-09 01:30:00 | 2026-09-09 09:30:00 | 8 hours    | 0         |          |             |
+	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
 	 *
-	 *     # Every live link on the site, as JSON.
-	 *     $ wp live-previews list --format=json
+	 *     # How many live links exist across the whole site.
+	 *     $ wp live-previews list --format=count
+	 *     3
 	 *
 	 *     # Just the token hint, e.g. to feed `wp live-previews revoke`.
 	 *     $ wp live-previews list 123 --field=token_hint
+	 *     c3d9
 	 *
 	 * @when after_wp_load
 	 *
@@ -113,6 +117,7 @@ final class ListCommand {
 				'post_id'     => $link->post_id(),
 				'id'          => $row['id'],
 				'token_hint'  => $row['token_hint'],
+				'created_by'  => self::creator_label( $link ),
 				'created_at'  => gmdate( 'Y-m-d H:i:s', $row['created_at'] ),
 				'expires_at'  => gmdate( 'Y-m-d H:i:s', $row['expires_at'] ),
 				'expires_in'  => human_time_diff( $now, $row['expires_at'] ),
@@ -131,7 +136,7 @@ final class ListCommand {
 			return;
 		}
 
-		$default_fields = [ 'token_hint', 'created_at', 'expires_at', 'expires_in', 'use_count', 'max_uses', 'allowed_ips' ];
+		$default_fields = [ 'token_hint', 'created_by', 'created_at', 'expires_at', 'expires_in', 'use_count', 'max_uses', 'allowed_ips' ];
 
 		if ( null === $post_id ) {
 			array_unshift( $default_fields, 'post_id' );
@@ -139,6 +144,21 @@ final class ListCommand {
 
 		$formatter = new Formatter( $assoc_args, $default_fields );
 		$formatter->display_items( $items );
+	}
+
+	/**
+	 * Who created a link, matching the admin table's Created by column: the
+	 * user's display name, a placeholder for a deleted user, and an em dash
+	 * when no user was recorded (e.g. minted from WP-CLI without --user).
+	 */
+	private static function creator_label( PreviewLink $link ): string {
+		if ( ! $link->has_known_creator() ) {
+			return '—';
+		}
+
+		$user = get_userdata( $link->created_by() );
+
+		return false !== $user ? $user->display_name : sprintf( 'User #%d', $link->created_by() );
 	}
 
 	/**

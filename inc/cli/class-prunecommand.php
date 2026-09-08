@@ -24,18 +24,12 @@ final class PruneCommand {
 	/**
 	 * Delete expired and revoked preview links past their retention period.
 	 *
-	 * The scheduled sweep does this daily; running it here is useful when
-	 * waiting is not acceptable, or to verify the sweep's effect. Until a dead
-	 * link is pruned, a visitor opening it is told why it stopped working;
-	 * after, they see a plain 404.
+	 * The scheduled sweep does this daily; running it here is useful when waiting is not acceptable, or to verify the sweep's effect. Until a dead link is pruned, a visitor opening it is told why it stopped working; after, they see a plain 404.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--grace=<seconds>]
-	 * : Override the retention period for dead links, in seconds. `0` deletes
-	 * every expired or revoked link immediately. Defaults to the configured
-	 * grace period (21 days unless the platform sets `dead_link_grace_period`
-	 * or the `live_previews_dead_link_grace_period` filter says otherwise).
+	 * : Override the retention period for dead links, in seconds. `0` deletes every expired or revoked link immediately. Defaults to the configured grace period (21 days unless the platform sets `dead_link_grace_period` or the `live_previews_dead_link_grace_period` filter says otherwise).
 	 *
 	 * ## EXAMPLES
 	 *
@@ -45,6 +39,7 @@ final class PruneCommand {
 	 *
 	 *     # Delete every dead link immediately.
 	 *     $ wp live-previews prune --grace=0
+	 *     Success: Pruned 2 preview links.
 	 *
 	 * @when after_wp_load
 	 *

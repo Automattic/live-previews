@@ -303,7 +303,7 @@ final class PostMetaTokenRepository implements TokenRepository {
 		// compare-and-swap writes in add_viewer() and revoke() match on this
 		// exact serialised array, so rows written before the key existed must
 		// keep round-tripping byte-for-byte or they become unrevokable.
-		if ( [] !== $link->allowed_ips() ) {
+		if ( $link->has_ip_restriction() ) {
 			$row['allowed_ips'] = $link->allowed_ips();
 		}
 

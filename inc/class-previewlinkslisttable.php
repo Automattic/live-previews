@@ -150,13 +150,12 @@ final class PreviewLinksListTable extends WP_List_Table {
 	}
 
 	public function column_created_by( PreviewLink $item ): string {
-		$user_id = $item->created_by();
-
-		if ( 0 === $user_id ) {
+		if ( ! $item->has_known_creator() ) {
 			return esc_html( '—' );
 		}
 
-		$user = get_userdata( $user_id );
+		$user_id = $item->created_by();
+		$user    = get_userdata( $user_id );
 
 		/* translators: %d: user ID */
 		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
@@ -193,11 +192,11 @@ final class PreviewLinksListTable extends WP_List_Table {
 	 * mint a fresh one — the same rule as every other property of a link.
 	 */
 	public function column_ip_ranges( PreviewLink $item ): string {
-		$ranges = $item->allowed_ips();
-
-		if ( [] === $ranges ) {
+		if ( ! $item->has_ip_restriction() ) {
 			return esc_html( '—' );
 		}
+
+		$ranges = $item->allowed_ips();
 
 		return implode(
 			'<br />',

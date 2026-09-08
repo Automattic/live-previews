@@ -30,8 +30,7 @@ final class CreateCommand {
 	/**
 	 * Create a preview link for a post.
 	 *
-	 * Prints the shareable URL. The URL carries the secret token — the only
-	 * moment it exists in plaintext — so treat the output as sensitive.
+	 * Prints the shareable URL. The URL carries the secret token — the only moment it exists in plaintext — so treat the output as sensitive.
 	 *
 	 * ## OPTIONS
 	 *
@@ -39,18 +38,13 @@ final class CreateCommand {
 	 * : The post to create a preview link for.
 	 *
 	 * [--expiration=<seconds>]
-	 * : How long the link stays valid, in seconds. Must be one of the allowed
-	 * lifetimes (3600, 28800, 86400, or 604800 unless the site filters
-	 * `live_previews_expiration_options`). Defaults to the site's default
-	 * lifetime (8 hours unless filtered).
+	 * : How long the link stays valid, in seconds. Must be one of the allowed lifetimes (3600, 28800, 86400, or 604800 unless the site filters `live_previews_expiration_options`). Defaults to the site's default lifetime (8 hours unless filtered).
 	 *
 	 * [--max-uses=<count>]
-	 * : Maximum number of distinct viewers, between 1 and 1000. Defaults to
-	 * unlimited.
+	 * : Maximum number of distinct viewers, between 1 and 1000. Defaults to unlimited.
 	 *
 	 * [--allowed-ips=<ranges>]
-	 * : Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6) the link may
-	 * be opened from. Defaults to no IP restriction.
+	 * : Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Defaults to no IP restriction.
 	 *
 	 * [--porcelain]
 	 * : Output just the preview URL.
@@ -59,11 +53,17 @@ final class CreateCommand {
 	 *
 	 *     # Create a link with the default lifetime.
 	 *     $ wp live-previews create 123
-	 *     https://example.com/?p=123&preview=true&lp-token=…
-	 *     Success: Link expires 2026-09-08 17:00:00 UTC.
+	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *     Success: Link expires 2026-09-09 09:30:00 UTC.
 	 *
-	 *     # A single-viewer link that lasts an hour, for use in a script.
+	 *     # A single-viewer link that lasts an hour, printing only the URL for a script.
 	 *     $ wp live-previews create 123 --expiration=3600 --max-uses=1 --porcelain
+	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *
+	 *     # Restrict the link to an office network.
+	 *     $ wp live-previews create 123 --allowed-ips=203.0.113.0/24
+	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *     Success: Link expires 2026-09-09 09:30:00 UTC.
 	 *
 	 * @when after_wp_load
 	 *

@@ -31,8 +31,7 @@ final class RevokeCommand {
 	 * : The post whose link to revoke.
 	 *
 	 * [<link>]
-	 * : The link to revoke: a token hint as shown by `wp live-previews list`,
-	 * or a full link id.
+	 * : The link to revoke: a token hint as shown by `wp live-previews list`, or a full link id.
 	 *
 	 * [--all]
 	 * : Revoke every live link for the post.
@@ -112,11 +111,7 @@ final class RevokeCommand {
 		$matches = [];
 
 		foreach ( $links as $link ) {
-			if ( $link->is_revoked() ) {
-				continue;
-			}
-
-			if ( $link->token_hash() === $identifier || $link->token_hint() === $identifier ) {
+			if ( ! $link->is_revoked() && $link->is_identified_by( $identifier ) ) {
 				$matches[] = $link;
 			}
 		}
