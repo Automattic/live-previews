@@ -1,6 +1,22 @@
 <?php
+/**
+ * Supplementary Psalm stubs for symbols the shipped stub packages miss.
+ *
+ * Psalm loads php-stubs/wordpress-stubs and the wordpress-test-library stubs
+ * first (see <stubs> in psalm.xml.dist); this file only fills the gaps. Those
+ * packages are generated from WordPress source, so anything core defines at
+ * runtime — constants set inside wp_initial_constants(), or by wp-config.php —
+ * never reaches them and has to be declared here instead.
+ *
+ * Before adding an entry, check it is genuinely absent from (or wrong in)
+ * vendor/php-stubs/wordpress-stubs/wordpress-stubs.php, and say why it is
+ * needed; anything upstream already covers belongs upstream. Entries whose last
+ * caller has gone should be deleted — Psalm will say so by erroring when a
+ * symbol is truly missing.
+ */
 
 namespace {
+	// Set by wp_initial_constants() at runtime, so absent from the generated stubs.
 	define( 'MINUTE_IN_SECONDS', 60 );
 	define( 'HOUR_IN_SECONDS', 3600 );
 	define( 'DAY_IN_SECONDS', 86400 );
@@ -8,28 +24,28 @@ namespace {
 	define( 'MONTH_IN_SECONDS', 2592000 );
 	define( 'YEAR_IN_SECONDS', 31536000 );
 
-	define( 'OBJECT', 'OBJECT' );
-	define( 'object', 'OBJECT' );
-	define( 'OBJECT_K', 'OBJECT_K' );
+	// wpdb output-format constant, also defined at runtime (wp-includes/class-wpdb.php).
 	define( 'ARRAY_A', 'ARRAY_A' );
-	define( 'ARRAY_N', 'ARRAY_N' );
 
+	// Set by wp-config.php, which the stub generator never sees.
 	define( 'ABSPATH', '/wp' );
-	define( 'WP_CONTENT_DIR', '/wp/wp-content' );
-	define( 'WP_CONTENT_URL', 'http://localhost/wp-content/uploads' );
 
-	// Defined by the plugin entry file before any inc/ code runs.
+	// Defined by the plugin entry file before any inc/ code runs. The entry
+	// file sits behind ABSPATH/already-loaded guards, so Psalm cannot prove
+	// the defines execute; these declarations make the constants always known.
 	define( 'VIP_LIVE_PREVIEWS_LOADED', true );
 	define( 'VIP_LIVE_PREVIEWS_VERSION', '1.0.0' );
 	define( 'VIP_LIVE_PREVIEWS_FILE', '/wp/wp-content/plugins/live-previews/live-previews.php' );
 
+	/**
+	 * Psalm merges duplicate class stubs, so only the methods declared here
+	 * override the generated ones; everything else on wpdb keeps its upstream
+	 * signature. These two are overridden because the generated types are too
+	 * loose for errorLevel 1: prepare() comes out as mixed rather than
+	 * string|null, which in turn makes every get_col()/get_results()/get_var()
+	 * call on a prepared query a MixedArgument error.
+	 */
 	class wpdb {
-
-		/** @var string */
-		public $login_log_table = '';
-
-		/** @var string */
-		public $postmeta = '';
 
 		/**
 		 * @param string|null $query
@@ -46,37 +62,13 @@ namespace {
 		public function prepare( $query, ...$args ) {}
 	}
 
-	/**
-	 * @param mixed $data        Optional. Data to encode as JSON, then print and die. Default null.
-	 * @param int   $status_code Optional. The HTTP status code to output. Default null.
-	 * @param int   $options     Optional. Options to be passed to json_encode(). Default 0.
-	 * @psalm-return never-returns
-	 */
-	function wp_send_json_error( $data = null, $status_code = null, $options = 0 ) {}
-
-	/**
-	 * @param mixed $response    Variable (usually an array or object) to encode as JSON,
-	 *                           then print and die.
-	 * @param int   $status_code Optional. The HTTP status code to output. Default null.
-	 * @param int   $options     Optional. Options to be passed to json_encode(). Default 0.
-	 * @psalm-return never-returns
-	 */
-	function wp_send_json( $response, $status_code = null, $options = 0 ) {}
-
-	/**
-	 * @param string   $id
-	 * @param string   $title
-	 * @param callable $callback
-	 * @param string   $page
-	 * @param string   $section
-	 * @psalm-param array{class?: string, label_for?: string, ...} $args
-	 * @return void
-	 */
-	function add_settings_field( $id, $title, $callback, $page, $section = 'default', $args = array() ) {}
-
-	// The WP-CLI surface the inc/cli/ commands touch. The php-stubs/wp-cli-stubs
-	// package cannot be used: it pins php-stubs/wordpress-stubs to ^6, which
-	// conflicts with this repo tracking WordPress 7 stubs.
+	// The WP-CLI surface the inc/cli/ commands touch. WP-CLI is not part of
+	// WordPress core, so the generated stubs never cover it, and the
+	// php-stubs/wp-cli-stubs package cannot be used yet: releases up to
+	// v2.12.0 pin php-stubs/wordpress-stubs to ^6, which conflicts with this
+	// repo tracking WordPress 7 stubs. The pin is relaxed on its master branch
+	// (php-stubs/wp-cli-stubs#24), so once that ships in a release, adopt the
+	// package and delete everything from here down.
 	class WP_CLI {
 
 		/**
