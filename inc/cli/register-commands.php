@@ -3,6 +3,7 @@
 namespace Automattic\LivePreviews\Cli;
 
 use Automattic\LivePreviews\LinkGarbageCollector;
+use Automattic\LivePreviews\LinkToggle;
 use Automattic\LivePreviews\PreviewLinkMinter;
 use Automattic\LivePreviews\PreviewLinkService;
 use WP_CLI;
@@ -25,13 +26,13 @@ require_once __DIR__ . '/class-revokecommand.php';
  * names) are handed to WP-CLI because the commands take their collaborators
  * through the constructor, which WP-CLI could not build itself.
  */
-function register_commands( PreviewLinkService $service, PreviewLinkMinter $minter, LinkGarbageCollector $collector ): void {
+function register_commands( PreviewLinkService $service, PreviewLinkMinter $minter, LinkGarbageCollector $collector, LinkToggle $toggle ): void {
 	// Declares the namespace the subcommands sit in, so `wp live-previews`
 	// itself has a description.
 	WP_CLI::add_command( 'live-previews', CommandNamespace::class );
 
-	WP_CLI::add_command( 'live-previews create', new CreateCommand( $minter ) );
-	WP_CLI::add_command( 'live-previews list', new ListCommand( $service ) );
+	WP_CLI::add_command( 'live-previews create', new CreateCommand( $minter, $toggle ) );
+	WP_CLI::add_command( 'live-previews list', new ListCommand( $service, $toggle ) );
 	WP_CLI::add_command( 'live-previews prune', new PruneCommand( $collector ) );
 	WP_CLI::add_command( 'live-previews revoke', new RevokeCommand( $service ) );
 }

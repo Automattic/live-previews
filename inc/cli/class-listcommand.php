@@ -2,6 +2,7 @@
 
 namespace Automattic\LivePreviews\Cli;
 
+use Automattic\LivePreviews\LinkToggle;
 use Automattic\LivePreviews\PreviewLink;
 use Automattic\LivePreviews\PreviewLinkPresenter;
 use Automattic\LivePreviews\PreviewLinkService;
@@ -23,9 +24,11 @@ final class ListCommand {
 	private const PAGE_SIZE = 100;
 
 	private PreviewLinkService $service;
+	private LinkToggle $toggle;
 
-	public function __construct( PreviewLinkService $service ) {
+	public function __construct( PreviewLinkService $service, LinkToggle $toggle ) {
 		$this->service = $service;
+		$this->toggle  = $toggle;
 	}
 
 	/**
@@ -79,6 +82,12 @@ final class ListCommand {
 		if ( null !== $post_id && ! get_post( $post_id ) instanceof WP_Post ) {
 			WP_CLI::error( 'The post could not be found.' );
 			return;
+		}
+
+		// The same warning the editor's Manage modal shows. A warning (STDERR)
+		// so table, CSV, and JSON output stay parseable.
+		if ( $this->toggle->is_disabled() ) {
+			WP_CLI::warning( 'Preview links are currently disabled site-wide. None of the listed links will work until an administrator re-enables preview links.' );
 		}
 
 		$links = null === $post_id

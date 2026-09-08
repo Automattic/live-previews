@@ -2,6 +2,7 @@
 
 namespace Automattic\LivePreviews\Cli;
 
+use Automattic\LivePreviews\LinkToggle;
 use Automattic\LivePreviews\PreviewLinkMinter;
 use Automattic\LivePreviews\PreviewRestController;
 use WP_CLI;
@@ -19,9 +20,11 @@ use WP_Error;
  */
 final class CreateCommand {
 	private PreviewLinkMinter $minter;
+	private LinkToggle $toggle;
 
-	public function __construct( PreviewLinkMinter $minter ) {
+	public function __construct( PreviewLinkMinter $minter, LinkToggle $toggle ) {
 		$this->minter = $minter;
+		$this->toggle = $toggle;
 	}
 
 	/**
@@ -114,6 +117,13 @@ final class CreateCommand {
 		if ( $result instanceof WP_Error ) {
 			WP_CLI::error( $result->get_error_message() );
 			return;
+		}
+
+		// The same warning the editor's Generate modal shows: minting still
+		// works while links are paused, but the caller should know the link is
+		// inert. A warning (STDERR) so --porcelain output stays clean.
+		if ( $this->toggle->is_disabled() ) {
+			WP_CLI::warning( 'Preview links are currently disabled site-wide. The link was created, but it will not work until an administrator re-enables preview links.' );
 		}
 
 		WP_CLI::line( $result['url'] );

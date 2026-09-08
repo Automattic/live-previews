@@ -35,6 +35,16 @@ final class FeatureContext extends WpEnvFeatureContext {
 	}
 
 	/**
+	 * The site-wide disable switch is an option, and the generic reset only
+	 * clears posts, users, transients and caches — so a scenario that flips
+	 * links off must not leak that into the next one.
+	 */
+	protected function plugin_specific_cleanup(): void {
+		// Expected to "fail" harmlessly when the option was never set.
+		$this->run_wp_cli_command( 'option delete live_previews_disabled', true );
+	}
+
+	/**
 	 * Set up a clean WordPress installation with Live Previews activated.
 	 *
 	 * @Given a WP installation with the Live Previews plugin

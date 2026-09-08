@@ -21,6 +21,8 @@ There is deliberately no `update` command: a link's token, expiry, and limits ar
 
 Because WP-CLI runs without a logged-in user, links minted from the shell are attributed to no one unless the global [`--user=`](https://make.wordpress.org/cli/handbook/references/config/#global-parameters) flag says otherwise.
 
+While preview links are [temporarily disabled site-wide](#disabling-links-bulk-revocation-and-offboarding), `create` and `list` warn — on STDERR, so `--porcelain` and formatted output stay clean — that links will not work until an administrator re-enables them, matching the editor's Generate and Manage modals.
+
 ## Hosting requirements
 
 The plugin itself needs nothing beyond WordPress 6.9 and PHP 8.2, and runs on any host. Two things about the hosting environment are worth checking.

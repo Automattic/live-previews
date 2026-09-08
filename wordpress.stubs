@@ -104,6 +104,12 @@ namespace {
 		 * @param string $message
 		 * @return void
 		 */
+		public static function warning( $message ) {}
+
+		/**
+		 * @param string $message
+		 * @return void
+		 */
 		public static function log( $message ) {}
 
 		/**

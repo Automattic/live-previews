@@ -45,6 +45,17 @@ Feature: Preview links can be listed from the command line
 		When I run `wp live-previews list {POST_ID} --field=token_hint`
 		Then STDOUT should match /^[0-9a-f]{4}$/
 
+	Scenario: Warn when preview links are disabled site-wide
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		And I run `wp live-previews create {POST_ID} --porcelain`
+		And I run `wp option update live_previews_disabled '{"disabled_at":1757300000,"disabled_by":1}' --format=json`
+		When I run `wp live-previews list {POST_ID}`
+		Then STDOUT should contain:
+			"""
+			Warning: Preview links are currently disabled site-wide. None of the listed links will work until an administrator re-enables preview links.
+			"""
+
 	Scenario: Listing the whole site includes every post's links
 		When I run `wp post create --post_status=draft --post_title="First draft" --porcelain`
 		And save STDOUT as {FIRST_ID}

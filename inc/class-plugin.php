@@ -96,7 +96,7 @@ final class Plugin {
 		// part of the plugin the flat first-party autoloader does not map.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once __DIR__ . '/cli/register-commands.php';
-			Cli\register_commands( $service, $minter, $collector );
+			Cli\register_commands( $service, $minter, $collector, $toggle );
 		}
 	}
 	// @codeCoverageIgnoreEnd

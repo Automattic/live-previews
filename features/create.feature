@@ -37,6 +37,20 @@ Feature: Preview links can be created from the command line
 			"""
 		And STDOUT should not match /Success/
 
+	Scenario: Warn when preview links are disabled site-wide
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		And I run `wp option update live_previews_disabled '{"disabled_at":1757300000,"disabled_by":1}' --format=json`
+		When I run `wp live-previews create {POST_ID}`
+		Then STDOUT should contain:
+			"""
+			Warning: Preview links are currently disabled site-wide. The link was created, but it will not work until an administrator re-enables preview links.
+			"""
+		And STDOUT should contain:
+			"""
+			lp-token=
+			"""
+
 	Scenario: Reject a lifetime outside the allowed set
 		When I try `wp live-previews create 1 --expiration=123`
 		Then STDERR should contain:
