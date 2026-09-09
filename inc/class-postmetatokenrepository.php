@@ -28,9 +28,10 @@ final class PostMetaTokenRepository implements TokenRepository {
 	 * 2: a `viewers` list of opaque slot IDs, so slots are server-issued and
 	 *    writes are idempotent. Version 1 rows are read as anonymous slots (see
 	 *    {@see PostMetaTokenRepository::from_array()}). Version 2 rows may also
-	 *    carry an optional `allowed_ips` list of CIDR strings, omitted entirely
-	 *    when empty (see {@see PostMetaTokenRepository::to_array()}); a row
-	 *    without the key reads as unrestricted, so no version bump was needed.
+	 *    carry an optional `allowed_ips` list of CIDR strings and an optional
+	 *    `recipients` list of lowercased emails, each omitted entirely when
+	 *    empty (see {@see PostMetaTokenRepository::to_array()}); a row without
+	 *    either key reads as unrestricted, so no version bump was needed.
 	 */
 	private const VERSION = 2;
 
@@ -307,6 +308,11 @@ final class PostMetaTokenRepository implements TokenRepository {
 			$row['allowed_ips'] = $link->allowed_ips();
 		}
 
+		// Same omit-when-empty rule as allowed_ips, for the same CAS reason.
+		if ( [] !== $link->recipients() ) {
+			$row['recipients'] = $link->recipients();
+		}
+
 		return $row;
 	}
 
@@ -327,8 +333,35 @@ final class PostMetaTokenRepository implements TokenRepository {
 			$this->viewers_from_row( $row ),
 			isset( $row['revoked_at'] ) ? (int) $row['revoked_at'] : null,
 			isset( $row['token_hint'] ) && is_string( $row['token_hint'] ) ? $row['token_hint'] : '',
-			IpAllowlist::sanitize( $row['allowed_ips'] ?? [] )
+			IpAllowlist::sanitize( $row['allowed_ips'] ?? [] ),
+			$this->recipients_from_row( $row )
 		);
+	}
+
+	/**
+	 * The recipient emails on a stored link, tolerating junk: anything that is
+	 * not a non-empty string is dropped, and casing is normalised so the
+	 * case-insensitive match in {@see PreviewLink::is_recipient()} holds even
+	 * for a row edited by hand.
+	 *
+	 * @param array<string, mixed> $row
+	 * @return list<string>
+	 */
+	private function recipients_from_row( array $row ): array {
+		if ( ! isset( $row['recipients'] ) || ! is_array( $row['recipients'] ) ) {
+			return [];
+		}
+
+		$recipients = [];
+
+		/** @var mixed $recipient */
+		foreach ( $row['recipients'] as $recipient ) {
+			if ( is_string( $recipient ) && '' !== $recipient ) {
+				$recipients[] = strtolower( $recipient );
+			}
+		}
+
+		return $recipients;
 	}
 
 	/**

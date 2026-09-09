@@ -16,6 +16,13 @@ final class AccessDecision {
 	public const REASON_EXHAUSTED      = 'exhausted';
 	public const REASON_IP_BLOCKED     = 'ip_blocked';
 
+	/**
+	 * The link is bound to named recipients and this visitor has not proved
+	 * they are one. Unlike the other denials this one is an invitation: the
+	 * gate answers it with the email-verification form, not a dead end.
+	 */
+	public const REASON_EMAIL_UNVERIFIED = 'email_unverified';
+
 	private bool $allowed;
 	private string $reason;
 

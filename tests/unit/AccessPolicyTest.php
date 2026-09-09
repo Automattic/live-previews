@@ -206,8 +206,71 @@ final class AccessPolicyTest extends TestCase {
 		);
 	}
 
+	public function test_a_recipient_bound_link_denies_an_unverified_visitor(): void {
+		$link = $this->link( [ 'recipients' => [ 'legal@example.com' ] ] );
+
+		self::assertSame(
+			AccessDecision::REASON_EMAIL_UNVERIFIED,
+			$this->policy->decide( $link, self::NOW )->reason()
+		);
+	}
+
+	public function test_a_recipient_bound_link_allows_a_verified_recipient(): void {
+		$link = $this->link( [ 'recipients' => [ 'legal@example.com' ] ] );
+
+		self::assertTrue(
+			$this->policy->decide( $link, self::NOW, false, null, 'legal@example.com' )->is_allowed()
+		);
+	}
+
+	public function test_a_verified_email_not_on_the_list_is_still_denied(): void {
+		$link = $this->link( [ 'recipients' => [ 'legal@example.com' ] ] );
+
+		// The visitor proved control of *an* address — just not one this link
+		// was issued to. Removing a recipient must lock them out the same way.
+		self::assertSame(
+			AccessDecision::REASON_EMAIL_UNVERIFIED,
+			$this->policy->decide( $link, self::NOW, false, null, 'stranger@example.com' )->reason()
+		);
+	}
+
+	public function test_a_bearer_link_ignores_any_verified_email(): void {
+		$link = $this->link( [] );
+
+		self::assertTrue(
+			$this->policy->decide( $link, self::NOW, false, null, 'anyone@example.com' )->is_allowed()
+		);
+	}
+
+	public function test_a_dead_link_is_not_worth_verifying_for(): void {
+		$link = $this->link( [
+			'recipients' => [ 'legal@example.com' ],
+			'expires_at' => self::NOW - 1,
+		] );
+
+		// Expiry wins, so the visitor sees "expired" rather than being walked
+		// through verification for a link that would deny them anyway.
+		self::assertSame(
+			AccessDecision::REASON_EXPIRED,
+			$this->policy->decide( $link, self::NOW )->reason()
+		);
+	}
+
+	public function test_verification_does_not_bypass_the_viewer_cap(): void {
+		$link = $this->link( [
+			'recipients' => [ 'legal@example.com' ],
+			'max_uses'   => 1,
+			'viewers'    => self::slots( 1 ),
+		] );
+
+		self::assertSame(
+			AccessDecision::REASON_EXHAUSTED,
+			$this->policy->decide( $link, self::NOW, false, null, 'legal@example.com' )->reason()
+		);
+	}
+
 	/**
-	 * @param array{expires_at?: int, max_uses?: int|null, viewers?: list<string>, revoked_at?: int|null, allowed_ips?: list<string>} $overrides
+	 * @param array{expires_at?: int, max_uses?: int|null, viewers?: list<string>, revoked_at?: int|null, allowed_ips?: list<string>, recipients?: list<string>} $overrides
 	 */
 	private function link( array $overrides ): PreviewLink {
 		return new PreviewLink(
@@ -220,7 +283,8 @@ final class AccessPolicyTest extends TestCase {
 			$overrides['viewers'] ?? [],
 			$overrides['revoked_at'] ?? null,
 			'',
-			$overrides['allowed_ips'] ?? []
+			$overrides['allowed_ips'] ?? [],
+			$overrides['recipients'] ?? []
 		);
 	}
 
