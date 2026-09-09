@@ -35,10 +35,15 @@ final class PreviewLinkMinter {
 	 *                                  not silently filtered — so an author who
 	 *                                  mistypes a range is told, rather than left
 	 *                                  believing a restriction is in place.
+	 * @param list<string> $recipients  Emails of named reviewers to bind the link
+	 *                                  to, or empty for a bearer link. Validated
+	 *                                  here for the same reason as the ranges.
 	 * @return array{url: string, expires_at: int}|WP_Error A WP_Error when the
-	 *                                  post does not exist or a range is invalid.
+	 *                                  post does not exist, a range or address is
+	 *                                  invalid, or the restriction is disabled on
+	 *                                  this site.
 	 */
-	public function mint( int $post_id, int $expiration, ?int $max_uses, string $channel, array $allowed_ips = [] ) {
+	public function mint( int $post_id, int $expiration, ?int $max_uses, string $channel, array $allowed_ips = [], array $recipients = [] ) {
 		if ( ! get_post( $post_id ) instanceof WP_Post ) {
 			return new WP_Error(
 				'live_previews_invalid_post',
@@ -48,6 +53,26 @@ final class PreviewLinkMinter {
 		}
 
 		$allowed_ips = array_values( array_unique( array_map( 'trim', $allowed_ips ) ) );
+		$recipients  = array_values( array_unique( array_map( 'strtolower', array_map( 'trim', $recipients ) ) ) );
+
+		// Every channel funnels through here, so a feature a site has switched
+		// off is refused in one place — a caller that somehow still offers the
+		// field is told no, rather than minting a restriction the UI cannot show.
+		if ( [] !== $allowed_ips && ! Features::ip_allowlist_enabled() ) {
+			return new WP_Error(
+				'live_previews_ip_allowlist_disabled',
+				__( 'Per-link IP allowlists are disabled on this site.', 'live-previews' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		if ( [] !== $recipients && ! Features::recipients_enabled() ) {
+			return new WP_Error(
+				'live_previews_recipients_disabled',
+				__( 'Recipient-bound preview links are disabled on this site.', 'live-previews' ),
+				[ 'status' => 400 ]
+			);
+		}
 
 		foreach ( $allowed_ips as $range ) {
 			if ( ! IpAllowlist::is_valid_range( $range ) ) {
@@ -63,7 +88,21 @@ final class PreviewLinkMinter {
 			}
 		}
 
-		$token = $this->service->mint( $post_id, $expiration, $max_uses, get_current_user_id(), $allowed_ips );
+		foreach ( $recipients as $recipient ) {
+			if ( false === is_email( $recipient ) ) {
+				return new WP_Error(
+					'live_previews_invalid_recipient',
+					sprintf(
+						/* translators: %s: the rejected input. */
+						__( '"%s" is not a valid email address.', 'live-previews' ),
+						$recipient
+					),
+					[ 'status' => 400 ]
+				);
+			}
+		}
+
+		$token = $this->service->mint( $post_id, $expiration, $max_uses, get_current_user_id(), $allowed_ips, $recipients );
 
 		// Reuse WordPress's own preview URL (adds preview=true) and carry the
 		// token on it, so the gate can unlock the draft for a logged-out visitor.
@@ -83,6 +122,9 @@ final class PreviewLinkMinter {
 				'channel'          => $channel,
 				// Whether, not which: the ranges themselves stay out of Tracks.
 				'has_ip_allowlist' => [] !== $allowed_ips,
+				// How many, never who: addresses are PII and stay out of Tracks.
+				'has_recipients'   => [] !== $recipients,
+				'recipient_count'  => count( $recipients ),
 			]
 		);
 

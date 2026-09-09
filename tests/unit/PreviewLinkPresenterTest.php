@@ -16,13 +16,13 @@ final class PreviewLinkPresenterTest extends TestCase {
 	private const NOW = 1000;
 
 	public function test_presents_a_live_link_with_the_expected_shape(): void {
-		$link = PreviewLink::issue( 7, Token::from_string( 'abcd1234' ), self::NOW + 100, 5, 1, self::NOW - 50, [ '203.0.113.0/24' ] );
+		$link = PreviewLink::issue( 7, Token::from_string( 'abcd1234' ), self::NOW + 100, 5, 1, self::NOW - 50, [ '203.0.113.0/24' ], [ 'legal@example.com' ] );
 
 		$presented = PreviewLinkPresenter::present_live_links( [ $link ], self::NOW );
 
 		self::assertCount( 1, $presented );
 		self::assertSame(
-			[ 'id', 'token_hint', 'created_at', 'expires_at', 'max_uses', 'use_count', 'exhausted', 'allowed_ips' ],
+			[ 'id', 'token_hint', 'created_at', 'expires_at', 'max_uses', 'use_count', 'exhausted', 'allowed_ips', 'recipients' ],
 			array_keys( $presented[0] )
 		);
 		self::assertSame( $link->token_hash(), $presented[0]['id'] );
@@ -33,6 +33,7 @@ final class PreviewLinkPresenterTest extends TestCase {
 		self::assertSame( 0, $presented[0]['use_count'] );
 		self::assertFalse( $presented[0]['exhausted'] );
 		self::assertSame( [ '203.0.113.0/24' ], $presented[0]['allowed_ips'] );
+		self::assertSame( [ 'legal@example.com' ], $presented[0]['recipients'] );
 	}
 
 	public function test_excludes_expired_and_revoked_links(): void {

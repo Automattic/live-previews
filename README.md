@@ -53,6 +53,12 @@ A preview link can optionally be restricted to IP ranges (set per link when gene
 
 Note that IP allowlisting constrains *where* a link can be opened from, not *who* opens it — VPNs, mobile networks, and carrier-grade NAT all blur it — so it layers on top of the token controls rather than replacing them.
 
+### Recipient-bound links need working outgoing email
+
+A preview link can optionally be bound to named reviewers. Each reviewer proves control of their email address once per browser: the gate shows a short form, emails a six-digit code to the address (only if it is on the link's list), and sets a signed cookie when the code is entered. Those code emails go through `wp_mail()`, so the host must be able to deliver mail reliably — on VIP that is the platform's managed mail path; elsewhere, an SMTP plugin or transactional mail service is strongly recommended. The `live_previews_verification_email` filter customises the subject and body.
+
+Sites that want neither of the optional restrictions can switch them off in code — `add_filter( 'live_previews_recipients_enabled', '__return_false' )` and/or `add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' )` — which removes the fields from the Generate modal, the Manage modal, the Preview Links screen, and the REST/ability schemas. Links that already carry a restriction remain enforced; disabling a feature only stops new links being minted with it.
+
 ### Scheduled events must run
 
 Expired and revoked links are kept for a grace period so the gate can tell a visitor *why* their link stopped working, then removed by a daily `live_previews_prune_links` event. If scheduled events never fire, nothing breaks for visitors — expiry is checked when a link is opened, not by the sweep — but the rows accumulate indefinitely.

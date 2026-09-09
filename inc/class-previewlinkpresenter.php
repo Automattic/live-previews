@@ -15,7 +15,7 @@ final class PreviewLinkPresenter {
 	 *
 	 * @param list<PreviewLink> $links Every link issued for the post.
 	 * @param int               $now   Current Unix timestamp, for the expiry test.
-	 * @return list<array{id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool, allowed_ips: list<string>}>
+	 * @return list<array{id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool, allowed_ips: list<string>, recipients: list<string>}>
 	 */
 	public static function present_live_links( array $links, int $now ): array {
 		$presented = [];
@@ -34,6 +34,7 @@ final class PreviewLinkPresenter {
 				'use_count'   => $link->use_count(),
 				'exhausted'   => $link->is_exhausted(),
 				'allowed_ips' => $link->allowed_ips(),
+				'recipients'  => $link->recipients(),
 			];
 		}
 

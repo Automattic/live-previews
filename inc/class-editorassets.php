@@ -72,13 +72,17 @@ final class EditorAssets {
 		// which is why `composer i18n` scans build/ rather than src/.
 		wp_set_script_translations( self::HANDLE, 'live-previews', $base . 'languages' );
 
-		// Hand the editor the same expiration options the endpoint validates.
+		// Hand the editor the same expiration options the endpoint validates,
+		// and which optional restrictions this site offers, so the modals only
+		// render fields the endpoint would accept.
 		$data = wp_json_encode(
 			[
 				'expirationOptions'  => PreviewRestController::expiration_options(),
 				'defaultExpiration'  => PreviewRestController::default_expiration(),
 				'hasCentralIpRanges' => $this->has_central_ip_ranges,
 				'linksDisabled'      => $this->links_disabled,
+				'ipAllowlistEnabled' => Features::ip_allowlist_enabled(),
+				'recipientsEnabled'  => Features::recipients_enabled(),
 			]
 		);
 
