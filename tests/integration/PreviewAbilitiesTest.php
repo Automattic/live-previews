@@ -377,6 +377,52 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 		static::assertSame( 'ability_invalid_permissions', $everything->get_error_code() );
 	}
 
+	public function test_a_post_id_cannot_smuggle_a_creator_sweep_past_edit_post(): void {
+		$victim = self::factory()->user->create( [ 'role' => 'author' ] );
+		$their  = self::factory()->post->create(
+			[
+				'post_status' => 'draft',
+				'post_author' => $victim,
+			]
+		);
+
+		wp_set_current_user( $victim );
+		$create = wp_get_ability( PreviewAbilities::CREATE_LINK );
+		static::assertInstanceOf( WP_Ability::class, $create );
+		$create->execute( [ 'post_id' => $their ] );
+
+		// An author who owns a different post pairs it with the victim's id.
+		// revoke_link() acts on created_by regardless of post_id, so the gate
+		// must too: edit_post on the author's own post cannot authorise a
+		// site-wide sweep of someone else's links.
+		$attacker = self::factory()->user->create( [ 'role' => 'author' ] );
+		$mine     = self::factory()->post->create(
+			[
+				'post_status' => 'draft',
+				'post_author' => $attacker,
+			]
+		);
+		wp_set_current_user( $attacker );
+
+		$revoke = wp_get_ability( PreviewAbilities::REVOKE_LINK );
+		static::assertInstanceOf( WP_Ability::class, $revoke );
+
+		$result = $revoke->execute(
+			[
+				'post_id'    => $mine,
+				'created_by' => $victim,
+			]
+		);
+		static::assertInstanceOf( WP_Error::class, $result );
+		static::assertSame( 'ability_invalid_permissions', $result->get_error_code() );
+
+		// The victim's link is untouched.
+		wp_set_current_user( $victim );
+		$list = wp_get_ability( PreviewAbilities::LIST_LINKS );
+		static::assertInstanceOf( WP_Ability::class, $list );
+		static::assertCount( 1, $list->execute( [ 'post_id' => $their ] ) );
+	}
+
 	public function test_revoking_is_denied_without_edit_rights(): void {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );

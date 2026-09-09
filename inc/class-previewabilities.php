@@ -510,18 +510,28 @@ final class PreviewAbilities {
 	 * @param mixed $input The ability input.
 	 */
 	public function can_revoke_link( $input ): bool {
-		$input   = is_array( $input ) ? $input : [];
-		$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+		$input      = is_array( $input ) ? $input : [];
+		$post_id    = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
+		$created_by = isset( $input['created_by'] ) ? (int) $input['created_by'] : 0;
+		$all        = ! empty( $input['all'] );
+
+		// Resolve the target in the same precedence revoke_link() acts on it:
+		// a creator sweep outranks post_id, so the gate must check created_by
+		// first or an edit_post pass on an unrelated post would authorise a
+		// site-wide sweep that is meant to need edit_others_posts.
+		if ( $created_by > 0 ) {
+			return current_user_can( 'edit_others_posts' );
+		}
+
+		if ( $all && 0 === $post_id ) {
+			return current_user_can( 'manage_options' );
+		}
 
 		if ( $post_id > 0 ) {
 			return current_user_can( 'edit_post', $post_id );
 		}
 
-		if ( isset( $input['created_by'] ) ) {
-			return current_user_can( 'edit_others_posts' );
-		}
-
-		return current_user_can( 'manage_options' );
+		return false;
 	}
 
 	/**
