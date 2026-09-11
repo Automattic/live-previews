@@ -23,6 +23,7 @@ import {
 	SelectControl,
 	Spinner,
 	TextControl,
+	VisuallyHidden,
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 import { __, _n, sprintf } from '@wordpress/i18n';
@@ -114,7 +115,7 @@ function usageLabel( link ) {
 	);
 }
 
-function GenerateModal( { postId, onClose } ) {
+function GenerateModal( { postId, onCreated, onClose } ) {
 	const [ expiration, setExpiration ] = useState(
 		String( settings.defaultExpiration )
 	);
@@ -134,7 +135,30 @@ function GenerateModal( { postId, onClose } ) {
 
 	const hasRecipients = splitList( recipients ).length > 0;
 
+	// Core greys out a disabled select but not a disabled text input, and
+	// neither changes the cursor; make every locked field read as locked.
+	const lockedStyle = url
+		? { cursor: 'not-allowed', backgroundColor: '#f0f0f0' }
+		: undefined;
+
+	const copyToClipboard = async ( text ) => {
+		try {
+			await window.navigator.clipboard.writeText( text );
+			setCopied( true );
+		} catch {
+			// Clipboard access can be denied; the link is shown for manual copy.
+			setCopied( false );
+		}
+	};
+
 	const copyLink = async () => {
+		// Once a link exists the button only copies it; calling the API again
+		// would issue a second live link.
+		if ( url ) {
+			await copyToClipboard( url );
+			return;
+		}
+
 		setBusy( true );
 		setError( '' );
 
@@ -152,14 +176,8 @@ function GenerateModal( { postId, onClose } ) {
 			} );
 
 			setUrl( response.url );
-
-			try {
-				await window.navigator.clipboard.writeText( response.url );
-				setCopied( true );
-			} catch {
-				// Clipboard access can be denied; the link is shown for manual copy.
-				setCopied( false );
-			}
+			onCreated();
+			await copyToClipboard( response.url );
 		} catch ( requestError ) {
 			setError(
 				requestError.message ||
@@ -177,125 +195,161 @@ function GenerateModal( { postId, onClose } ) {
 		<Modal
 			title={ __( 'Generate preview link', 'live-previews' ) }
 			onRequestClose={ onClose }
+			size="medium"
 		>
-			{ settings.linksDisabled && (
-				<Notice status="warning" isDismissible={ false }>
-					{ __(
-						'Preview links are currently disabled site-wide. You can generate new links, but they will not work until an administrator re-enables preview links.',
-						'live-previews'
-					) }
-				</Notice>
-			) }
-
-			<Notice status="warning" isDismissible={ false }>
-				{ hasRecipients
-					? __(
-							'Only the listed reviewers will be able to open this link, after verifying their email address.',
+			{ /* Space the fields as core's own modals do (16px between each). */ }
+			<Flex direction="column" align="stretch" gap={ 4 }>
+				{ settings.linksDisabled && (
+					<Notice status="warning" isDismissible={ false }>
+						{ __(
+							'Preview links are currently disabled site-wide. You can generate new links, but they will not work until an administrator re-enables preview links.',
 							'live-previews'
-					  )
-					: __(
-							'Anyone with this link will be able to preview the post.',
-							'live-previews'
-					  ) }
-			</Notice>
-
-			<SelectControl
-				label={ __( 'Link expiration', 'live-previews' ) }
-				value={ expiration }
-				options={ expirationOptions }
-				onChange={ setExpiration }
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-			/>
-
-			<TextControl
-				type="number"
-				min={ 1 }
-				step={ 1 }
-				label={ __( 'Maximum uses', 'live-previews' ) }
-				help={ __(
-					'Number of distinct viewers. Leave empty for unlimited.',
-					'live-previews'
+						) }
+					</Notice>
 				) }
-				value={ maxUses }
-				onChange={ setMaxUses }
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-			/>
 
-			{ settings.recipientsEnabled && (
+				<Notice status="warning" isDismissible={ false }>
+					{ hasRecipients
+						? __(
+								'Only the listed reviewers will be able to open this link, after verifying their email address.',
+								'live-previews'
+						  )
+						: __(
+								'Anyone with this link will be able to preview the post.',
+								'live-previews'
+						  ) }
+				</Notice>
+
+				<SelectControl
+					label={ __( 'Link expiration', 'live-previews' ) }
+					value={ expiration }
+					options={ expirationOptions }
+					onChange={ setExpiration }
+					// Lock the settings once the link exists, so they always
+					// describe the link that was actually issued.
+					disabled={ !! url }
+					style={ lockedStyle }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+
 				<TextControl
-					label={ __( 'Restrict to reviewers', 'live-previews' ) }
+					type="number"
+					min={ 1 }
+					step={ 1 }
+					label={ __( 'Maximum uses', 'live-previews' ) }
 					help={ __(
-						'Comma-separated email addresses. Each reviewer must verify their address with an emailed code before viewing. Leave empty to let anyone with the link view.',
+						'Number of distinct viewers. Leave empty for unlimited.',
 						'live-previews'
 					) }
-					value={ recipients }
-					onChange={ setRecipients }
+					value={ maxUses }
+					onChange={ setMaxUses }
+					disabled={ !! url }
+					style={ lockedStyle }
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 				/>
-			) }
 
-			{ settings.ipAllowlistEnabled && (
-				<TextControl
-					label={ __( 'Allowed IP ranges', 'live-previews' ) }
-					help={
-						settings.hasCentralIpRanges
-							? __(
-									'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
-									'live-previews'
-							  )
-							: __(
-									'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
-									'live-previews'
-							  )
-					}
-					value={ allowedIps }
-					onChange={ setAllowedIps }
-					__next40pxDefaultSize
-					__nextHasNoMarginBottom
-				/>
-			) }
+				{ settings.recipientsEnabled && (
+					<TextControl
+						label={ __( 'Restrict to reviewers', 'live-previews' ) }
+						help={ __(
+							'Comma-separated email addresses. Each reviewer must verify their address with an emailed code before viewing. Leave empty to let anyone with the link view.',
+							'live-previews'
+						) }
+						value={ recipients }
+						onChange={ setRecipients }
+						disabled={ !! url }
+						style={ lockedStyle }
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
+					/>
+				) }
 
-			{ error && (
-				<Notice status="error" isDismissible={ false }>
-					{ error }
-				</Notice>
-			) }
+				{ settings.ipAllowlistEnabled && (
+					<TextControl
+						label={ __( 'Allowed IP ranges', 'live-previews' ) }
+						help={
+							settings.hasCentralIpRanges
+								? __(
+										'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
+										'live-previews'
+								  )
+								: __(
+										'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
+										'live-previews'
+								  )
+						}
+						value={ allowedIps }
+						onChange={ setAllowedIps }
+						disabled={ !! url }
+						style={ lockedStyle }
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
+					/>
+				) }
 
-			{ url && (
-				<TextControl
-					label={ __( 'Preview link', 'live-previews' ) }
-					value={ url }
-					readOnly
-					onFocus={ ( event ) => event.target.select() }
-					help={
-						copied
-							? __( 'Copied to clipboard.', 'live-previews' )
-							: __(
-									'Copy this link to share it.',
-									'live-previews'
-							  )
-					}
-					__nextHasNoMarginBottom
-				/>
-			) }
+				{ error && (
+					<Notice status="error" isDismissible={ false }>
+						{ error }
+					</Notice>
+				) }
 
-			<Button
-				variant="primary"
-				onClick={ copyLink }
-				isBusy={ isBusy }
-				disabled={ isBusy || ! postId }
-				style={ { marginTop: '1rem' } }
-			>
-				{ __( 'Copy Link', 'live-previews' ) }
-			</Button>
+				{ url && (
+					<TextControl
+						label={ __( 'Preview link', 'live-previews' ) }
+						value={ url }
+						readOnly
+						onFocus={ ( event ) => event.target.select() }
+						__next40pxDefaultSize
+						help={
+							copied
+								? __( 'Copied to clipboard.', 'live-previews' )
+								: __(
+										'Copy this link to share it.',
+										'live-previews'
+								  )
+						}
+						__nextHasNoMarginBottom
+					/>
+				) }
+
+				<Flex justify="flex-end" gap={ 2 }>
+					{ url && (
+						// Unlock the fields, keeping their values, so a further
+						// link (say, for another reviewer) needs only a tweak.
+						<Button
+							variant="secondary"
+							onClick={ () => {
+								setUrl( '' );
+								setCopied( false );
+							} }
+							__next40pxDefaultSize
+						>
+							{ __( 'Generate another link', 'live-previews' ) }
+						</Button>
+					) }
+
+					<Button
+						variant="primary"
+						onClick={ copyLink }
+						isBusy={ isBusy }
+						disabled={ isBusy || ! postId }
+						__next40pxDefaultSize
+					>
+						{ url
+							? __( 'Copy link', 'live-previews' )
+							: __( 'Generate link', 'live-previews' ) }
+					</Button>
+				</Flex>
+			</Flex>
 		</Modal>
 	);
 }
 
-function ManageModal( { postId, onClose } ) {
+const mutedStyle = { color: '#757575', fontSize: '12px' };
+
+function ManageModal( { postId, onLinksChange, onClose } ) {
 	const [ links, setLinks ] = useState( null );
 	const [ error, setError ] = useState( '' );
 	const [ , setTick ] = useState( 0 );
@@ -326,6 +380,14 @@ function ManageModal( { postId, onClose } ) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
+	// Report each revoke (and any failed-revoke reload) as it happens.
+	useEffect( () => {
+		if ( null !== links ) {
+			onLinksChange( links.length > 0 );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ links ] );
+
 	const revoke = async ( id ) => {
 		setLinks( ( current ) => current.filter( ( link ) => link.id !== id ) );
 		try {
@@ -347,6 +409,7 @@ function ManageModal( { postId, onClose } ) {
 		<Modal
 			title={ __( 'Manage preview links', 'live-previews' ) }
 			onRequestClose={ onClose }
+			size="medium"
 		>
 			{ settings.linksDisabled && (
 				<Notice status="warning" isDismissible={ false }>
@@ -364,13 +427,7 @@ function ManageModal( { postId, onClose } ) {
 			) }
 
 			{ settings.hasCentralIpRanges && (
-				<p
-					style={ {
-						color: '#757575',
-						fontSize: '12px',
-						marginTop: 0,
-					} }
-				>
+				<p style={ { ...mutedStyle, marginTop: 0 } }>
 					{ __(
 						'IP ranges added in the VIP Dashboard also apply to every link, in addition to any restriction shown per link.',
 						'live-previews'
@@ -389,38 +446,42 @@ function ManageModal( { postId, onClose } ) {
 					<Flex
 						key={ link.id }
 						align="center"
+						gap={ 4 }
 						style={ {
-							padding: '8px 0',
+							padding: '12px 0',
 							borderBottom: '1px solid #f0f0f0',
 						} }
 					>
 						<FlexBlock>
-							<div>
-								{ usageLabel( link ) }
-								{ link.token_hint && (
-									<code
-										style={ {
-											marginLeft: '8px',
-											color: '#757575',
-										} }
-									>
-										{ `····${ link.token_hint }` }
-									</code>
+							<div style={ { fontWeight: 500 } }>
+								{ sprintf(
+									/* translators: %s: date and time the link was created. */
+									__( 'Created %s', 'live-previews' ),
+									new Date(
+										link.created_at * 1000
+									).toLocaleString( undefined, {
+										dateStyle: 'medium',
+										timeStyle: 'short',
+									} )
 								) }
 							</div>
-							<div
-								style={ { color: '#757575', fontSize: '12px' } }
-							>
-								{ timeUntil( link.expires_at ) }
+							<div style={ mutedStyle }>
+								{ [
+									usageLabel( link ),
+									timeUntil( link.expires_at ),
+									link.token_hint &&
+										sprintf(
+											/* translators: %s: the last few characters of the link's token. */
+											__( 'ending %s', 'live-previews' ),
+											link.token_hint
+										),
+								]
+									.filter( Boolean )
+									.join( ' · ' ) }
 							</div>
 							{ Array.isArray( link.recipients ) &&
 								link.recipients.length > 0 && (
-									<div
-										style={ {
-											color: '#757575',
-											fontSize: '12px',
-										} }
-									>
+									<div style={ mutedStyle }>
 										{ sprintf(
 											/* translators: %s: comma-separated email addresses. */
 											__(
@@ -433,12 +494,7 @@ function ManageModal( { postId, onClose } ) {
 								) }
 							{ Array.isArray( link.allowed_ips ) &&
 								link.allowed_ips.length > 0 && (
-									<div
-										style={ {
-											color: '#757575',
-											fontSize: '12px',
-										} }
-									>
+									<div style={ mutedStyle }>
 										{ sprintf(
 											/* translators: %s: comma-separated IP ranges. */
 											__(
@@ -455,6 +511,19 @@ function ManageModal( { postId, onClose } ) {
 								variant="tertiary"
 								isDestructive
 								onClick={ () => revoke( link.id ) }
+								// Every row has a "Revoke"; name which link it acts on.
+								label={
+									link.token_hint
+										? sprintf(
+												/* translators: %s: the last few characters of the link's token. */
+												__(
+													'Revoke link ending %s',
+													'live-previews'
+												),
+												link.token_hint
+										  )
+										: undefined
+								}
 							>
 								{ __( 'Revoke', 'live-previews' ) }
 							</Button>
@@ -464,6 +533,13 @@ function ManageModal( { postId, onClose } ) {
 		</Modal>
 	);
 }
+
+// Match core's full-width, grey-bordered sidebar buttons ("Set featured image").
+const panelButtonStyle = {
+	width: '100%',
+	justifyContent: 'center',
+	borderColor: '#ccc',
+};
 
 function LivePreviewsPanel() {
 	const { postId, status } = useSelect( ( select ) => {
@@ -475,6 +551,19 @@ function LivePreviewsPanel() {
 	}, [] );
 
 	const [ openModal, setOpenModal ] = useState( '' );
+	const [ hasLinks, setHasLinks ] = useState( false );
+
+	// Check once on load; the modals report changes as they happen.
+	useEffect( () => {
+		if ( ! postId || 'publish' === status ) {
+			return;
+		}
+
+		apiFetch( { path: `${ REST_BASE }?post_id=${ postId }` } )
+			.then( ( links ) => setHasLinks( links.length > 0 ) )
+			// Leave Manage usable so its modal can surface the error.
+			.catch( () => setHasLinks( true ) );
+	}, [ postId, status ] );
 
 	// A published post is already public, so a preview link is meaningless.
 	if ( 'publish' === status ) {
@@ -487,25 +576,40 @@ function LivePreviewsPanel() {
 			title={ __( 'Live Previews', 'live-previews' ) }
 		>
 			<Button
-				variant="secondary"
 				onClick={ () => setOpenModal( 'generate' ) }
 				disabled={ ! postId }
-				style={ { marginBottom: '8px' } }
+				style={ { ...panelButtonStyle, marginBottom: '8px' } }
+				__next40pxDefaultSize
 			>
 				{ __( 'Generate preview link', 'live-previews' ) }
 			</Button>
 
 			<Button
-				variant="secondary"
 				onClick={ () => setOpenModal( 'manage' ) }
-				disabled={ ! postId }
+				disabled={ ! postId || ! hasLinks }
+				accessibleWhenDisabled
+				aria-describedby={
+					hasLinks ? undefined : 'live-previews-manage-description'
+				}
+				style={ panelButtonStyle }
+				__next40pxDefaultSize
 			>
 				{ __( 'Manage preview links', 'live-previews' ) }
 			</Button>
 
+			{ ! hasLinks && (
+				<VisuallyHidden id="live-previews-manage-description">
+					{ __(
+						'Available once this post has an active preview link.',
+						'live-previews'
+					) }
+				</VisuallyHidden>
+			) }
+
 			{ 'generate' === openModal && (
 				<GenerateModal
 					postId={ postId }
+					onCreated={ () => setHasLinks( true ) }
 					onClose={ () => setOpenModal( '' ) }
 				/>
 			) }
@@ -513,6 +617,7 @@ function LivePreviewsPanel() {
 			{ 'manage' === openModal && (
 				<ManageModal
 					postId={ postId }
+					onLinksChange={ setHasLinks }
 					onClose={ () => setOpenModal( '' ) }
 				/>
 			) }
