@@ -224,10 +224,10 @@ final class PreviewGate {
 		if ( self::REASON_AUTOMATED === $this->denial_reason ) {
 			// A neutral 200 so a chat unfurl renders a tidy card, with none of
 			// the draft's title, excerpt, or image in it.
-			wp_die(
-				esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ),
-				esc_html__( 'Private preview link', 'live-previews' ),
-				[ 'response' => 200 ]
+			NoticePage::render(
+				__( 'Private preview link', 'live-previews' ),
+				sprintf( '<p>%s</p>', esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ) ),
+				200
 			);
 		}
 
@@ -272,14 +272,14 @@ final class PreviewGate {
 			? __( 'Please try again later.', 'live-previews' )
 			: __( 'Ask the author to share a new preview link.', 'live-previews' );
 
-		wp_die(
+		NoticePage::render(
+			__( 'Preview unavailable', 'live-previews' ),
 			sprintf(
 				'<p>%s</p><p>%s</p>',
 				esc_html( $message ),
 				esc_html( $advice )
 			),
-			esc_html__( 'Preview unavailable', 'live-previews' ),
-			[ 'response' => 410 ]
+			410
 		);
 	}
 
@@ -361,45 +361,37 @@ final class PreviewGate {
 
 	/**
 	 * Step one: ask which address the visitor claims to be. Served with a 200 —
-	 * this is the page working as designed, not an error. Ends in wp_die().
+	 * this is the page working as designed, not an error. Ends the request.
 	 */
 	private function render_email_form(): void {
 		$html = sprintf(
-			'<p>%s</p><form method="post">%s<input type="hidden" name="lp-verify-action" value="request-code" /><p><label for="lp-email">%s</label><br /><input type="email" name="lp-email" id="lp-email" required autocomplete="email" /></p><p><button type="submit" class="button button-primary">%s</button></p></form>',
+			'<p>%s</p><form method="post">%s<input type="hidden" name="lp-verify-action" value="request-code" /><p><label for="lp-email">%s</label><input type="email" name="lp-email" id="lp-email" required autocomplete="email" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
 			esc_html__( 'This preview is for named reviewers. Enter your email address and, if it is on the reviewer list, we will send you a verification code.', 'live-previews' ),
 			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
 			esc_html__( 'Email address', 'live-previews' ),
 			esc_html__( 'Email me a code', 'live-previews' )
 		);
 
-		wp_die(
-			$html, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from escaped parts.
-			esc_html__( 'Verify your email', 'live-previews' ),
-			[ 'response' => 200 ]
-		);
+		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
 	}
 
 	/**
 	 * Step two: swap the emailed code for access. The copy stays neutral about
 	 * whether mail was actually sent — see {@see PreviewGate::handle_verification()}.
-	 * Ends in wp_die().
+	 * Ends the request.
 	 */
 	private function render_code_form( string $email, string $error = '' ): void {
 		$html = sprintf(
-			'<p>%s</p>%s<form method="post">%s<input type="hidden" name="lp-verify-action" value="verify-code" /><input type="hidden" name="lp-email" value="%s" /><p><label for="lp-code">%s</label><br /><input type="text" name="lp-code" id="lp-code" required inputmode="numeric" autocomplete="one-time-code" /></p><p><button type="submit" class="button button-primary">%s</button></p></form>',
+			'<p>%s</p>%s<form method="post">%s<input type="hidden" name="lp-verify-action" value="verify-code" /><input type="hidden" name="lp-email" value="%s" /><p><label for="lp-code">%s</label><input type="text" name="lp-code" id="lp-code" class="lp-code" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
 			esc_html__( 'If that address is on the reviewer list, we have emailed it a verification code. Enter the code below.', 'live-previews' ),
-			'' === $error ? '' : sprintf( '<p><strong>%s</strong></p>', esc_html( $error ) ),
+			'' === $error ? '' : sprintf( '<p role="alert"><strong>%s</strong></p>', esc_html( $error ) ),
 			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
 			esc_attr( $email ),
 			esc_html__( 'Verification code', 'live-previews' ),
 			esc_html__( 'Verify', 'live-previews' )
 		);
 
-		wp_die(
-			$html, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from escaped parts.
-			esc_html__( 'Verify your email', 'live-previews' ),
-			[ 'response' => 200 ]
-		);
+		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
 	}
 
 	/**

@@ -57,6 +57,8 @@ Note that IP allowlisting constrains *where* a link can be opened from, not *who
 
 A preview link can optionally be bound to named reviewers. Each reviewer proves control of their email address once per browser: the gate shows a short form, emails a six-digit code to the address (only if it is on the link's list), and sets a signed cookie when the code is entered. Those code emails go through `wp_mail()`, so the host must be able to deliver mail reliably — on VIP that is the platform's managed mail path; elsewhere, an SMTP plugin or transactional mail service is strongly recommended. The `live_previews_verification_email` filter customises the subject and body.
 
+The verification steps — and the expired/revoked/exhausted notices — render as a standalone card carrying the site's icon and name, in the wp-login.php spirit: it belongs to the site without depending on the theme (which cannot be rendered safely on these pages). The `live_previews_notice_content` filter adjusts the card's body; a site wanting a wholly different page can hook `wp_die_handler`.
+
 Sites that want neither of the optional restrictions can switch them off in code — `add_filter( 'live_previews_recipients_enabled', '__return_false' )` and/or `add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' )` — which removes the fields from the Generate modal, the Manage modal, the Preview Links screen, and the REST/ability schemas. Links that already carry a restriction remain enforced; disabling a feature only stops new links being minted with it.
 
 ### Scheduled events must run
