@@ -606,7 +606,16 @@ final class PreviewLinksAdminPage {
 		$reading .= '<li>' . esc_html__( 'Exhausted: reached its limit on distinct viewers.', 'live-previews' ) . '</li>';
 		$reading .= '<li>' . esc_html__( 'Revoked: switched off by hand.', 'live-previews' ) . '</li>';
 		$reading .= '</ul><p>' . esc_html__( 'Uses counts distinct viewers against the cap; an infinity sign means no cap.', 'live-previews' ) . '</p>';
-		$reading .= '<p>' . esc_html__( 'IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one.', 'live-previews' ) . '</p>';
+
+		// The optional restriction columns only exist while their feature is
+		// enabled, so their explanations come and go with them.
+		if ( Features::recipients_enabled() ) {
+			$reading .= '<p>' . esc_html__( 'Reviewers shows the email addresses a link is bound to. Each reviewer proves control of their address with an emailed code before the draft opens, so the link works for the people it names rather than for anyone it gets forwarded to. A dash means anyone with the link can view. To change the reviewer list, revoke the link and generate a new one.', 'live-previews' ) . '</p>';
+		}
+
+		if ( Features::ip_allowlist_enabled() ) {
+			$reading .= '<p>' . esc_html__( 'IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one.', 'live-previews' ) . '</p>';
+		}
 
 		$screen->add_help_tab(
 			[
@@ -622,7 +631,16 @@ final class PreviewLinksAdminPage {
 				'title'   => __( 'Revoking', 'live-previews' ),
 				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>'
 					. '<p>' . esc_html__( 'To revoke at scale, tick the checkbox in the table header. If more links exist than the page shows, you are offered "Select all" across every page — covering the whole site, or, if you first clicked a name in the Created by column, everything that person created (useful when someone leaves). Then apply the Revoke bulk action as usual. Selecting every link site-wide is limited to administrators. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>'
-				. '<p>' . esc_html__( 'If you suspect links are being misused but are not yet sure, administrators can instead switch preview links off with the toggle next to the bulk actions. That is a reversible pause, not a revocation: no link works while disabled, and links that are still valid resume working when re-enabled.', 'live-previews' ) . '</p>',
+					. '<p>' . esc_html__( 'Not sure yet whether to revoke? Preview links can also be paused site-wide — see the Pausing all links tab.', 'live-previews' ) . '</p>',
+			]
+		);
+
+		$screen->add_help_tab(
+			[
+				'id'      => 'live-previews-pausing',
+				'title'   => __( 'Pausing all links', 'live-previews' ),
+				'content' => '<p>' . esc_html__( 'The toggle next to the bulk actions switches every preview link off at once — the first response when links may be leaking but you are not yet sure. It is a reversible pause, not a revocation: nothing is deleted, each link keeps its own expiry and usage, and links that are still valid resume working the moment an administrator re-enables them.', 'live-previews' ) . '</p>'
+					. '<p>' . esc_html__( 'While links are paused, this screen banners who paused them and when, the editor warns authors that new and existing links will not work, and visitors opening a link see a "temporarily disabled" notice. Only administrators can flip the switch.', 'live-previews' ) . '</p>',
 			]
 		);
 
