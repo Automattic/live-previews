@@ -85,6 +85,33 @@ class RecipientVerifierTest extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_a_queued_code_is_sent_only_after_the_response(): void {
+		$this->verifier->queue_code( $this->token, self::EMAIL );
+
+		// Nothing may go out while the visitor could still be timing the
+		// response: the whole point of queueing is that a listed and an
+		// unlisted address answer the form in the same time.
+		static::assertSame( [], tests_retrieve_phpmailer_instance()->mock_sent );
+
+		do_action( 'shutdown' );
+
+		static::assertCount( 1, tests_retrieve_phpmailer_instance()->mock_sent );
+		static::assertTrue(
+			$this->verifier->verify_code( $this->token, self::EMAIL, $this->sent_code() ),
+			'The deferred send produces a redeemable challenge.'
+		);
+	}
+
+	public function test_the_email_names_the_site_and_warns_against_sharing(): void {
+		$this->verifier->send_code( $this->token, self::EMAIL );
+
+		$body = tests_retrieve_phpmailer_instance()->get_sent()->body;
+
+		// The two checks a reviewer can hold a phishing imitation against.
+		static::assertStringContainsString( (string) wp_parse_url( home_url(), PHP_URL_HOST ), $body );
+		static::assertStringContainsString( 'Never share it', $body );
+	}
+
 	public function test_the_email_never_contains_the_preview_url(): void {
 		$this->verifier->send_code( $this->token, self::EMAIL );
 

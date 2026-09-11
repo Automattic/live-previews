@@ -60,6 +60,34 @@ final class RecipientVerifier {
 	 * mail could not be handed off — callers must show the same neutral message
 	 * either way, so the form never confirms which addresses are listed.
 	 */
+	/**
+	 * Send a code, but only after the response has left for the client.
+	 *
+	 * The email form answers a listed and an unlisted address with identical
+	 * copy, and an unlisted address sends nothing — but sending inline would
+	 * still leak membership through response *time*, since only a listed
+	 * address pays for the transient writes and the SMTP handoff. Deferring
+	 * the send to shutdown, and flushing the response first where the SAPI
+	 * allows it, makes both paths answer alike. It also means the reviewer
+	 * sees the "code sent" page before the mail handshake rather than after.
+	 */
+	public function queue_code( Token $token, string $email ): void {
+		add_action(
+			'shutdown',
+			function () use ( $token, $email ): void {
+				// On PHP-FPM (the VIP platform among others) this flushes the
+				// response and closes the connection, so the work below is
+				// invisible to a visitor timing the form. Elsewhere the
+				// deferral alone still narrows the gap to end-of-request work.
+				if ( function_exists( 'fastcgi_finish_request' ) ) {
+					fastcgi_finish_request();
+				}
+
+				$this->send_code( $token, $email );
+			}
+		);
+	}
+
 	public function send_code( Token $token, string $email ): bool {
 		$email = strtolower( $email );
 		$now   = time();
@@ -92,15 +120,19 @@ final class RecipientVerifier {
 			$code
 		);
 
+		// Naming the domain, and saying nobody will ever ask for the code, are
+		// the two checks a reviewer can apply to a phishing imitation of this
+		// email — which, unlike the real thing, has to carry a link somewhere.
 		$message = sprintf(
-			/* translators: 1: the verification code, 2: number of minutes it stays valid. */
+			/* translators: 1: the verification code, 2: the site's domain, 3: number of minutes the code stays valid. */
 			__(
-				'Enter this code to open the preview you were invited to review: %1$s
+				'Enter this code on %2$s to open the preview you were invited to review: %1$s
 
-The code is valid for %2$d minutes. If you were not expecting it, you can ignore this email.',
+The code is valid for %3$d minutes and only works on the page where you requested it. Never share it with anyone — nobody legitimate will ask you for it. If you were not expecting this email, you can ignore it.',
 				'live-previews'
 			),
 			$code,
+			(string) wp_parse_url( home_url(), PHP_URL_HOST ),
 			self::CODE_TTL / MINUTE_IN_SECONDS
 		);
 
