@@ -73,3 +73,26 @@ Feature: Preview links can be created from the command line
 			"""
 			is not a valid IP address or CIDR range.
 			"""
+
+	Scenario: Bind a link to named reviewers
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I run `wp live-previews create {POST_ID} --recipients=legal@example.com`
+		Then STDOUT should contain:
+			"""
+			lp-token=
+			"""
+		When I run `wp live-previews list {POST_ID} --field=recipients`
+		Then STDOUT should be:
+			"""
+			legal@example.com
+			"""
+
+	Scenario: Reject an invalid reviewer address
+		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
+		And save STDOUT as {POST_ID}
+		When I try `wp live-previews create {POST_ID} --recipients=not-an-email`
+		Then STDERR should contain:
+			"""
+			is not a valid email address.
+			"""

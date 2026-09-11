@@ -12,7 +12,7 @@ Everything the editor and the Preview Links screen can do with preview links is 
 
 | Command | What it does |
 | ------- | ------------ |
-| `wp live-previews create <post-id>` | Create a link and print its shareable URL (the one moment the secret token exists in plaintext). `--expiration=<seconds>`, `--max-uses=<count>`, and `--allowed-ips=<ranges>` mirror the editor's options; `--porcelain` prints just the URL for scripts. |
+| `wp live-previews create <post-id>` | Create a link and print its shareable URL (the one moment the secret token exists in plaintext). `--expiration=<seconds>`, `--max-uses=<count>`, `--allowed-ips=<ranges>`, and `--recipients=<emails>` mirror the editor's options; `--porcelain` prints just the URL for scripts. |
 | `wp live-previews list [<post-id>]` | List a post's live links, or every live link on the site when no post is given. `--created-by=<user>` narrows the site-wide listing to one creator, like the admin table's filter. Supports `--format=table\|csv\|json\|count\|yaml`, `--fields=`, and `--field=`. |
 | `wp live-previews revoke [<post-id>] [<link>]` | Revoke one link (a token hint from `list`, or a full link id), a post's live links (`<post-id> --all`), everything one user created (`--created-by=<user>`, for offboarding), or every live link on the site (a bare `--all`, the break-glass lever — it asks for confirmation unless `--yes`). |
 | `wp live-previews disable` / `enable` | Pause every preview link site-wide, or let them work again — the same reversible switch as the Preview Links screen. Nothing is revoked; each link resumes according to its own state. |
@@ -30,7 +30,7 @@ The same operations are registered with the WordPress [Abilities API](https://de
 
 | Ability | What it does | Needs |
 | ------- | ------------ | ----- |
-| `live-previews/create-preview-link` | Mint a link for a post (expiration, max uses, IP ranges) and return the shareable URL. | `edit_post` |
+| `live-previews/create-preview-link` | Mint a link for a post (expiration, max uses, IP ranges, named reviewers) and return the shareable URL. | `edit_post` |
 | `live-previews/list-preview-links` | List a post's live links, or — without `post_id` — every live link on the site, optionally filtered by `created_by`. Returns usage, expiry, and a token hint, never the URL. | `edit_post` / `edit_others_posts` |
 | `live-previews/revoke-preview-link` | Revoke one link, a post's links (`all` with `post_id`), a creator's links (`created_by`), or every live link on the site (bare `all`). | `edit_post` / `edit_others_posts` / `manage_options` |
 | `live-previews/prune-preview-links` | Delete expired and revoked links past their retention period; `grace: 0` deletes every dead link immediately. | `manage_options` |

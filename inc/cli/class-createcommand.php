@@ -46,6 +46,9 @@ final class CreateCommand {
 	 * [--allowed-ips=<ranges>]
 	 * : Comma-separated IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Defaults to no IP restriction.
 	 *
+	 * [--recipients=<emails>]
+	 * : Comma-separated email addresses of the named reviewers the link is bound to. Each reviewer must verify their address with an emailed code before viewing. Defaults to a bearer link anyone holding the URL may use.
+	 *
 	 * [--porcelain]
 	 * : Output just the preview URL.
 	 *
@@ -112,7 +115,17 @@ final class CreateCommand {
 			);
 		}
 
-		$result = $this->minter->mint( $post_id, $expiration, $max_uses, 'cli', $allowed_ips );
+		$recipients = [];
+
+		if ( isset( $assoc_args['recipients'] ) && is_string( $assoc_args['recipients'] ) ) {
+			// Likewise: address validity (and whether the feature is enabled on
+			// this site) is the minter's call, shared with every other channel.
+			$recipients = array_values(
+				array_filter( array_map( 'trim', explode( ',', $assoc_args['recipients'] ) ) )
+			);
+		}
+
+		$result = $this->minter->mint( $post_id, $expiration, $max_uses, 'cli', $allowed_ips, $recipients );
 
 		if ( $result instanceof WP_Error ) {
 			WP_CLI::error( $result->get_error_message() );
