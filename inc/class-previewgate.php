@@ -58,9 +58,9 @@ final class PreviewGate {
 	/** Ensures a single request claims at most one slot, however many queries run. */
 	private bool $claimed_this_request = false;
 
-	public function __construct( PreviewLinkService $service, RecipientVerifier $verifier, ?LinkToggle $toggle = null ) {
+	public function __construct( PreviewLinkService $service, ?RecipientVerifier $verifier = null, ?LinkToggle $toggle = null ) {
 		$this->service  = $service;
-		$this->verifier = $verifier;
+		$this->verifier = $verifier ?? new RecipientVerifier();
 		$this->toggle   = $toggle ?? new LinkToggle();
 	}
 
