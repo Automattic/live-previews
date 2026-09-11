@@ -2,8 +2,7 @@
 	"$schema": "https://schemas.wp.org/trunk/wp-env.json",
 	"plugins": [ "." ],
 	"mappings": {
-		"wp-content/mu-plugins/live-previews-config.php": "./.wp-env/mu-live-previews-config.php",
-		"wp-content/mu-plugins/catch-mail.php": "./.wp-env/mu-catch-mail.php"
+		"wp-content/mu-plugins": "./.wp-env"
 	},
 	"config": {
 		"WP_DEBUG": true,
