@@ -36,6 +36,7 @@ but runs on any host.
 ### Security
 
 - Store only a hash of each token, enforce every link limit server-side, and keep drafts visible to link holders alone — preview requests are also marked no-index so a shared link cannot be indexed by search engines. ([#18](https://github.com/Automattic/live-previews/pull/18))
+- Send reviewer verification codes only after the response has been flushed to the visitor, so a listed and an unlisted address answer the email form in the same time and response timing cannot enumerate a link's reviewer list. The code email also names the site's domain and warns never to share the code, giving reviewers concrete checks against phishing imitations. ([#63](https://github.com/Automattic/live-previews/pull/63))
 
 ### Notes for VIP
 

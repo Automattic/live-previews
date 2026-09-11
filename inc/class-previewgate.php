@@ -317,9 +317,10 @@ final class PreviewGate {
 
 		if ( $nonce_ok && 'request-code' === $action && false !== is_email( $email ) ) {
 			// Only a listed reviewer on a live link generates mail; everyone
-			// gets the identical next page.
+			// gets the identical next page — and in the same time, because the
+			// send happens after this response has gone out (see queue_code()).
 			if ( $this->service->is_recipient( $this->denied_post_id, $token, $email ) ) {
-				$this->verifier->send_code( $token, $email );
+				$this->verifier->queue_code( $token, $email );
 			}
 
 			$this->render_code_form( $email );
