@@ -135,6 +135,29 @@ final class PreviewLinkTest extends TestCase {
 		self::assertSame( 2, $revoked->use_count(), 'Other fields are preserved.' );
 	}
 
+	public function test_recipient_matching_is_case_insensitive(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, null, 1, 1000, [], null, '', [], [ 'legal@example.com' ] );
+
+		self::assertTrue( $link->is_recipient( 'legal@example.com' ) );
+		self::assertTrue( $link->is_recipient( 'Legal@Example.COM' ) );
+		self::assertFalse( $link->is_recipient( 'stranger@example.com' ) );
+		self::assertFalse( $link->is_recipient( '' ), 'An empty address never matches.' );
+	}
+
+	public function test_a_bearer_link_has_no_recipients(): void {
+		$link = PreviewLink::issue( 13, Token::generate(), 2000, null, 1, 1000 );
+
+		self::assertSame( [], $link->recipients() );
+		self::assertFalse( $link->is_recipient( 'anyone@example.com' ) );
+	}
+
+	public function test_copies_preserve_recipients(): void {
+		$link = new PreviewLink( 13, 'hash', 2000, 5, 1, 1000, [], null, '', [], [ 'legal@example.com' ] );
+
+		self::assertSame( [ 'legal@example.com' ], $link->with_viewer( 'viewer-0' )->recipients() );
+		self::assertSame( [ 'legal@example.com' ], $link->with_revoked( 1500 )->recipients() );
+	}
+
 	/**
 	 * A given number of distinct, already-issued slot IDs.
 	 *

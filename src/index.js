@@ -34,6 +34,8 @@ const settings = window.livePreviews || {
 	defaultExpiration: 28800,
 	hasCentralIpRanges: false,
 	linksDisabled: false,
+	ipAllowlistEnabled: true,
+	recipientsEnabled: true,
 };
 
 const expirationOptions = ( settings.expirationOptions || [] ).map(
@@ -118,10 +120,19 @@ function GenerateModal( { postId, onClose } ) {
 	);
 	const [ maxUses, setMaxUses ] = useState( '' );
 	const [ allowedIps, setAllowedIps ] = useState( '' );
+	const [ recipients, setRecipients ] = useState( '' );
 	const [ url, setUrl ] = useState( '' );
 	const [ isBusy, setBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 	const [ copied, setCopied ] = useState( false );
+
+	const splitList = ( value ) =>
+		value
+			.split( /[\s,]+/ )
+			.map( ( item ) => item.trim() )
+			.filter( ( item ) => '' !== item );
+
+	const hasRecipients = splitList( recipients ).length > 0;
 
 	const copyLink = async () => {
 		setBusy( true );
@@ -135,10 +146,8 @@ function GenerateModal( { postId, onClose } ) {
 					post_id: postId,
 					expiration: parseInt( expiration, 10 ),
 					max_uses: '' === maxUses ? null : parseInt( maxUses, 10 ),
-					allowed_ips: allowedIps
-						.split( /[\s,]+/ )
-						.map( ( range ) => range.trim() )
-						.filter( ( range ) => '' !== range ),
+					allowed_ips: splitList( allowedIps ),
+					recipients: splitList( recipients ),
 				},
 			} );
 
@@ -179,10 +188,15 @@ function GenerateModal( { postId, onClose } ) {
 			) }
 
 			<Notice status="warning" isDismissible={ false }>
-				{ __(
-					'Anyone with this link will be able to preview the post.',
-					'live-previews'
-				) }
+				{ hasRecipients
+					? __(
+							'Only the listed reviewers will be able to open this link, after verifying their email address.',
+							'live-previews'
+					  )
+					: __(
+							'Anyone with this link will be able to preview the post.',
+							'live-previews'
+					  ) }
 			</Notice>
 
 			<SelectControl
@@ -209,24 +223,40 @@ function GenerateModal( { postId, onClose } ) {
 				__nextHasNoMarginBottom
 			/>
 
-			<TextControl
-				label={ __( 'Allowed IP ranges', 'live-previews' ) }
-				help={
-					settings.hasCentralIpRanges
-						? __(
-								'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
-								'live-previews'
-						  )
-						: __(
-								'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
-								'live-previews'
-						  )
-				}
-				value={ allowedIps }
-				onChange={ setAllowedIps }
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-			/>
+			{ settings.recipientsEnabled && (
+				<TextControl
+					label={ __( 'Restrict to reviewers', 'live-previews' ) }
+					help={ __(
+						'Comma-separated email addresses. Each reviewer must verify their address with an emailed code before viewing. Leave empty to let anyone with the link view.',
+						'live-previews'
+					) }
+					value={ recipients }
+					onChange={ setRecipients }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+			) }
+
+			{ settings.ipAllowlistEnabled && (
+				<TextControl
+					label={ __( 'Allowed IP ranges', 'live-previews' ) }
+					help={
+						settings.hasCentralIpRanges
+							? __(
+									'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
+									'live-previews'
+							  )
+							: __(
+									'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
+									'live-previews'
+							  )
+					}
+					value={ allowedIps }
+					onChange={ setAllowedIps }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+			) }
 
 			{ error && (
 				<Notice status="error" isDismissible={ false }>
@@ -383,6 +413,24 @@ function ManageModal( { postId, onClose } ) {
 							>
 								{ timeUntil( link.expires_at ) }
 							</div>
+							{ Array.isArray( link.recipients ) &&
+								link.recipients.length > 0 && (
+									<div
+										style={ {
+											color: '#757575',
+											fontSize: '12px',
+										} }
+									>
+										{ sprintf(
+											/* translators: %s: comma-separated email addresses. */
+											__(
+												'Reviewers: %s',
+												'live-previews'
+											),
+											link.recipients.join( ', ' )
+										) }
+									</div>
+								) }
 							{ Array.isArray( link.allowed_ips ) &&
 								link.allowed_ips.length > 0 && (
 									<div

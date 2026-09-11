@@ -44,8 +44,16 @@ final class PreviewLink {
 	private array $allowed_ips;
 
 	/**
+	 * @var list<string> Lowercased email addresses of the named reviewers this
+	 *                   link is bound to. Empty means a plain bearer link.
+	 */
+	private array $recipients;
+
+	/**
 	 * @param list<string> $viewers     Opaque IDs of viewers already holding a slot.
 	 * @param list<string> $allowed_ips CIDR ranges this link is restricted to.
+	 * @param list<string> $recipients  Lowercased recipient emails, or empty for
+	 *                                  a bearer link.
 	 */
 	public function __construct(
 		int $post_id,
@@ -57,7 +65,8 @@ final class PreviewLink {
 		array $viewers = [],
 		?int $revoked_at = null,
 		string $token_hint = '',
-		array $allowed_ips = []
+		array $allowed_ips = [],
+		array $recipients = []
 	) {
 		$this->post_id     = $post_id;
 		$this->token_hash  = $token_hash;
@@ -69,6 +78,7 @@ final class PreviewLink {
 		$this->revoked_at  = $revoked_at;
 		$this->token_hint  = $token_hint;
 		$this->allowed_ips = $allowed_ips;
+		$this->recipients  = $recipients;
 	}
 
 	/**
@@ -77,6 +87,8 @@ final class PreviewLink {
 	 * @param int|null     $max_uses    Maximum distinct viewers, or null for unlimited.
 	 * @param list<string> $allowed_ips CIDR ranges to restrict the link to, or empty
 	 *                                  for no per-link restriction.
+	 * @param list<string> $recipients  Lowercased emails of the named reviewers to
+	 *                                  bind the link to, or empty for a bearer link.
 	 */
 	public static function issue(
 		int $post_id,
@@ -85,7 +97,8 @@ final class PreviewLink {
 		?int $max_uses,
 		int $created_by,
 		int $created_at,
-		array $allowed_ips = []
+		array $allowed_ips = [],
+		array $recipients = []
 	): self {
 		return new self(
 			$post_id,
@@ -97,7 +110,8 @@ final class PreviewLink {
 			[],
 			null,
 			substr( $token->value(), -4 ),
-			$allowed_ips
+			$allowed_ips,
+			$recipients
 		);
 	}
 
@@ -195,6 +209,25 @@ final class PreviewLink {
 	}
 
 	/**
+	 * The lowercased emails of the named reviewers this link is bound to.
+	 * Empty means a plain bearer link: anyone holding the URL may view.
+	 *
+	 * @return list<string>
+	 */
+	public function recipients(): array {
+		return $this->recipients;
+	}
+
+	/**
+	 * Whether this address is one of the link's named reviewers. Comparison is
+	 * case-insensitive, matching how mailboxes treat addresses in practice; an
+	 * empty address never matches.
+	 */
+	public function is_recipient( string $email ): bool {
+		return '' !== $email && in_array( strtolower( $email ), $this->recipients, true );
+	}
+
+	/**
 	 * Whether a token presented by a visitor is the one this link was issued for.
 	 * Constant-time to avoid leaking the hash a character at a time.
 	 */
@@ -277,7 +310,8 @@ final class PreviewLink {
 			[ ...$this->viewers, $viewer_id ],
 			$this->revoked_at,
 			$this->token_hint,
-			$this->allowed_ips
+			$this->allowed_ips,
+			$this->recipients
 		);
 	}
 
@@ -296,7 +330,8 @@ final class PreviewLink {
 			$this->viewers,
 			$revoked_at,
 			$this->token_hint,
-			$this->allowed_ips
+			$this->allowed_ips,
+			$this->recipients
 		);
 	}
 }

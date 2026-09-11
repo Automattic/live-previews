@@ -70,7 +70,7 @@ final class Plugin {
 
 		$collector = new LinkGarbageCollector( $service );
 
-		( new PreviewGate( $service, $toggle ) )->register();
+		( new PreviewGate( $service, new RecipientVerifier(), $toggle ) )->register();
 		( new PublishCleanup( $service ) )->register();
 		$collector->register();
 		( new EditorAssets( [] !== $central_ip_ranges, $toggle->is_disabled() ) )->register();

@@ -74,18 +74,31 @@ final class PreviewLinksListTable extends WP_List_Table {
 	}
 
 	/**
+	 * Columns for switched-off restriction features are left out entirely, so
+	 * a site that never uses them is not shown a column of em dashes.
+	 *
 	 * @return array<string, string>
 	 */
 	public function get_columns(): array {
-		return [
+		$columns = [
 			'cb'         => '<input type="checkbox" />',
 			'post'       => esc_html__( 'Post', 'live-previews' ),
 			'created_by' => esc_html__( 'Created by', 'live-previews' ),
 			'usage'      => esc_html__( 'Uses', 'live-previews' ),
-			'ip_ranges'  => esc_html__( 'IP ranges', 'live-previews' ),
-			'expiry'     => esc_html__( 'Expires', 'live-previews' ),
-			'status'     => esc_html__( 'Status', 'live-previews' ),
-			'token'      => esc_html__( 'Link', 'live-previews' ),
+		];
+
+		if ( Features::recipients_enabled() ) {
+			$columns['recipients'] = esc_html__( 'Reviewers', 'live-previews' );
+		}
+
+		if ( Features::ip_allowlist_enabled() ) {
+			$columns['ip_ranges'] = esc_html__( 'IP ranges', 'live-previews' );
+		}
+
+		return $columns + [
+			'expiry' => esc_html__( 'Expires', 'live-previews' ),
+			'status' => esc_html__( 'Status', 'live-previews' ),
+			'token'  => esc_html__( 'Link', 'live-previews' ),
 		];
 	}
 
@@ -203,6 +216,25 @@ final class PreviewLinksListTable extends WP_List_Table {
 			array_map(
 				static fn ( string $range ): string => sprintf( '<code>%s</code>', esc_html( $range ) ),
 				$ranges
+			)
+		);
+	}
+
+	/**
+	 * The named reviewers a link is bound to, or a dash for a bearer link.
+	 */
+	public function column_recipients( PreviewLink $item ): string {
+		$recipients = $item->recipients();
+
+		if ( [] === $recipients ) {
+			return esc_html( '—' );
+		}
+
+		return implode(
+			'<br />',
+			array_map(
+				static fn ( string $recipient ): string => esc_html( $recipient ),
+				$recipients
 			)
 		);
 	}

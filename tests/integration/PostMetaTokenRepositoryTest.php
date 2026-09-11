@@ -171,6 +171,28 @@ class PostMetaTokenRepositoryTest extends WP_UnitTestCase {
 		static::assertSame( [], $this->repository->page_of_links( 0, 10 ) );
 	}
 
+	public function test_recipients_round_trip_and_survive_a_revoke(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = Token::generate();
+
+		$this->repository->save(
+			PreviewLink::issue( $post_id, $token, time() + HOUR_IN_SECONDS, null, 1, time(), [], [ 'legal@example.com' ] )
+		);
+
+		$stored = $this->repository->find( $post_id, $token );
+		static::assertNotNull( $stored );
+		static::assertSame( [ 'legal@example.com' ], $stored->recipients() );
+
+		// The revoke write is a compare-and-swap on the serialised row, so the
+		// recipients key has to round-trip byte-for-byte for it to match.
+		$this->repository->revoke( $stored, time() );
+
+		$revoked = $this->repository->find( $post_id, $token );
+		static::assertNotNull( $revoked );
+		static::assertTrue( $revoked->is_revoked() );
+		static::assertSame( [ 'legal@example.com' ], $revoked->recipients() );
+	}
+
 	private function save_link( int $post_id, string $hint, int $created_by = 1 ): void {
 		$this->repository->save(
 			new PreviewLink(

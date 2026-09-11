@@ -99,6 +99,45 @@ final class PreviewRestController {
 			],
 		];
 
+		$create_args = $post_id_arg + [
+			'expiration' => [
+				'required' => true,
+				'type'     => 'integer',
+				'enum'     => self::allowed_expirations(),
+			],
+			'max_uses'   => [
+				// Null (or omitted) means unlimited; otherwise a positive
+				// integer up to the guard limit.
+				'type'    => [ 'integer', 'null' ],
+				'default' => null,
+				'minimum' => 1,
+				'maximum' => self::MAX_USES_LIMIT,
+			],
+		];
+
+		// A restriction the site has switched off is left out of the schema so
+		// it never shows in the endpoint's OPTIONS description; the minter also
+		// rejects a value smuggled past the schema.
+		if ( Features::ip_allowlist_enabled() ) {
+			$create_args['allowed_ips'] = [
+				// The schema only checks "array of strings"; whether each
+				// entry is a real CIDR range is validated in the minter,
+				// so REST and the abilities channel reject identically.
+				'type'    => 'array',
+				'items'   => [ 'type' => 'string' ],
+				'default' => [],
+			];
+		}
+
+		if ( Features::recipients_enabled() ) {
+			$create_args['recipients'] = [
+				// Like allowed_ips: address validity is the minter's job.
+				'type'    => 'array',
+				'items'   => [ 'type' => 'string' ],
+				'default' => [],
+			];
+		}
+
 		register_rest_route(
 			self::NAMESPACE,
 			self::ROUTE,
@@ -107,29 +146,7 @@ final class PreviewRestController {
 					'methods'             => WP_REST_Server::CREATABLE,
 					'callback'            => [ $this, 'create_link' ],
 					'permission_callback' => [ $this, 'can_manage_links' ],
-					'args'                => $post_id_arg + [
-						'expiration'  => [
-							'required' => true,
-							'type'     => 'integer',
-							'enum'     => self::allowed_expirations(),
-						],
-						'max_uses'    => [
-							// Null (or omitted) means unlimited; otherwise a positive
-							// integer up to the guard limit.
-							'type'    => [ 'integer', 'null' ],
-							'default' => null,
-							'minimum' => 1,
-							'maximum' => self::MAX_USES_LIMIT,
-						],
-						'allowed_ips' => [
-							// The schema only checks "array of strings"; whether each
-							// entry is a real CIDR range is validated in the minter,
-							// so REST and the abilities channel reject identically.
-							'type'    => 'array',
-							'items'   => [ 'type' => 'string' ],
-							'default' => [],
-						],
-					],
+					'args'                => $create_args,
 				],
 				[
 					'methods'             => WP_REST_Server::READABLE,
@@ -194,31 +211,46 @@ final class PreviewRestController {
 		$max_uses_param = $request->get_param( 'max_uses' );
 		$max_uses       = null === $max_uses_param ? null : (int) $max_uses_param;
 
-		/** @var mixed $allowed_ips_param */
-		$allowed_ips_param = $request->get_param( 'allowed_ips' );
-		$allowed_ips       = [];
-
-		if ( is_array( $allowed_ips_param ) ) {
-			/** @var mixed $range */
-			foreach ( $allowed_ips_param as $range ) {
-				if ( is_string( $range ) ) {
-					$allowed_ips[] = $range;
-				}
-			}
-		}
-
-		// A WP_Error from the minter (e.g. a missing post, or an invalid IP
-		// range) passes straight through: rest_ensure_response() returns it
-		// unchanged and the REST server renders it with its status.
+		// A WP_Error from the minter (e.g. a missing post, an invalid IP range
+		// or address, or a disabled restriction) passes straight through:
+		// rest_ensure_response() returns it unchanged and the REST server
+		// renders it with its status.
 		return rest_ensure_response(
 			$this->minter->mint(
 				(int) $request->get_param( 'post_id' ),
 				(int) $request->get_param( 'expiration' ),
 				$max_uses,
 				'rest',
-				$allowed_ips
+				self::string_list( $request->get_param( 'allowed_ips' ) ),
+				self::string_list( $request->get_param( 'recipients' ) )
 			)
 		);
+	}
+
+	/**
+	 * The strings from an untyped request value. A parameter absent from the
+	 * schema (because its feature is switched off) arrives unvalidated, so the
+	 * shape cannot be trusted; anything unusable reads as empty and the minter
+	 * then refuses a non-empty list for a disabled feature.
+	 *
+	 * @param mixed $value The raw parameter value.
+	 * @return list<string>
+	 */
+	private static function string_list( $value ): array {
+		if ( ! is_array( $value ) ) {
+			return [];
+		}
+
+		$strings = [];
+
+		/** @var mixed $item */
+		foreach ( $value as $item ) {
+			if ( is_string( $item ) ) {
+				$strings[] = $item;
+			}
+		}
+
+		return $strings;
 	}
 
 	/**

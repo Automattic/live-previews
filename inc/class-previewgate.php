@@ -41,18 +41,27 @@ final class PreviewGate {
 	private PreviewLinkService $service;
 	private LinkToggle $toggle;
 
+	private RecipientVerifier $verifier;
+
 	/** The slot ID this visitor holds, once resolved or claimed. */
 	private ?string $viewer_id = null;
 
-	/** Ensures a single request claims at most one slot, however many queries run. */
-	private bool $claimed_this_request = false;
+	/** The email this visitor has proved control of, or null. Resolved once. */
+	private ?string $verified_email = null;
 
 	/** Reason the main query's preview was withheld, for the friendly notice. */
 	private ?string $denial_reason = null;
 
-	public function __construct( PreviewLinkService $service, ?LinkToggle $toggle = null ) {
-		$this->service = $service;
-		$this->toggle  = $toggle ?? new LinkToggle();
+	/** The post whose preview was withheld, for the verification form. */
+	private int $denied_post_id = 0;
+
+	/** Ensures a single request claims at most one slot, however many queries run. */
+	private bool $claimed_this_request = false;
+
+	public function __construct( PreviewLinkService $service, ?RecipientVerifier $verifier = null, ?LinkToggle $toggle = null ) {
+		$this->service  = $service;
+		$this->verifier = $verifier ?? new RecipientVerifier();
+		$this->toggle   = $toggle ?? new LinkToggle();
 	}
 
 	public function register(): void {
@@ -81,6 +90,10 @@ final class PreviewGate {
 			$this->viewer_id = $this->viewer_id_from_request( $token );
 		}
 
+		if ( null === $this->verified_email ) {
+			$this->verified_email = $this->verifier->verified_email( $token );
+		}
+
 		foreach ( $posts as $post ) {
 			if ( ! $post instanceof WP_Post ) {
 				continue;
@@ -107,27 +120,27 @@ final class PreviewGate {
 			}
 
 			$post_id  = (int) $post->ID;
-			$decision = $this->service->authorize( $post_id, $token, $this->viewer_id, $this->client_ip() );
+			$decision = $this->service->authorize( $post_id, $token, $this->viewer_id, $this->client_ip(), $this->verified_email );
 
 			if ( ! $decision->is_allowed() ) {
 				// Remember a dead-but-real link so template_redirect can explain
 				// why, instead of leaving the visitor at a bare 404. Only preview
 				// requests reach here, so this is the page the visitor asked for.
-				$this->remember_denial( $decision->reason() );
+				$this->remember_denial( $decision->reason(), $post_id );
 				continue;
 			}
 
 			// The token checks out, but an automated client never gets the draft
 			// itself — only a stub, and without spending a slot.
 			if ( $this->is_automated_client() ) {
-				$this->remember_denial( self::REASON_AUTOMATED );
+				$this->remember_denial( self::REASON_AUTOMATED, $post_id );
 				continue;
 			}
 
 			if ( ! $this->ensure_slot( $post_id, $token ) ) {
 				// A concurrent visitor took the last slot between the decision
 				// above and the write. Deny rather than let both in.
-				$this->remember_denial( AccessDecision::REASON_EXHAUSTED );
+				$this->remember_denial( AccessDecision::REASON_EXHAUSTED, $post_id );
 				continue;
 			}
 
@@ -158,7 +171,7 @@ final class PreviewGate {
 			return true;
 		}
 
-		$viewer_id = $this->service->claim_slot( $post_id, $token, $this->client_ip() );
+		$viewer_id = $this->service->claim_slot( $post_id, $token, $this->client_ip(), $this->verified_email );
 
 		if ( null === $viewer_id ) {
 			return false;
@@ -176,17 +189,19 @@ final class PreviewGate {
 	 * safe to state. An unknown or wrong token is left to 404 exactly as a
 	 * missing post would, so nobody can probe which draft IDs exist.
 	 */
-	private function remember_denial( string $reason ): void {
+	private function remember_denial( string $reason, int $post_id = 0 ): void {
 		$explainable = [
 			AccessDecision::REASON_EXPIRED,
 			AccessDecision::REASON_REVOKED,
 			AccessDecision::REASON_EXHAUSTED,
+			AccessDecision::REASON_EMAIL_UNVERIFIED,
 			self::REASON_AUTOMATED,
 			self::REASON_DISABLED,
 		];
 
 		if ( in_array( $reason, $explainable, true ) ) {
-			$this->denial_reason = $reason;
+			$this->denial_reason  = $reason;
+			$this->denied_post_id = $post_id;
 		}
 	}
 
@@ -200,14 +215,24 @@ final class PreviewGate {
 
 		$this->send_preview_headers();
 
+		// An unfurler poking a recipient-bound link gets the same contentless
+		// stub as any other automated client, not the verification form.
+		if ( AccessDecision::REASON_EMAIL_UNVERIFIED === $this->denial_reason && $this->is_automated_client() ) {
+			$this->denial_reason = self::REASON_AUTOMATED;
+		}
+
 		if ( self::REASON_AUTOMATED === $this->denial_reason ) {
 			// A neutral 200 so a chat unfurl renders a tidy card, with none of
 			// the draft's title, excerpt, or image in it.
-			wp_die(
-				esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ),
-				esc_html__( 'Private preview link', 'live-previews' ),
-				[ 'response' => 200 ]
+			NoticePage::render(
+				__( 'Private preview link', 'live-previews' ),
+				sprintf( '<p>%s</p>', esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ) ),
+				200
 			);
+		}
+
+		if ( AccessDecision::REASON_EMAIL_UNVERIFIED === $this->denial_reason ) {
+			$this->handle_verification();
 		}
 
 		$generic = __( 'This preview link is no longer available.', 'live-previews' );
@@ -247,15 +272,126 @@ final class PreviewGate {
 			? __( 'Please try again later.', 'live-previews' )
 			: __( 'Ask the author to share a new preview link.', 'live-previews' );
 
-		wp_die(
+		NoticePage::render(
+			__( 'Preview unavailable', 'live-previews' ),
 			sprintf(
 				'<p>%s</p><p>%s</p>',
 				esc_html( $message ),
 				esc_html( $advice )
 			),
-			esc_html__( 'Preview unavailable', 'live-previews' ),
-			[ 'response' => 410 ]
+			410
 		);
+	}
+
+	/**
+	 * The email-verification interstitial for a recipient-bound link: ask for
+	 * an address, email a code to it if it is a listed reviewer, and swap the
+	 * code for the signed cookie that unlocks the preview. Never returns — every
+	 * path ends in wp_die() or a redirect.
+	 *
+	 * The flow deliberately answers a listed and an unlisted address
+	 * identically, so this form cannot be used to probe who is on a link's
+	 * reviewer list; only a listed address actually receives mail.
+	 */
+	private function handle_verification(): void {
+		$token_value = $this->token_from_request();
+
+		if ( null === $token_value ) {
+			// Unreachable in practice: this denial is only recorded for a
+			// presented token. Fall back to the generic email form copy.
+			$this->render_email_form();
+		}
+
+		$token = Token::from_string( (string) $token_value );
+
+		$nonce_ok = isset( $_POST['_wpnonce'] ) && is_string( $_POST['_wpnonce'] )
+			&& false !== wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ), 'live_previews_verify' );
+
+		$action = isset( $_POST['lp-verify-action'] ) && is_string( $_POST['lp-verify-action'] )
+			? sanitize_key( wp_unslash( $_POST['lp-verify-action'] ) )
+			: '';
+
+		$email = isset( $_POST['lp-email'] ) && is_string( $_POST['lp-email'] )
+			? sanitize_email( wp_unslash( $_POST['lp-email'] ) )
+			: '';
+
+		if ( $nonce_ok && 'request-code' === $action && false !== is_email( $email ) ) {
+			// Only a listed reviewer on a live link generates mail; everyone
+			// gets the identical next page.
+			if ( $this->service->is_recipient( $this->denied_post_id, $token, $email ) ) {
+				$this->verifier->send_code( $token, $email );
+			}
+
+			$this->render_code_form( $email );
+		}
+
+		if ( $nonce_ok && 'verify-code' === $action ) {
+			$code = isset( $_POST['lp-code'] ) && is_string( $_POST['lp-code'] )
+				? sanitize_text_field( wp_unslash( $_POST['lp-code'] ) )
+				: '';
+
+			if ( '' !== $email && '' !== $code && $this->verifier->verify_code( $token, $email, $code ) ) {
+				$this->verifier->remember_verified( $token, $email );
+
+				// Redirect back to the same preview URL as a GET, so the page
+				// loads with the fresh cookie and a refresh cannot re-post.
+				/**
+				 * Psalm's globals stub types REQUEST_URI as always a non-empty
+				 * string, but some SAPIs genuinely omit it, so the runtime
+				 * guard stays.
+				 *
+				 * @psalm-suppress RedundantCondition, TypeDoesNotContainType
+				 */
+				// phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___SERVER__REQUEST_URI__ -- Uncached preview request (unique token query string + nocache headers); redirecting to the URL just requested.
+				$target = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
+					? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+					: home_url( '/' );
+				wp_safe_redirect( $target, 303 );
+				exit;
+			}
+
+			$this->render_code_form(
+				$email,
+				__( 'That code did not match or has expired. Check it, or reload this page to request a new one.', 'live-previews' )
+			);
+		}
+
+		$this->render_email_form();
+	}
+
+	/**
+	 * Step one: ask which address the visitor claims to be. Served with a 200 —
+	 * this is the page working as designed, not an error. Ends the request.
+	 */
+	private function render_email_form(): void {
+		$html = sprintf(
+			'<p>%s</p><form method="post">%s<input type="hidden" name="lp-verify-action" value="request-code" /><p><label for="lp-email">%s</label><input type="email" name="lp-email" id="lp-email" required autocomplete="email" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
+			esc_html__( 'This preview is for named reviewers. Enter your email address and, if it is on the reviewer list, we will send you a verification code.', 'live-previews' ),
+			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
+			esc_html__( 'Email address', 'live-previews' ),
+			esc_html__( 'Email me a code', 'live-previews' )
+		);
+
+		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
+	}
+
+	/**
+	 * Step two: swap the emailed code for access. The copy stays neutral about
+	 * whether mail was actually sent — see {@see PreviewGate::handle_verification()}.
+	 * Ends the request.
+	 */
+	private function render_code_form( string $email, string $error = '' ): void {
+		$html = sprintf(
+			'<p>%s</p>%s<form method="post">%s<input type="hidden" name="lp-verify-action" value="verify-code" /><input type="hidden" name="lp-email" value="%s" /><p><label for="lp-code">%s</label><input type="text" name="lp-code" id="lp-code" class="lp-code" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
+			esc_html__( 'If that address is on the reviewer list, we have emailed it a verification code. Enter the code below.', 'live-previews' ),
+			'' === $error ? '' : sprintf( '<p role="alert"><strong>%s</strong></p>', esc_html( $error ) ),
+			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
+			esc_attr( $email ),
+			esc_html__( 'Verification code', 'live-previews' ),
+			esc_html__( 'Verify', 'live-previews' )
+		);
+
+		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
 	}
 
 	/**

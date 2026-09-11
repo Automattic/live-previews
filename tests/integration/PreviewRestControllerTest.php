@@ -253,7 +253,7 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 	/**
 	 * @param list<string> $allowed_ips
 	 */
-	private function create_link( int $post_id, int $expiration, ?int $max_uses = null, array $allowed_ips = [] ): \WP_REST_Response {
+	private function create_link( int $post_id, int $expiration, ?int $max_uses = null, array $allowed_ips = [], array $recipients = [] ): \WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', self::ROUTE );
 		$request->set_body_params(
 			[
@@ -261,9 +261,67 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 				'expiration'  => $expiration,
 				'max_uses'    => $max_uses,
 				'allowed_ips' => $allowed_ips,
+				'recipients'  => $recipients,
 			]
 		);
 
 		return rest_do_request( $request );
+	}
+
+	public function test_recipients_are_normalised_and_persisted(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [], [ ' Legal@Example.COM ', 'agency@example.org' ] );
+
+		static::assertSame( 200, $response->get_status() );
+		static::assertSame(
+			[ 'legal@example.com', 'agency@example.org' ],
+			( new PostMetaTokenRepository() )->all_for_post( $post_id )[0]->recipients()
+		);
+	}
+
+	public function test_an_invalid_recipient_is_rejected_not_dropped(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [], [ 'not-an-email' ] );
+
+		static::assertSame( 400, $response->get_status() );
+		static::assertSame( [], ( new PostMetaTokenRepository() )->all_for_post( $post_id ) );
+	}
+
+	public function test_recipients_are_refused_while_the_feature_is_disabled(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		add_filter( 'live_previews_recipients_enabled', '__return_false' );
+
+		try {
+			// Even with the argument gone from the schema, a hand-built request
+			// can still smuggle the parameter in; the minter must say no.
+			$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [], [ 'legal@example.com' ] );
+		} finally {
+			remove_filter( 'live_previews_recipients_enabled', '__return_false' );
+		}
+
+		static::assertSame( 400, $response->get_status() );
+		static::assertSame( [], ( new PostMetaTokenRepository() )->all_for_post( $post_id ) );
+	}
+
+	public function test_ip_ranges_are_refused_while_the_feature_is_disabled(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+
+		try {
+			$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [ '203.0.113.0/24' ] );
+		} finally {
+			remove_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+		}
+
+		static::assertSame( 400, $response->get_status() );
+		static::assertSame( [], ( new PostMetaTokenRepository() )->all_for_post( $post_id ) );
 	}
 }

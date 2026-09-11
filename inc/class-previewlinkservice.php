@@ -53,8 +53,11 @@ final class PreviewLinkService {
 	 * @param int          $created_by  ID of the user issuing the link.
 	 * @param list<string> $allowed_ips CIDR ranges to restrict the link to, or
 	 *                                  empty for no per-link restriction.
+	 * @param list<string> $recipients  Lowercased emails of named reviewers to
+	 *                                  bind the link to, or empty for a bearer
+	 *                                  link anyone holding the URL may use.
 	 */
-	public function mint( int $post_id, int $ttl_seconds, ?int $max_uses, int $created_by, array $allowed_ips = [] ): Token {
+	public function mint( int $post_id, int $ttl_seconds, ?int $max_uses, int $created_by, array $allowed_ips = [], array $recipients = [] ): Token {
 		$token = Token::generate();
 		$now   = $this->clock->now();
 
@@ -66,7 +69,8 @@ final class PreviewLinkService {
 				$max_uses,
 				$created_by,
 				$now,
-				$allowed_ips
+				$allowed_ips,
+				$recipients
 			)
 		);
 
@@ -185,15 +189,18 @@ final class PreviewLinkService {
 	 * @param string|null $client_ip The visitor's true client IP, or null when it
 	 *                               could not be resolved (which fails closed if
 	 *                               the link or platform carries an allowlist).
+	 * @param string|null $verified_email The email this visitor has proved control
+	 *                               of, or null if unverified. Only consulted when
+	 *                               the link is bound to recipients.
 	 */
-	public function authorize( int $post_id, Token $candidate, ?string $viewer_id = null, ?string $client_ip = null ): AccessDecision {
+	public function authorize( int $post_id, Token $candidate, ?string $viewer_id = null, ?string $client_ip = null, ?string $verified_email = null ): AccessDecision {
 		$link = $this->repository->find( $post_id, $candidate );
 
 		$holds_slot = null !== $link
 			&& null !== $viewer_id
 			&& $link->holds_slot( $viewer_id );
 
-		return $this->policy->decide( $link, $this->clock->now(), $holds_slot, $client_ip );
+		return $this->policy->decide( $link, $this->clock->now(), $holds_slot, $client_ip, $verified_email );
 	}
 
 	/**
@@ -223,7 +230,7 @@ final class PreviewLinkService {
 	 * the author may have revoked the link entirely. A caller that loses the race
 	 * gets null and must deny, which is what closes the check-then-act window.
 	 */
-	public function claim_slot( int $post_id, Token $candidate, ?string $client_ip = null ): ?string {
+	public function claim_slot( int $post_id, Token $candidate, ?string $client_ip = null, ?string $verified_email = null ): ?string {
 		$viewer_id = bin2hex( random_bytes( self::VIEWER_ID_BYTES ) );
 
 		for ( $attempt = 0; $attempt < self::CLAIM_ATTEMPTS; $attempt++ ) {
@@ -234,9 +241,9 @@ final class PreviewLinkService {
 			}
 
 			// No viewer ID passed: this is a brand-new slot, so the exhaustion
-			// rule must apply in full. The client IP is re-checked too, since
-			// this is the write that actually spends a slot.
-			if ( ! $this->policy->decide( $link, $this->clock->now(), false, $client_ip )->is_allowed() ) {
+			// rule must apply in full. The client IP and verified email are
+			// re-checked too, since this is the write that actually spends a slot.
+			if ( ! $this->policy->decide( $link, $this->clock->now(), false, $client_ip, $verified_email )->is_allowed() ) {
 				return null;
 			}
 
@@ -248,6 +255,21 @@ final class PreviewLinkService {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Whether this address is a named reviewer on the live link the token
+	 * unlocks. The gate asks before emailing a verification code, so codes only
+	 * ever go to addresses an author actually listed — a stranger probing the
+	 * form generates no mail at all. Dead links say no: there is nothing left
+	 * to verify for.
+	 */
+	public function is_recipient( int $post_id, Token $candidate, string $email ): bool {
+		$link = $this->repository->find( $post_id, $candidate );
+
+		return null !== $link
+			&& ! $link->is_dead( $this->clock->now() )
+			&& $link->is_recipient( $email );
 	}
 
 	/**

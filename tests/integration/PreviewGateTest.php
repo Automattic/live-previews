@@ -56,7 +56,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1 );
 
-		$posts = ( new PreviewGate( $this->service ) )
+		$posts = ( new PreviewGate( $this->service, new RecipientVerifier() ) )
 			->unlock_valid_previews( [ get_post( $post_id ) ], $this->preview_query() );
 
 		static::assertSame( 'draft', $posts[0]->post_status );
@@ -70,7 +70,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		$query             = new WP_Query();
 		$query->is_preview = false;
-		$posts             = ( new PreviewGate( $this->service ) )
+		$posts             = ( new PreviewGate( $this->service, new RecipientVerifier() ) )
 			->unlock_valid_previews( [ get_post( $post_id ) ], $query );
 
 		static::assertSame( 'draft', $posts[0]->post_status );
@@ -350,6 +350,59 @@ class PreviewGateTest extends WP_UnitTestCase {
 		static::assertTrue( true, 'No wp_die was triggered for a user who can edit the post.' );
 	}
 
+	public function test_a_recipient_bound_link_stays_locked_for_an_unverified_visitor(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [], [ 'legal@example.com' ] );
+
+		static::assertSame( 'draft', $this->visit( $post_id, $token, true ) );
+	}
+
+	public function test_an_unverified_visitor_is_offered_the_verification_form(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [], [ 'legal@example.com' ] );
+
+		$gate = $this->denied_main_query( $post_id, $token );
+
+		$this->expectException( \WPDieException::class );
+		$this->expectExceptionMessageMatches( '/named reviewers/i' );
+		$gate->maybe_render_notice();
+	}
+
+	public function test_a_verified_recipient_cookie_unlocks_the_draft(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [], [ 'legal@example.com' ] );
+
+		$_COOKIE = [];
+		( new RecipientVerifier() )->remember_verified( $token, 'legal@example.com' );
+
+		static::assertSame( 'publish', $this->visit( $post_id, $token ) );
+	}
+
+	public function test_a_forged_verification_cookie_stays_locked(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [], [ 'legal@example.com' ] );
+
+		// Everything below is derivable from the shared URL except the HMAC,
+		// which is what actually keeps strangers out.
+		$_COOKIE = [
+			'lp_recipient_' . substr( $token->hash(), 0, 20 ) => ( time() + DAY_IN_SECONDS ) . '.' . rtrim( strtr( base64_encode( 'legal@example.com' ), '+/', '-_' ), '=' ) . '.' . str_repeat( 'a', 64 ),
+		];
+
+		static::assertSame( 'draft', $this->visit( $post_id, $token ) );
+	}
+
+	public function test_a_verified_email_no_longer_on_the_list_stays_locked(): void {
+		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
+		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, null, 1, [], [ 'legal@example.com' ] );
+
+		// A genuine verification for an address the author never listed on
+		// *this* link (e.g. minted for a sibling link, or the list changed).
+		$_COOKIE = [];
+		( new RecipientVerifier() )->remember_verified( $token, 'stranger@example.com' );
+
+		static::assertSame( 'draft', $this->visit( $post_id, $token ) );
+	}
+
 	/**
 	 * Run the gate over a main-query preview and hand back the gate so the caller
 	 * can assert on the notice it would render.
@@ -358,7 +411,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		$_GET[ PreviewGate::TOKEN_QUERY_VAR ] = $token->value();
 		clean_post_cache( $post_id );
 
-		$gate = new PreviewGate( $this->service );
+		$gate = new PreviewGate( $this->service, new RecipientVerifier() );
 		$gate->unlock_valid_previews( [ get_post( $post_id ) ], $this->preview_query() );
 
 		return $gate;
@@ -380,7 +433,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// so each simulated request starts from the real (draft) status.
 		clean_post_cache( $post_id );
 
-		$posts = ( new PreviewGate( $this->service ) )
+		$posts = ( new PreviewGate( $this->service, new RecipientVerifier() ) )
 			->unlock_valid_previews( [ get_post( $post_id ) ], $this->preview_query() );
 
 		return (string) $posts[0]->post_status;

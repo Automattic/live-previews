@@ -82,6 +82,49 @@ final class PreviewAbilities {
 	}
 
 	public function register_abilities(): void {
+		$create_properties = [
+			'post_id'    => [
+				'type'        => 'integer',
+				'description' => __( 'ID of the draft to generate a preview link for.', 'live-previews' ),
+			],
+			'expiration' => [
+				'type'        => 'integer',
+				// Mirrors the REST endpoint's accepted lifetimes so both
+				// channels honour the same (filterable) set.
+				'enum'        => PreviewRestController::allowed_expirations(),
+				'default'     => PreviewRestController::default_expiration(),
+				'description' => __( 'How long the link stays valid, in seconds.', 'live-previews' ),
+			],
+			'max_uses'   => [
+				'type'        => [ 'integer', 'null' ],
+				'default'     => null,
+				'minimum'     => 1,
+				'maximum'     => PreviewRestController::MAX_USES_LIMIT,
+				'description' => __( 'Maximum number of distinct viewers, or null for unlimited.', 'live-previews' ),
+			],
+		];
+
+		// Mirror the REST schema: a restriction the site has switched off is
+		// not described to agents at all. The minter also rejects a value sent
+		// regardless, so both channels refuse identically.
+		if ( Features::ip_allowlist_enabled() ) {
+			$create_properties['allowed_ips'] = [
+				'type'        => 'array',
+				'items'       => [ 'type' => 'string' ],
+				'default'     => [],
+				'description' => __( 'IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Empty means no IP restriction.', 'live-previews' ),
+			];
+		}
+
+		if ( Features::recipients_enabled() ) {
+			$create_properties['recipients'] = [
+				'type'        => 'array',
+				'items'       => [ 'type' => 'string' ],
+				'default'     => [],
+				'description' => __( 'Email addresses of the named reviewers the link is bound to. Each reviewer must verify their address with an emailed code before viewing. Empty means anyone with the link can view.', 'live-previews' ),
+			];
+		}
+
 		wp_register_ability(
 			self::CREATE_LINK,
 			[
@@ -91,33 +134,7 @@ final class PreviewAbilities {
 				'input_schema'        => [
 					'type'       => 'object',
 					'required'   => [ 'post_id' ],
-					'properties' => [
-						'post_id'     => [
-							'type'        => 'integer',
-							'description' => __( 'ID of the draft to generate a preview link for.', 'live-previews' ),
-						],
-						'expiration'  => [
-							'type'        => 'integer',
-							// Mirrors the REST endpoint's accepted lifetimes so both
-							// channels honour the same (filterable) set.
-							'enum'        => PreviewRestController::allowed_expirations(),
-							'default'     => PreviewRestController::default_expiration(),
-							'description' => __( 'How long the link stays valid, in seconds.', 'live-previews' ),
-						],
-						'max_uses'    => [
-							'type'        => [ 'integer', 'null' ],
-							'default'     => null,
-							'minimum'     => 1,
-							'maximum'     => PreviewRestController::MAX_USES_LIMIT,
-							'description' => __( 'Maximum number of distinct viewers, or null for unlimited.', 'live-previews' ),
-						],
-						'allowed_ips' => [
-							'type'        => 'array',
-							'items'       => [ 'type' => 'string' ],
-							'default'     => [],
-							'description' => __( 'IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Empty means no IP restriction.', 'live-previews' ),
-						],
-					],
+					'properties' => $create_properties,
 				],
 				'output_schema'       => [
 					'type'       => 'object',
@@ -197,6 +214,11 @@ final class PreviewAbilities {
 								'type'        => 'array',
 								'items'       => [ 'type' => 'string' ],
 								'description' => __( 'IP ranges the link is restricted to; empty means no per-link restriction.', 'live-previews' ),
+							],
+							'recipients'  => [
+								'type'        => 'array',
+								'items'       => [ 'type' => 'string' ],
+								'description' => __( 'Emails of the named reviewers the link is bound to; empty means anyone with the link can view.', 'live-previews' ),
 							],
 						],
 					],
@@ -444,7 +466,18 @@ final class PreviewAbilities {
 			}
 		}
 
-		return $this->minter->mint( $post_id, $expiration, $max_uses, 'ability', $allowed_ips );
+		$recipients = [];
+
+		if ( isset( $input['recipients'] ) && is_array( $input['recipients'] ) ) {
+			/** @var mixed $recipient */
+			foreach ( $input['recipients'] as $recipient ) {
+				if ( is_string( $recipient ) ) {
+					$recipients[] = $recipient;
+				}
+			}
+		}
+
+		return $this->minter->mint( $post_id, $expiration, $max_uses, 'ability', $allowed_ips, $recipients );
 	}
 
 	/**
@@ -464,7 +497,7 @@ final class PreviewAbilities {
 
 	/**
 	 * @param mixed $input The schema-validated ability input.
-	 * @return list<array{post_id: int, id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool, allowed_ips: list<string>}>|WP_Error
+	 * @return list<array{post_id: int, id: string, token_hint: string, created_at: int, expires_at: int, max_uses: int|null, use_count: int, exhausted: bool, allowed_ips: list<string>, recipients: list<string>}>|WP_Error
 	 */
 	public function list_links( $input ) {
 		$input      = is_array( $input ) ? $input : [];

@@ -2,6 +2,7 @@
 
 namespace Automattic\LivePreviews\Cli;
 
+use Automattic\LivePreviews\Features;
 use Automattic\LivePreviews\LinkToggle;
 use Automattic\LivePreviews\PreviewLink;
 use Automattic\LivePreviews\PreviewLinkPresenter;
@@ -43,7 +44,7 @@ final class ListCommand {
 	 * : Print one field for each link.
 	 *
 	 * [--fields=<fields>]
-	 * : Comma-separated list of fields to show. Available fields: post_id, id, token_hint, created_by, created_at, expires_at, expires_in, use_count, max_uses, allowed_ips.
+	 * : Comma-separated list of fields to show. Available fields: post_id, id, token_hint, created_by, created_at, expires_at, expires_in, use_count, max_uses, recipients, allowed_ips.
 	 *
 	 * [--format=<format>]
 	 * : Render output in a particular format.
@@ -139,6 +140,7 @@ final class ListCommand {
 				'expires_in'  => human_time_diff( $now, $row['expires_at'] ),
 				'use_count'   => $row['use_count'],
 				'max_uses'    => $row['max_uses'],
+				'recipients'  => implode( ',', $row['recipients'] ),
 				'allowed_ips' => implode( ',', $row['allowed_ips'] ),
 			];
 		}
@@ -152,7 +154,17 @@ final class ListCommand {
 			return;
 		}
 
-		$default_fields = [ 'token_hint', 'created_by', 'created_at', 'expires_at', 'expires_in', 'use_count', 'max_uses', 'allowed_ips' ];
+		$default_fields = [ 'token_hint', 'created_by', 'created_at', 'expires_at', 'expires_in', 'use_count', 'max_uses' ];
+
+		// Match the admin table: a restriction the site has switched off keeps
+		// its column out of the default view (it stays reachable via --fields).
+		if ( Features::recipients_enabled() ) {
+			$default_fields[] = 'recipients';
+		}
+
+		if ( Features::ip_allowlist_enabled() ) {
+			$default_fields[] = 'allowed_ips';
+		}
 
 		if ( null === $post_id ) {
 			array_unshift( $default_fields, 'post_id' );

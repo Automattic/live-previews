@@ -70,6 +70,50 @@ class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 		static::assertNotEmpty( $screen->get_help_tabs() );
 	}
 
+	public function test_the_help_explains_the_pause_toggle_in_its_own_tab(): void {
+		static::assertStringContainsString( 'reversible pause', $this->all_help_content() );
+	}
+
+	public function test_restriction_help_follows_the_feature_switches(): void {
+		$help = $this->all_help_content();
+		static::assertStringContainsString( 'Reviewers shows', $help );
+		static::assertStringContainsString( 'IP ranges shows', $help );
+	}
+
+	/**
+	 * A switched-off restriction has no column, so a help paragraph describing
+	 * one would send readers hunting for something that is not on the screen.
+	 */
+	public function test_disabled_restriction_columns_are_not_explained(): void {
+		add_filter( 'live_previews_recipients_enabled', '__return_false' );
+		add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+
+		try {
+			$help = $this->all_help_content();
+		} finally {
+			remove_filter( 'live_previews_recipients_enabled', '__return_false' );
+			remove_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+		}
+
+		static::assertStringNotContainsString( 'Reviewers shows', $help );
+		static::assertStringNotContainsString( 'IP ranges shows', $help );
+	}
+
+	private function all_help_content(): string {
+		$this->configure_screen();
+		$screen = get_current_screen();
+
+		static::assertInstanceOf( WP_Screen::class, $screen );
+
+		$content = '';
+
+		foreach ( (array) $screen->get_help_tabs() as $tab ) {
+			$content .= is_array( $tab ) && isset( $tab['content'] ) && is_string( $tab['content'] ) ? $tab['content'] : '';
+		}
+
+		return $content;
+	}
+
 	private function sidebar(): string {
 		$this->configure_screen();
 		$screen = get_current_screen();

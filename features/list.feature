@@ -30,7 +30,7 @@ Feature: Preview links can be listed from the command line
 		When I run `wp live-previews list {POST_ID} --format=csv`
 		Then STDOUT should contain:
 			"""
-			token_hint,created_by,created_at,expires_at,expires_in,use_count,max_uses,allowed_ips
+			token_hint,created_by,created_at,expires_at,expires_in,use_count,max_uses,recipients,allowed_ips
 			"""
 		When I run `wp live-previews list {POST_ID} --format=count`
 		Then STDOUT should be:

@@ -71,6 +71,40 @@ final class PreviewLinkServiceTest extends TestCase {
 		self::assertSame( AccessDecision::REASON_IP_BLOCKED, $decision->reason() );
 	}
 
+	public function test_minted_recipients_are_persisted_and_enforced(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1, [], [ 'legal@example.com' ] );
+
+		$stored = $this->repository->all_for_post( self::POST_ID );
+		self::assertSame( [ 'legal@example.com' ], $stored[0]->recipients() );
+
+		$unverified = $this->service->authorize( self::POST_ID, $token );
+		self::assertFalse( $unverified->is_allowed() );
+		self::assertSame( AccessDecision::REASON_EMAIL_UNVERIFIED, $unverified->reason() );
+
+		self::assertTrue(
+			$this->service->authorize( self::POST_ID, $token, null, null, 'legal@example.com' )->is_allowed()
+		);
+	}
+
+	public function test_a_slot_cannot_be_claimed_without_a_verified_recipient(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, 5, 1, [], [ 'legal@example.com' ] );
+
+		self::assertNull( $this->service->claim_slot( self::POST_ID, $token ) );
+		self::assertNotNull( $this->service->claim_slot( self::POST_ID, $token, null, 'legal@example.com' ) );
+	}
+
+	public function test_is_recipient_only_answers_for_live_links(): void {
+		$token = $this->service->mint( self::POST_ID, 3600, null, 1, [], [ 'legal@example.com' ] );
+
+		self::assertTrue( $this->service->is_recipient( self::POST_ID, $token, 'legal@example.com' ) );
+		self::assertFalse( $this->service->is_recipient( self::POST_ID, $token, 'stranger@example.com' ) );
+
+		// Once the link dies there is nothing left to verify for, so no code
+		// should ever be sent on its behalf.
+		$this->clock->advance( 3600 );
+		self::assertFalse( $this->service->is_recipient( self::POST_ID, $token, 'legal@example.com' ) );
+	}
+
 	public function test_a_slot_cannot_be_claimed_from_a_blocked_ip(): void {
 		$token = $this->service->mint( self::POST_ID, 3600, 5, 1, [ '203.0.113.0/24' ] );
 
