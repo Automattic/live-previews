@@ -102,13 +102,17 @@ test.describe( 'Preview links', () => {
 		const generateModal = page.getByRole( 'dialog', { name: 'Generate preview link' } );
 		await expect( generateModal ).toBeVisible();
 
-		await generateModal.getByRole( 'button', { name: 'Copy Link' } ).click();
+		await generateModal.getByRole( 'button', { name: 'Generate link' } ).click();
 
 		// The minted URL is surfaced in a read-only field once the request lands.
 		const linkField = generateModal.getByRole( 'textbox', { name: 'Preview link' } );
 		await expect( linkField ).toBeVisible();
 		const previewUrl = await linkField.inputValue();
 		expect( previewUrl ).toContain( 'lp-token=' );
+
+		// Copying again must reuse that link, not mint a second one.
+		await generateModal.getByRole( 'button', { name: 'Copy link' } ).click();
+		await expect( linkField ).toHaveValue( previewUrl );
 
 		await generateModal.getByRole( 'button', { name: 'Close' } ).click();
 		await expect( generateModal ).toBeHidden();
