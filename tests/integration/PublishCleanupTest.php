@@ -1,12 +1,12 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
- * @covers \Automattic\LivePreviews\PublishCleanup
+ * @covers \Automattic\ShareADraft\PublishCleanup
  */
 class PublishCleanupTest extends WP_UnitTestCase {
 	private PostMetaTokenRepository $repository;

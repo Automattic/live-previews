@@ -1,14 +1,14 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
  * The cron sweep that stops dead links accumulating as postmeta forever.
  *
- * @covers \Automattic\LivePreviews\LinkGarbageCollector
+ * @covers \Automattic\ShareADraft\LinkGarbageCollector
  */
 class LinkGarbageCollectorTest extends WP_UnitTestCase {
 	private PostMetaTokenRepository $repository;
@@ -29,7 +29,7 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 
 	public function tear_down(): void {
 		LinkGarbageCollector::unschedule();
-		remove_all_filters( 'live_previews_dead_link_grace_period' );
+		remove_all_filters( 'shareadraft_dead_link_grace_period' );
 		$this->set_config( null );
 		parent::tear_down();
 	}
@@ -141,7 +141,7 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 		$this->save_link( $post_id, time() - 2 * HOUR_IN_SECONDS );
 
 		$this->set_config( new Config( [ 'dead_link_grace_period' => YEAR_IN_SECONDS ] ) );
-		add_filter( 'live_previews_dead_link_grace_period', static fn (): int => HOUR_IN_SECONDS );
+		add_filter( 'shareadraft_dead_link_grace_period', static fn (): int => HOUR_IN_SECONDS );
 
 		static::assertSame( 1, $this->collector->run() );
 	}
@@ -150,7 +150,7 @@ class LinkGarbageCollectorTest extends WP_UnitTestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		$this->save_link( $post_id, time() - 2 * HOUR_IN_SECONDS );
 
-		add_filter( 'live_previews_dead_link_grace_period', static fn (): int => HOUR_IN_SECONDS );
+		add_filter( 'shareadraft_dead_link_grace_period', static fn (): int => HOUR_IN_SECONDS );
 
 		static::assertSame( 1, $this->collector->run() );
 	}

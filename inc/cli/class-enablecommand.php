@@ -1,12 +1,12 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\LinkToggle;
+use Automattic\ShareADraft\LinkToggle;
 use WP_CLI;
 
 /**
- * The `wp live-previews enable` command.
+ * The `wp shareadraft enable` command.
  *
  * The other half of the site-wide switch {@see DisableCommand} flips, through
  * the shared {@see LinkToggle}. Re-enabling lets every link work again, each
@@ -26,7 +26,7 @@ final class EnableCommand {
 	 * ## EXAMPLES
 	 *
 	 *     # The leak was a false alarm: let every link work again.
-	 *     $ wp live-previews enable
+	 *     $ wp shareadraft enable
 	 *     Success: Preview links enabled.
 	 *
 	 * @when after_wp_load

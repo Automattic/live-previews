@@ -2,19 +2,19 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\PreviewLinkService;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\PreviewLinkService;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The rules for resolving the link a revoke caller named — by token hint or
- * full id — shared by `wp live-previews revoke` and the revoke-preview-link
+ * full id — shared by `wp shareadraft revoke` and the revoke-preview-link
  * ability. The commands themselves are pass-through, pinned behaviourally by
  * features/revoke.feature and the abilities integration tests.
  *
- * @covers \Automattic\LivePreviews\PreviewLinkService
+ * @covers \Automattic\ShareADraft\PreviewLinkService
  */
 final class PreviewLinkServiceMatchingTest extends TestCase {
 	private const HASH_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';

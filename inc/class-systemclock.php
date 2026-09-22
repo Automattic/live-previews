@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * The real wall clock, used in production.

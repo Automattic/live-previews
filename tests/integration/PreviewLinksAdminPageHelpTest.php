@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Screen;
 use WP_UnitTestCase;
@@ -11,7 +11,7 @@ use WP_UnitTestCase;
  * The contextual help sidebar, which points somewhere different depending on
  * whether the site is VIP-hosted.
  *
- * @covers \Automattic\LivePreviews\PreviewLinksAdminPage
+ * @covers \Automattic\ShareADraft\PreviewLinksAdminPage
  */
 class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 	private PreviewLinksAdminPage $page;
@@ -33,13 +33,13 @@ class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 	}
 
 	public function tear_down(): void {
-		remove_all_filters( 'live_previews_is_vip_platform' );
+		remove_all_filters( 'shareadraft_is_vip_platform' );
 		set_current_screen( 'front' );
 		parent::tear_down();
 	}
 
 	public function test_it_links_to_vip_support_on_vip(): void {
-		add_filter( 'live_previews_is_vip_platform', '__return_true' );
+		add_filter( 'shareadraft_is_vip_platform', '__return_true' );
 
 		$sidebar = $this->sidebar();
 
@@ -52,16 +52,16 @@ class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 	 * send people to a desk that has no way to answer them.
 	 */
 	public function test_it_links_to_the_plugin_support_forum_off_vip(): void {
-		add_filter( 'live_previews_is_vip_platform', '__return_false' );
+		add_filter( 'shareadraft_is_vip_platform', '__return_false' );
 
 		$sidebar = $this->sidebar();
 
 		static::assertStringNotContainsString( 'wpvip.com', $sidebar );
-		static::assertStringContainsString( 'wordpress.org/support/plugin/live-previews', $sidebar );
+		static::assertStringContainsString( 'wordpress.org/support/plugin/shareadraft', $sidebar );
 	}
 
 	public function test_the_help_tabs_are_added_regardless_of_platform(): void {
-		add_filter( 'live_previews_is_vip_platform', '__return_false' );
+		add_filter( 'shareadraft_is_vip_platform', '__return_false' );
 
 		$this->configure_screen();
 		$screen = get_current_screen();
@@ -85,14 +85,14 @@ class PreviewLinksAdminPageHelpTest extends WP_UnitTestCase {
 	 * one would send readers hunting for something that is not on the screen.
 	 */
 	public function test_disabled_restriction_columns_are_not_explained(): void {
-		add_filter( 'live_previews_recipients_enabled', '__return_false' );
-		add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+		add_filter( 'shareadraft_recipients_enabled', '__return_false' );
+		add_filter( 'shareadraft_ip_allowlist_enabled', '__return_false' );
 
 		try {
 			$help = $this->all_help_content();
 		} finally {
-			remove_filter( 'live_previews_recipients_enabled', '__return_false' );
-			remove_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+			remove_filter( 'shareadraft_recipients_enabled', '__return_false' );
+			remove_filter( 'shareadraft_ip_allowlist_enabled', '__return_false' );
 		}
 
 		static::assertStringNotContainsString( 'Reviewers shows', $help );

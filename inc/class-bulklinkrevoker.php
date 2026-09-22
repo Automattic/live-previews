@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Coordinates the bulk revokes: every link on the site (break-glass), or every
@@ -19,24 +19,24 @@ namespace Automattic\LivePreviews;
  * Offboarding is default-on for hard deletion only (`deleted_user`). Role
  * changes are deliberately not automatic — demoting an editor should not
  * necessarily kill in-flight reviews — but customers can wire any hook to the
- * `live_previews_revoke_user_links` action; see the README recipe.
+ * `shareadraft_revoke_user_links` action; see the README recipe.
  */
 final class BulkLinkRevoker {
 	/** Continuation hook for a sweep too large to finish in one run. */
-	public const HOOK = 'live_previews_bulk_revoke';
+	public const HOOK = 'shareadraft_bulk_revoke';
 
 	/**
 	 * Command action: fire it with a user ID to revoke every link they created.
 	 * The supported extension point for custom offboarding (role changes,
 	 * multisite removal, and so on).
 	 */
-	public const REVOKE_USER_ACTION = 'live_previews_revoke_user_links';
+	public const REVOKE_USER_ACTION = 'shareadraft_revoke_user_links';
 
 	/** Event action fired after a user's links have all been revoked. */
-	public const REVOKED_USER_ACTION = 'live_previews_revoked_user_links';
+	public const REVOKED_USER_ACTION = 'shareadraft_revoked_user_links';
 
 	/** Queue of unfinished sweeps, oldest first. */
-	private const JOBS_OPTION = 'live_previews_bulk_revoke_jobs';
+	private const JOBS_OPTION = 'shareadraft_bulk_revoke_jobs';
 
 	/** Posts examined per run; mirrors the garbage collector's batch size. */
 	private const BATCH_SIZE = 100;

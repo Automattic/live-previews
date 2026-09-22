@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Enqueues the block-editor script that adds the "Generate preview link" panel.
@@ -10,7 +10,7 @@ namespace Automattic\LivePreviews;
  * cleanly in an unbuilt checkout.
  */
 final class EditorAssets {
-	private const HANDLE = 'live-previews-editor';
+	private const HANDLE = 'shareadraft-editor';
 
 	/**
 	 * Whether central IP ranges are configured in the VIP Dashboard, so the
@@ -34,7 +34,7 @@ final class EditorAssets {
 	}
 
 	public function enqueue(): void {
-		$base       = plugin_dir_path( VIP_LIVE_PREVIEWS_FILE );
+		$base       = plugin_dir_path( VIP_SHAREADRAFT_FILE );
 		$asset_file = $base . 'build/index.asset.php';
 
 		if ( ! file_exists( $asset_file ) ) {
@@ -56,11 +56,11 @@ final class EditorAssets {
 			: [];
 		$version      = isset( $asset['version'] ) && is_string( $asset['version'] )
 			? $asset['version']
-			: VIP_LIVE_PREVIEWS_VERSION;
+			: VIP_SHAREADRAFT_VERSION;
 
 		wp_enqueue_script(
 			self::HANDLE,
-			plugins_url( 'build/index.js', VIP_LIVE_PREVIEWS_FILE ),
+			plugins_url( 'build/index.js', VIP_SHAREADRAFT_FILE ),
 			$dependencies,
 			$version,
 			true
@@ -70,7 +70,7 @@ final class EditorAssets {
 		// wp-content/languages/plugins/, and this plugin ships its catalogues
 		// itself. The JSON filenames hash the enqueued path (build/index.js),
 		// which is why `composer i18n` scans build/ rather than src/.
-		wp_set_script_translations( self::HANDLE, 'live-previews', $base . 'languages' );
+		wp_set_script_translations( self::HANDLE, 'shareadraft', $base . 'languages' );
 
 		// Hand the editor the same expiration options the endpoint validates,
 		// and which optional restrictions this site offers, so the modals only
@@ -87,7 +87,7 @@ final class EditorAssets {
 		);
 
 		if ( false !== $data ) {
-			wp_add_inline_script( self::HANDLE, 'window.livePreviews = ' . $data . ';', 'before' );
+			wp_add_inline_script( self::HANDLE, 'window.shareADraft = ' . $data . ';', 'before' );
 		}
 	}
 }

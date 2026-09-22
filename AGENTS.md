@@ -6,7 +6,7 @@ matches your task.
 
 ## What this repo is
 
-**Live Previews**: a WordPress VIP integration that generates safe-to-share, time-
+**Share a Draft**: a WordPress VIP integration that generates safe-to-share, time-
 and usage-limited preview links so reviewers without a WordPress account can
 review a draft. It runs as a WordPress plugin, is registered with the VIP
 Integration Center through `vip-manifest.yaml`, and reads its optional settings
@@ -20,9 +20,9 @@ validate with `vip-integration validate` before shipping.
 
 | Path                                              | What lives here                                                                                            |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `live-previews.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
+| `shareadraft.php`                         | Plugin entry file: header, guards, constants, autoloader.                                                  |
 | `inc/`                                            | Runtime code (autoloaded via `inc/autoload.php`). `class-config.php`, `class-telemetry.php`, REST handlers. |
-| `inc/cli/`                                        | WP-CLI commands (`wp live-previews`), one class per subcommand. Loaded by explicit `require` under WP-CLI only — the flat autoloader does not map this directory. |
+| `inc/cli/`                                        | WP-CLI commands (`wp shareadraft`), one class per subcommand. Loaded by explicit `require` under WP-CLI only — the flat autoloader does not map this directory. |
 | `features/`                                       | Behat feature tests, one `.feature` per WP-CLI command, run against wp-env (`composer behat`).              |
 | `src/`                                            | Block-editor JavaScript, compiled into `build/` by `npm run build`.                                        |
 | `languages/`                                      | Translation catalogues. Regenerate the POT with `composer i18n` after changing any translatable string.    |
@@ -46,12 +46,12 @@ validate with `vip-integration validate` before shipping.
 - **Tracks-only telemetry.** Telemetry goes through `inc/class-telemetry.php`
   (VIP Tracks API, `class_exists`-guarded). No Stats/Pixel. Never put secrets,
   raw content, emails, or credentials in event properties.
-- **Match the prefix set.** Slug (`live-previews`), namespace
-  (`Automattic\LivePreviews`), and constant (`VIP_LIVE_PREVIEWS_*`) are one
+- **Match the prefix set.** Slug (`shareadraft`), namespace
+  (`Automattic\ShareADraft`), and constant (`VIP_SHAREADRAFT_*`) are one
   consistent set. Keep them in sync if you rename anything. The telemetry prefix
-  is the deliberate exception: `livepreviews_` (one word, no underscore), because
+  `shareadraft_` must stay a single word before its trailing underscore, because
   the leading token is the Tracks *source* and must be whitelisted in nosara — do
-  not "normalise" it to `live_previews_`.
+  not "expand" it to `share_a_draft_`.
 
 ## Conventions
 
@@ -62,7 +62,7 @@ pattern rather than introducing a new one.
 
 - **Baseline:** PHP 8.2+, WordPress 6.9 / 7.0. Do not use syntax newer than 8.2.
 - **Namespaces:** everything under the integration root namespace (example:
-  `Automattic\LivePreviews`). One class per file, filenames
+  `Automattic\ShareADraft`). One class per file, filenames
   `class-<name>.php` / `interface-<name>.php`, autoloaded at runtime by the
   first-party `inc/autoload.php` (no Composer autoloader is shipped, since the
   plugin has no runtime dependencies). Composer's classmap still autoloads `inc/`
@@ -107,7 +107,7 @@ The plugin has to work as an ordinary WordPress plugin on any host, not just on
 VIP, so anything platform-specific is gated:
 
 - **Platform-only surfaces** (the VIP support links in contextual help) go behind
-  `Automattic\LivePreviews\Platform::is_vip()`.
+  `Automattic\ShareADraft\Platform::is_vip()`.
 - **Platform-only APIs** (VIP Telemetry, the Abilities API) go behind
   `class_exists()` / `function_exists()` and no-op when absent.
 - **Nothing renders on the front end, and nothing nags.** No footer signature, no

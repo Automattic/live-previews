@@ -2,13 +2,13 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\Token;
+use Automattic\ShareADraft\Token;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Automattic\LivePreviews\Token
+ * @covers \Automattic\ShareADraft\Token
  */
 final class TokenTest extends TestCase {
 	public function test_generated_tokens_are_64_hex_characters(): void {

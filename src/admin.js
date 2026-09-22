@@ -1,22 +1,22 @@
 /**
  * The Gmail-style "select all across pages" wiring on the Preview Links screen.
  *
- * The banner, the hidden lp_all field, and the table markup are all rendered by
+ * The banner, the hidden shareadraft_all field, and the table markup are all rendered by
  * PreviewLinksAdminPage; this script only connects them. It is enqueued on
  * every load of that screen, but the banner is only rendered when there is more
  * than one page of links to offer, so bail quietly when it is absent.
  */
 document.addEventListener( 'DOMContentLoaded', function () {
-	const form = document.getElementById( 'lp-links' );
-	const all = document.getElementById( 'lp-all' );
-	const banner = document.getElementById( 'lp-select-all' );
+	const form = document.getElementById( 'shareadraft-links' );
+	const all = document.getElementById( 'shareadraft-all' );
+	const banner = document.getElementById( 'shareadraft-select-all' );
 
 	if ( ! form || ! all || ! banner ) {
 		return;
 	}
 
-	const offer = document.getElementById( 'lp-select-all-offer' );
-	const active = document.getElementById( 'lp-select-all-active' );
+	const offer = document.getElementById( 'shareadraft-select-all-offer' );
+	const active = document.getElementById( 'shareadraft-select-all-active' );
 	const masters = [ 'cb-select-all-1', 'cb-select-all-2' ]
 		.map( function ( id ) {
 			return document.getElementById( id );
@@ -49,7 +49,7 @@ document.addEventListener( 'DOMContentLoaded', function () {
 	} );
 
 	document
-		.getElementById( 'lp-select-all-btn' )
+		.getElementById( 'shareadraft-select-all-btn' )
 		.addEventListener( 'click', function () {
 			all.value = '1';
 			offer.hidden = true;
@@ -57,7 +57,7 @@ document.addEventListener( 'DOMContentLoaded', function () {
 		} );
 
 	document
-		.getElementById( 'lp-clear-selection-btn' )
+		.getElementById( 'shareadraft-clear-selection-btn' )
 		.addEventListener( 'click', function () {
 			reset();
 			form.querySelectorAll(

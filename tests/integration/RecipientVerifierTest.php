@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
@@ -10,7 +10,7 @@ use WP_UnitTestCase;
  * The emailed-code round trip: request a code, redeem it once, and prove the
  * guessing and re-request budgets hold.
  *
- * @covers \Automattic\LivePreviews\RecipientVerifier
+ * @covers \Automattic\ShareADraft\RecipientVerifier
  */
 class RecipientVerifierTest extends WP_UnitTestCase {
 	private const EMAIL = 'legal@example.com';
@@ -148,7 +148,7 @@ class RecipientVerifierTest extends WP_UnitTestCase {
 		$_COOKIE = [];
 		$this->verifier->remember_verified( $this->token, self::EMAIL );
 
-		$name = 'lp_recipient_' . substr( $this->token->hash(), 0, 20 );
+		$name = 'shareadraft_recipient_' . substr( $this->token->hash(), 0, 20 );
 
 		// Swap the proven address for another and keep the rest: the HMAC no
 		// longer covers the bytes presented, so the cookie is worthless.

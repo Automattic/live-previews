@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Prunes preview links that are finished with.
@@ -16,16 +16,16 @@ namespace Automattic\LivePreviews;
  * several runs instead of one query that times out.
  */
 final class LinkGarbageCollector {
-	public const HOOK = 'live_previews_prune_links';
+	public const HOOK = 'shareadraft_prune_links';
 
 	/** Where the last sweep got to, so the next run resumes rather than restarts. */
-	private const CURSOR_OPTION = 'live_previews_gc_cursor';
+	private const CURSOR_OPTION = 'shareadraft_gc_cursor';
 
 	/**
 	 * When a sweep last ran. Nothing in the sweep needs it; it exists so
 	 * {@see SiteHealth} can tell "scheduled" apart from "actually running".
 	 */
-	private const LAST_RUN_OPTION = 'live_previews_gc_last_run';
+	private const LAST_RUN_OPTION = 'shareadraft_gc_last_run';
 
 	/** Posts examined per run. Small enough to finish well inside a cron slot. */
 	private const BATCH_SIZE = 100;
@@ -159,7 +159,7 @@ final class LinkGarbageCollector {
 		 *
 		 * @param int $grace_seconds Retention period in seconds (21 days).
 		 */
-		$grace = (int) apply_filters( 'live_previews_dead_link_grace_period', $this->configured_grace_period() );
+		$grace = (int) apply_filters( 'shareadraft_dead_link_grace_period', $this->configured_grace_period() );
 
 		return max( 0, $grace );
 	}

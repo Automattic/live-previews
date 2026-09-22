@@ -11,7 +11,7 @@
  *
  * It is never shipped or activated in production.
  *
- * @package live-previews-wp-env
+ * @package shareadraft-wp-env
  */
 
 add_filter(

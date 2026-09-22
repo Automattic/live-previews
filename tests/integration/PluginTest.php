@@ -1,13 +1,13 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
-use Automattic\LivePreviews\Plugin;
+use Automattic\ShareADraft\Plugin;
 use WP_UnitTestCase;
 
 /**
- * @covers \Automattic\LivePreviews\Plugin
+ * @covers \Automattic\ShareADraft\Plugin
 */
 class PluginTest extends WP_UnitTestCase {
 	public static function set_up_before_class(): void {
@@ -25,7 +25,7 @@ class PluginTest extends WP_UnitTestCase {
 	}
 
 	public function tear_down(): void {
-		remove_all_filters( 'live_previews_is_vip_platform' );
+		remove_all_filters( 'shareadraft_is_vip_platform' );
 		set_current_screen( 'front' );
 		parent::tear_down();
 	}

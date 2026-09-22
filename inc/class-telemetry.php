@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Tracks-only telemetry helper — the pattern VIP integrations should reuse.
@@ -16,14 +16,14 @@ final class Telemetry {
 	/**
 	 * Tracks source prefix for every event this plugin records.
 	 *
-	 * The leading token (`livepreviews`) is the Tracks "source" and MUST be a
+	 * The leading token (`shareadraft`) is the Tracks "source" and MUST be a
 	 * single lowercase word with no underscores, and MUST be whitelisted in
 	 * Automattic/nosara's `tracks_events_whitelist.config`. Events from a
 	 * non-whitelisted source are silently diverted to `prod_rejects` and never
 	 * appear in the Tracks tools — so do not change this to a value that isn't
 	 * on that whitelist.
 	 */
-	public const EVENT_PREFIX = 'livepreviews_';
+	public const EVENT_PREFIX = 'shareadraft_';
 
 	/** @var self|null */
 	private static $instance;
@@ -55,7 +55,7 @@ final class Telemetry {
 	 */
 	private static function global_properties(): array {
 		$properties = [
-			'plugin_version' => VIP_LIVE_PREVIEWS_VERSION,
+			'plugin_version' => VIP_SHAREADRAFT_VERSION,
 		];
 
 		// The environment's unique numeric ID on VIP. A production (parent) and
@@ -98,7 +98,7 @@ final class Telemetry {
 		$is_local = defined( 'VIP_GO_APP_ENVIRONMENT' ) && 'local' === constant( 'VIP_GO_APP_ENVIRONMENT' );
 
 		/**
-		 * Filters whether Live Previews telemetry is recorded in this environment.
+		 * Filters whether Share a Draft telemetry is recorded in this environment.
 		 *
 		 * Defaults to false on the local dev-env and true everywhere else. Return
 		 * true to record from a dev-env (e.g. a deliberate smoke test), or false
@@ -106,6 +106,6 @@ final class Telemetry {
 		 *
 		 * @param bool $should_record Whether to record events.
 		 */
-		return (bool) apply_filters( 'livepreviews_record_telemetry', ! $is_local );
+		return (bool) apply_filters( 'shareadraft_record_telemetry', ! $is_local );
 	}
 }

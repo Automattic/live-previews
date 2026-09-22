@@ -2,21 +2,21 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\AccessDecision;
-use Automattic\LivePreviews\AccessPolicy;
-use Automattic\LivePreviews\PreviewLinkService;
-use Automattic\LivePreviews\Token;
-use Automattic\LivePreviews\Tests\Support\FrozenClock;
-use Automattic\LivePreviews\Tests\Support\InMemoryTokenRepository;
+use Automattic\ShareADraft\AccessDecision;
+use Automattic\ShareADraft\AccessPolicy;
+use Automattic\ShareADraft\PreviewLinkService;
+use Automattic\ShareADraft\Token;
+use Automattic\ShareADraft\Tests\Support\FrozenClock;
+use Automattic\ShareADraft\Tests\Support\InMemoryTokenRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Round-trips through the application service against an in-memory repository and
  * a frozen clock: mint a link, then prove who may and may not use it and when.
  *
- * @covers \Automattic\LivePreviews\PreviewLinkService
+ * @covers \Automattic\ShareADraft\PreviewLinkService
  */
 final class PreviewLinkServiceTest extends TestCase {
 	private const NOW     = 1000;

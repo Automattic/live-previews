@@ -1,7 +1,7 @@
 /**
- * Live Previews editor integration.
+ * Share a Draft editor integration.
  *
- * Adds a "Live Previews" panel to the post sidebar with two actions: generate a
+ * Adds a "Share a Draft" panel to the post sidebar with two actions: generate a
  * new shareable preview link (expiration + a viewer cap), and manage the post's
  * existing links (see their usage and time left, and revoke them).
  */
@@ -28,9 +28,9 @@ import {
 import apiFetch from '@wordpress/api-fetch';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
-const REST_BASE = '/live-previews/v1/preview-links';
+const REST_BASE = '/shareadraft/v1/preview-links';
 
-const settings = window.livePreviews || {
+const settings = window.shareADraft || {
 	expirationOptions: [],
 	defaultExpiration: 28800,
 	hasCentralIpRanges: false,
@@ -54,28 +54,20 @@ function timeUntil( targetSeconds ) {
 	const remaining = targetSeconds - Math.floor( Date.now() / 1000 );
 
 	if ( remaining <= 0 ) {
-		return __( 'expired', 'live-previews' );
+		return __( 'expired', 'shareadraft' );
 	}
 
 	// A site can filter in a very long lifetime for an effectively indefinite
 	// link; show that as "no expiry" rather than "expires in 520 weeks".
 	if ( remaining > 5 * 365 * 86400 ) {
-		return __( 'no expiry', 'live-previews' );
+		return __( 'no expiry', 'shareadraft' );
 	}
 
 	const units = [
-		[ 86400, __( 'day', 'live-previews' ), __( 'days', 'live-previews' ) ],
-		[ 3600, __( 'hour', 'live-previews' ), __( 'hours', 'live-previews' ) ],
-		[
-			60,
-			__( 'minute', 'live-previews' ),
-			__( 'minutes', 'live-previews' ),
-		],
-		[
-			1,
-			__( 'second', 'live-previews' ),
-			__( 'seconds', 'live-previews' ),
-		],
+		[ 86400, __( 'day', 'shareadraft' ), __( 'days', 'shareadraft' ) ],
+		[ 3600, __( 'hour', 'shareadraft' ), __( 'hours', 'shareadraft' ) ],
+		[ 60, __( 'minute', 'shareadraft' ), __( 'minutes', 'shareadraft' ) ],
+		[ 1, __( 'second', 'shareadraft' ), __( 'seconds', 'shareadraft' ) ],
 	];
 
 	for ( const [ size, singular, plural ] of units ) {
@@ -83,14 +75,14 @@ function timeUntil( targetSeconds ) {
 			const count = Math.floor( remaining / size );
 			return sprintf(
 				/* translators: 1: a number, 2: a unit of time such as "hours". */
-				__( 'expires in %1$d %2$s', 'live-previews' ),
+				__( 'expires in %1$d %2$s', 'shareadraft' ),
 				count,
 				1 === count ? singular : plural
 			);
 		}
 	}
 
-	return __( 'expires soon', 'live-previews' );
+	return __( 'expires soon', 'shareadraft' );
 }
 
 function usageLabel( link ) {
@@ -101,7 +93,7 @@ function usageLabel( link ) {
 				'%d view · no limit',
 				'%d views · no limit',
 				link.use_count,
-				'live-previews'
+				'shareadraft'
 			),
 			link.use_count
 		);
@@ -109,7 +101,7 @@ function usageLabel( link ) {
 
 	return sprintf(
 		/* translators: 1: views so far, 2: maximum views. */
-		__( '%1$d of %2$d views', 'live-previews' ),
+		__( '%1$d of %2$d views', 'shareadraft' ),
 		link.use_count,
 		link.max_uses
 	);
@@ -183,7 +175,7 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 				requestError.message ||
 					__(
 						'The preview link could not be generated.',
-						'live-previews'
+						'shareadraft'
 					)
 			);
 		} finally {
@@ -193,7 +185,7 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Generate preview link', 'live-previews' ) }
+			title={ __( 'Generate preview link', 'shareadraft' ) }
 			onRequestClose={ onClose }
 			size="medium"
 		>
@@ -203,7 +195,7 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
 							'Preview links are currently disabled site-wide. You can generate new links, but they will not work until an administrator re-enables preview links.',
-							'live-previews'
+							'shareadraft'
 						) }
 					</Notice>
 				) }
@@ -212,16 +204,16 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 					{ hasRecipients
 						? __(
 								'Only the listed reviewers will be able to open this link, after verifying their email address.',
-								'live-previews'
+								'shareadraft'
 						  )
 						: __(
 								'Anyone with this link will be able to preview the post.',
-								'live-previews'
+								'shareadraft'
 						  ) }
 				</Notice>
 
 				<SelectControl
-					label={ __( 'Link expiration', 'live-previews' ) }
+					label={ __( 'Link expiration', 'shareadraft' ) }
 					value={ expiration }
 					options={ expirationOptions }
 					onChange={ setExpiration }
@@ -237,10 +229,10 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 					type="number"
 					min={ 1 }
 					step={ 1 }
-					label={ __( 'Maximum uses', 'live-previews' ) }
+					label={ __( 'Maximum uses', 'shareadraft' ) }
 					help={ __(
 						'Number of distinct viewers. Leave empty for unlimited.',
-						'live-previews'
+						'shareadraft'
 					) }
 					value={ maxUses }
 					onChange={ setMaxUses }
@@ -252,10 +244,10 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 
 				{ settings.recipientsEnabled && (
 					<TextControl
-						label={ __( 'Restrict to reviewers', 'live-previews' ) }
+						label={ __( 'Restrict to reviewers', 'shareadraft' ) }
 						help={ __(
 							'Comma-separated email addresses. Each reviewer must verify their address with an emailed code before viewing. Leave empty to let anyone with the link view.',
-							'live-previews'
+							'shareadraft'
 						) }
 						value={ recipients }
 						onChange={ setRecipients }
@@ -268,16 +260,16 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 
 				{ settings.ipAllowlistEnabled && (
 					<TextControl
-						label={ __( 'Allowed IP ranges', 'live-previews' ) }
+						label={ __( 'Allowed IP ranges', 'shareadraft' ) }
 						help={
 							settings.hasCentralIpRanges
 								? __(
 										'Comma-separated IPv4/IPv6 addresses or CIDR ranges, added to the ranges already set in the VIP Dashboard. Leave empty to add none.',
-										'live-previews'
+										'shareadraft'
 								  )
 								: __(
 										'Comma-separated IPv4/IPv6 addresses or CIDR ranges, e.g. 203.0.113.0/24. Limits where the link opens, not who opens it. Leave empty for no IP restriction.',
-										'live-previews'
+										'shareadraft'
 								  )
 						}
 						value={ allowedIps }
@@ -297,17 +289,17 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 
 				{ url && (
 					<TextControl
-						label={ __( 'Preview link', 'live-previews' ) }
+						label={ __( 'Preview link', 'shareadraft' ) }
 						value={ url }
 						readOnly
 						onFocus={ ( event ) => event.target.select() }
 						__next40pxDefaultSize
 						help={
 							copied
-								? __( 'Copied to clipboard.', 'live-previews' )
+								? __( 'Copied to clipboard.', 'shareadraft' )
 								: __(
 										'Copy this link to share it.',
-										'live-previews'
+										'shareadraft'
 								  )
 						}
 						__nextHasNoMarginBottom
@@ -326,7 +318,7 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 							} }
 							__next40pxDefaultSize
 						>
-							{ __( 'Generate another link', 'live-previews' ) }
+							{ __( 'Generate another link', 'shareadraft' ) }
 						</Button>
 					) }
 
@@ -338,8 +330,8 @@ function GenerateModal( { postId, onCreated, onClose } ) {
 						__next40pxDefaultSize
 					>
 						{ url
-							? __( 'Copy link', 'live-previews' )
-							: __( 'Generate link', 'live-previews' ) }
+							? __( 'Copy link', 'shareadraft' )
+							: __( 'Generate link', 'shareadraft' ) }
 					</Button>
 				</Flex>
 			</Flex>
@@ -363,7 +355,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 		} catch ( requestError ) {
 			setError(
 				requestError.message ||
-					__( 'Could not load links.', 'live-previews' )
+					__( 'Could not load links.', 'shareadraft' )
 			);
 			setLinks( [] );
 		}
@@ -399,7 +391,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 			// Put it back and surface the problem if the revoke did not stick.
 			setError(
 				requestError.message ||
-					__( 'Could not revoke the link.', 'live-previews' )
+					__( 'Could not revoke the link.', 'shareadraft' )
 			);
 			load();
 		}
@@ -407,7 +399,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Manage preview links', 'live-previews' ) }
+			title={ __( 'Manage preview links', 'shareadraft' ) }
 			onRequestClose={ onClose }
 			size="medium"
 		>
@@ -415,7 +407,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 				<Notice status="warning" isDismissible={ false }>
 					{ __(
 						'Preview links are currently disabled site-wide. None of the links below work until an administrator re-enables preview links.',
-						'live-previews'
+						'shareadraft'
 					) }
 				</Notice>
 			) }
@@ -430,7 +422,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 				<p style={ { ...mutedStyle, marginTop: 0 } }>
 					{ __(
 						'IP ranges added in the VIP Dashboard also apply to every link, in addition to any restriction shown per link.',
-						'live-previews'
+						'shareadraft'
 					) }
 				</p>
 			) }
@@ -438,7 +430,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 			{ null === links && <Spinner /> }
 
 			{ null !== links && 0 === links.length && (
-				<p>{ __( 'No active preview links.', 'live-previews' ) }</p>
+				<p>{ __( 'No active preview links.', 'shareadraft' ) }</p>
 			) }
 
 			{ null !== links &&
@@ -456,7 +448,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 							<div style={ { fontWeight: 500 } }>
 								{ sprintf(
 									/* translators: %s: date and time the link was created. */
-									__( 'Created %s', 'live-previews' ),
+									__( 'Created %s', 'shareadraft' ),
 									new Date(
 										link.created_at * 1000
 									).toLocaleString( undefined, {
@@ -472,7 +464,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 									link.token_hint &&
 										sprintf(
 											/* translators: %s: the last few characters of the link's token. */
-											__( 'ending %s', 'live-previews' ),
+											__( 'ending %s', 'shareadraft' ),
 											link.token_hint
 										),
 								]
@@ -486,7 +478,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 											/* translators: %s: comma-separated email addresses. */
 											__(
 												'Reviewers: %s',
-												'live-previews'
+												'shareadraft'
 											),
 											link.recipients.join( ', ' )
 										) }
@@ -499,7 +491,7 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 											/* translators: %s: comma-separated IP ranges. */
 											__(
 												'Restricted to %s',
-												'live-previews'
+												'shareadraft'
 											),
 											link.allowed_ips.join( ', ' )
 										) }
@@ -518,14 +510,14 @@ function ManageModal( { postId, onLinksChange, onClose } ) {
 												/* translators: %s: the last few characters of the link's token. */
 												__(
 													'Revoke link ending %s',
-													'live-previews'
+													'shareadraft'
 												),
 												link.token_hint
 										  )
 										: undefined
 								}
 							>
-								{ __( 'Revoke', 'live-previews' ) }
+								{ __( 'Revoke', 'shareadraft' ) }
 							</Button>
 						</FlexItem>
 					</Flex>
@@ -541,7 +533,7 @@ const panelButtonStyle = {
 	borderColor: '#ccc',
 };
 
-function LivePreviewsPanel() {
+function ShareADraftPanel() {
 	const { postId, status } = useSelect( ( select ) => {
 		const editor = select( editorStore );
 		return {
@@ -572,8 +564,8 @@ function LivePreviewsPanel() {
 
 	return (
 		<PluginDocumentSettingPanel
-			name="live-previews"
-			title={ __( 'Live Previews', 'live-previews' ) }
+			name="shareadraft"
+			title={ __( 'Share a Draft', 'shareadraft' ) }
 		>
 			<Button
 				onClick={ () => setOpenModal( 'generate' ) }
@@ -581,7 +573,7 @@ function LivePreviewsPanel() {
 				style={ { ...panelButtonStyle, marginBottom: '8px' } }
 				__next40pxDefaultSize
 			>
-				{ __( 'Generate preview link', 'live-previews' ) }
+				{ __( 'Generate preview link', 'shareadraft' ) }
 			</Button>
 
 			<Button
@@ -589,19 +581,19 @@ function LivePreviewsPanel() {
 				disabled={ ! postId || ! hasLinks }
 				accessibleWhenDisabled
 				aria-describedby={
-					hasLinks ? undefined : 'live-previews-manage-description'
+					hasLinks ? undefined : 'shareadraft-manage-description'
 				}
 				style={ panelButtonStyle }
 				__next40pxDefaultSize
 			>
-				{ __( 'Manage preview links', 'live-previews' ) }
+				{ __( 'Manage preview links', 'shareadraft' ) }
 			</Button>
 
 			{ ! hasLinks && (
-				<VisuallyHidden id="live-previews-manage-description">
+				<VisuallyHidden id="shareadraft-manage-description">
 					{ __(
 						'Available once this post has an active preview link.',
-						'live-previews'
+						'shareadraft'
 					) }
 				</VisuallyHidden>
 			) }
@@ -625,4 +617,4 @@ function LivePreviewsPanel() {
 	);
 }
 
-registerPlugin( 'live-previews', { render: LivePreviewsPanel } );
+registerPlugin( 'shareadraft', { render: ShareADraftPanel } );

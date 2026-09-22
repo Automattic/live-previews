@@ -1,9 +1,9 @@
 <?php
 /**
- * First-party autoloader for the Live Previews plugin.
+ * First-party autoloader for the Share a Draft plugin.
  *
  * The plugin has no runtime Composer dependencies: every class and interface
- * lives directly in inc/ under the Automattic\LivePreviews namespace and follows
+ * lives directly in inc/ under the Automattic\ShareADraft namespace and follows
  * the WordPress `class-<name>.php` / `interface-<name>.php` file-naming
  * convention. Registering this small autoloader lets the deployed plugin resolve
  * its classes without Composer's generated `vendor/autoload.php`, so no vendor/
@@ -11,7 +11,7 @@
  * development and the test suites, which load `vendor/autoload.php` directly.
  */
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 spl_autoload_register(
 	static function ( string $class_name ): void {

@@ -1,12 +1,12 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\LinkToggle;
+use Automattic\ShareADraft\LinkToggle;
 use WP_CLI;
 
 /**
- * The `wp live-previews disable` command.
+ * The `wp shareadraft disable` command.
  *
  * Flips the same site-wide switch as the admin page's toggle slider, through
  * the shared {@see LinkToggle}. Disabling is a pause, not a revocation: every
@@ -24,12 +24,12 @@ final class DisableCommand {
 	/**
 	 * Stop every preview link working until links are re-enabled.
 	 *
-	 * A reversible pause: no link is revoked or deleted, and `wp live-previews enable` restores each one exactly as it was. Who flipped the switch and when is recorded, for incident response.
+	 * A reversible pause: no link is revoked or deleted, and `wp shareadraft enable` restores each one exactly as it was. Who flipped the switch and when is recorded, for incident response.
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     # A preview URL may have leaked: pause everything while investigating.
-	 *     $ wp live-previews disable
+	 *     $ wp shareadraft disable
 	 *     Success: Preview links disabled.
 	 *
 	 * @when after_wp_load

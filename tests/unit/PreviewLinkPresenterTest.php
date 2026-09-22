@@ -2,15 +2,15 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\PreviewLinkPresenter;
-use Automattic\LivePreviews\Token;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\PreviewLinkPresenter;
+use Automattic\ShareADraft\Token;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Automattic\LivePreviews\PreviewLinkPresenter
+ * @covers \Automattic\ShareADraft\PreviewLinkPresenter
  */
 final class PreviewLinkPresenterTest extends TestCase {
 	private const NOW = 1000;

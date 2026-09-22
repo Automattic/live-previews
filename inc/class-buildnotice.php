@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Warns administrators when the JavaScript assets have not been built.
@@ -20,7 +20,7 @@ final class BuildNotice {
 	public function maybe_render(): void {
 		// Every entry point is produced by the same build command, so one
 		// asset file stands in for the lot.
-		if ( file_exists( plugin_dir_path( VIP_LIVE_PREVIEWS_FILE ) . 'build/index.asset.php' ) ) {
+		if ( file_exists( plugin_dir_path( VIP_SHAREADRAFT_FILE ) . 'build/index.asset.php' ) ) {
 			return;
 		}
 
@@ -30,7 +30,7 @@ final class BuildNotice {
 
 		printf(
 			'<div class="notice notice-warning"><p>%s</p><p><code>npm install &amp;&amp; npm run build</code></p></div>',
-			esc_html__( 'Live Previews: the JavaScript assets have not been built, so the editor panel and parts of the Preview Links screen are missing. From the plugin directory, run:', 'live-previews' )
+			esc_html__( 'Share a Draft: the JavaScript assets have not been built, so the editor panel and parts of the Preview Links screen are missing. From the plugin directory, run:', 'shareadraft' )
 		);
 	}
 }

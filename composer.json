@@ -1,6 +1,6 @@
 {
-  "name": "automattic/live-previews",
-  "description": "Live Previews plugin for sharing draft content with external stakeholders.",
+  "name": "automattic/shareadraft",
+  "description": "Share a Draft plugin for sharing draft content with external stakeholders.",
   "license": "GPL-2.0-or-later",
   "type": "wordpress-plugin",
   "require": {
@@ -27,7 +27,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Automattic\\LivePreviews\\Tests\\Behat\\": "tests/behat/"
+      "Automattic\\ShareADraft\\Tests\\Behat\\": "tests/behat/"
     }
   },
   "config": {
@@ -47,7 +47,7 @@
       "@i18n:json"
     ],
     "i18n:json": "wp i18n make-json languages --no-purge --pretty-print",
-    "i18n:pot": "wp i18n make-pot . languages/live-previews.pot --slug=live-previews --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/live-previews/issues\"}'",
+    "i18n:pot": "wp i18n make-pot . languages/shareadraft.pot --slug=shareadraft --exclude=src,tests,fixtures,docs,.wp-env,.wpvip,.devcontainer --headers='{\"Report-Msgid-Bugs-To\":\"https://github.com/Automattic/shareadraft/issues\"}'",
     "phpcbf": "phpcbf",
     "phpcs": "phpcs",
     "prepare-behat-tests": "wp-env start",
@@ -68,7 +68,7 @@
     "prepare-behat-tests": "Start the wp-env environment the Behat tests run against",
     "i18n": "Regenerate the POT file and any JSON catalogues (needs WP-CLI and a current `npm run build`)",
     "i18n:json": "Split translated PO files into the JSON catalogues the editor script loads",
-    "i18n:pot": "Regenerate languages/live-previews.pot from the PHP and the built editor script",
+    "i18n:pot": "Regenerate languages/shareadraft.pot from the PHP and the built editor script",
     "test": "Run PHPUnit (unit + integration) and Playwright e2e tests (e2e needs a running vip dev-env)",
     "test:e2e": "Run Playwright e2e tests only (needs a running vip dev-env)",
     "test:integration": "Run the integration suite (boots a real WordPress test environment)",

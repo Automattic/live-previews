@@ -84,13 +84,13 @@ test.describe( 'Preview links', () => {
 		await page.keyboard.press( 'ControlOrMeta+s' );
 		await page.waitForURL( /[?&]post=\d+/u );
 
-		// --- The Live Previews sidebar panel --------------------------------
+		// --- The Share a Draft sidebar panel --------------------------------
 		// Editing the paragraph switched the sidebar to the Block tab; the plugin
 		// panel lives under the document (Post) tab. Match on the tab's visible
 		// text rather than its computed accessible name, which WP leaves empty.
 		await page.locator( '[role="tab"]' ).filter( { hasText: 'Post' } ).click();
 		await ensureExpanded( page.getByRole( 'button', { name: 'Settings', exact: true } ), 'aria-pressed' );
-		await ensureExpanded( page.getByRole( 'button', { name: 'Live Previews' } ), 'aria-expanded' );
+		await ensureExpanded( page.getByRole( 'button', { name: 'Share a Draft' } ), 'aria-expanded' );
 
 		const generateButton = page.getByRole( 'button', { name: 'Generate preview link' } );
 		const manageButton = page.getByRole( 'button', { name: 'Manage preview links' } );
@@ -108,7 +108,7 @@ test.describe( 'Preview links', () => {
 		const linkField = generateModal.getByRole( 'textbox', { name: 'Preview link' } );
 		await expect( linkField ).toBeVisible();
 		const previewUrl = await linkField.inputValue();
-		expect( previewUrl ).toContain( 'lp-token=' );
+		expect( previewUrl ).toContain( 'shareadraft-token=' );
 
 		// Copying again must reuse that link, not mint a second one.
 		await generateModal.getByRole( 'button', { name: 'Copy link' } ).click();
@@ -137,7 +137,7 @@ test.describe( 'Preview links', () => {
 		// id-bearing path, which is what distinguishes it from the earlier mint.
 		const revoked = page.waitForResponse(
 			( response ) =>
-				/\/live-previews\/v1\/preview-links\/[a-f0-9]{64}/u.test( response.url() ) &&
+				/\/shareadraft\/v1\/preview-links\/[a-f0-9]{64}/u.test( response.url() ) &&
 				[ 'DELETE', 'POST' ].includes( response.request().method() ) &&
 				response.ok()
 		);

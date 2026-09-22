@@ -5,10 +5,10 @@ Feature: Preview links can be created from the command line
 	ever sees the hash.
 
 	Background:
-		Given a WP installation with the Live Previews plugin
+		Given a WP installation with the Share a Draft plugin
 
 	Scenario: Error when the post does not exist
-		When I try `wp live-previews create 999999`
+		When I try `wp shareadraft create 999999`
 		Then STDERR should be:
 			"""
 			Error: The post could not be found.
@@ -17,10 +17,10 @@ Feature: Preview links can be created from the command line
 	Scenario: Create a link for a draft with the default lifetime
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I run `wp live-previews create {POST_ID}`
+		When I run `wp shareadraft create {POST_ID}`
 		Then STDOUT should contain:
 			"""
-			lp-token=
+			shareadraft-token=
 			"""
 		And STDOUT should contain:
 			"""
@@ -30,36 +30,36 @@ Feature: Preview links can be created from the command line
 	Scenario: Porcelain output is just the URL, for scripts
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I run `wp live-previews create {POST_ID} --expiration=3600 --max-uses=1 --porcelain`
+		When I run `wp shareadraft create {POST_ID} --expiration=3600 --max-uses=1 --porcelain`
 		Then STDOUT should contain:
 			"""
-			lp-token=
+			shareadraft-token=
 			"""
 		And STDOUT should not match /Success/
 
 	Scenario: Warn when preview links are disabled site-wide
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		And I run `wp option update live_previews_disabled '{"disabled_at":1757300000,"disabled_by":1}' --format=json`
-		When I run `wp live-previews create {POST_ID}`
+		And I run `wp option update shareadraft_disabled '{"disabled_at":1757300000,"disabled_by":1}' --format=json`
+		When I run `wp shareadraft create {POST_ID}`
 		Then STDOUT should contain:
 			"""
 			Warning: Preview links are currently disabled site-wide. The link was created, but it will not work until an administrator re-enables preview links.
 			"""
 		And STDOUT should contain:
 			"""
-			lp-token=
+			shareadraft-token=
 			"""
 
 	Scenario: Reject a lifetime outside the allowed set
-		When I try `wp live-previews create 1 --expiration=123`
+		When I try `wp shareadraft create 1 --expiration=123`
 		Then STDERR should contain:
 			"""
 			123 is not an allowed lifetime.
 			"""
 
 	Scenario: Reject an out-of-range viewer cap
-		When I try `wp live-previews create 1 --max-uses=0`
+		When I try `wp shareadraft create 1 --max-uses=0`
 		Then STDERR should be:
 			"""
 			Error: --max-uses must be between 1 and 1000.
@@ -68,7 +68,7 @@ Feature: Preview links can be created from the command line
 	Scenario: Reject an invalid IP range
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews create {POST_ID} --allowed-ips=999.0.0.1`
+		When I try `wp shareadraft create {POST_ID} --allowed-ips=999.0.0.1`
 		Then STDERR should contain:
 			"""
 			is not a valid IP address or CIDR range.
@@ -77,12 +77,12 @@ Feature: Preview links can be created from the command line
 	Scenario: Bind a link to named reviewers
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I run `wp live-previews create {POST_ID} --recipients=legal@example.com`
+		When I run `wp shareadraft create {POST_ID} --recipients=legal@example.com`
 		Then STDOUT should contain:
 			"""
-			lp-token=
+			shareadraft-token=
 			"""
-		When I run `wp live-previews list {POST_ID} --field=recipients`
+		When I run `wp shareadraft list {POST_ID} --field=recipients`
 		Then STDOUT should be:
 			"""
 			legal@example.com
@@ -91,7 +91,7 @@ Feature: Preview links can be created from the command line
 	Scenario: Reject an invalid reviewer address
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews create {POST_ID} --recipients=not-an-email`
+		When I try `wp shareadraft create {POST_ID} --recipients=not-an-email`
 		Then STDERR should contain:
 			"""
 			is not a valid email address.

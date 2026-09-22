@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Postmeta-backed {@see TokenRepository}.
@@ -19,7 +19,7 @@ final class PostMetaTokenRepository implements TokenRepository {
 	 * Hidden meta key (leading underscore) so links never show in the Custom
 	 * Fields UI.
 	 */
-	public const META_KEY = '_live_previews_token';
+	public const META_KEY = '_shareadraft_token';
 
 	/**
 	 * Storage schema version.

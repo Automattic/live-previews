@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Error;
 use WP_REST_Request;
@@ -15,7 +15,7 @@ use WP_REST_Server;
  * enforcement ({@see PreviewGate}).
  */
 final class PreviewRestController {
-	public const NAMESPACE = 'live-previews/v1';
+	public const NAMESPACE = 'shareadraft/v1';
 	public const ROUTE     = '/preview-links';
 
 	/**
@@ -46,19 +46,19 @@ final class PreviewRestController {
 		$options = [
 			[
 				'seconds' => HOUR_IN_SECONDS,
-				'label'   => __( '1 hour', 'live-previews' ),
+				'label'   => __( '1 hour', 'shareadraft' ),
 			],
 			[
 				'seconds' => 8 * HOUR_IN_SECONDS,
-				'label'   => __( '8 hours', 'live-previews' ),
+				'label'   => __( '8 hours', 'shareadraft' ),
 			],
 			[
 				'seconds' => DAY_IN_SECONDS,
-				'label'   => __( '24 hours', 'live-previews' ),
+				'label'   => __( '24 hours', 'shareadraft' ),
 			],
 			[
 				'seconds' => WEEK_IN_SECONDS,
-				'label'   => __( '7 days', 'live-previews' ),
+				'label'   => __( '7 days', 'shareadraft' ),
 			],
 		];
 
@@ -69,7 +69,7 @@ final class PreviewRestController {
 		 * @param list<array{seconds: int, label: string}> $options Ordered options.
 		 */
 		/** @var mixed $filtered */
-		$filtered = apply_filters( 'live_previews_expiration_options', $options );
+		$filtered = apply_filters( 'shareadraft_expiration_options', $options );
 
 		if ( ! is_array( $filtered ) || [] === $filtered ) {
 			return $options;
@@ -88,7 +88,7 @@ final class PreviewRestController {
 		 *
 		 * @param int $default Default lifetime in seconds (8 hours).
 		 */
-		return (int) apply_filters( 'live_previews_default_expiration', 8 * HOUR_IN_SECONDS );
+		return (int) apply_filters( 'shareadraft_default_expiration', 8 * HOUR_IN_SECONDS );
 	}
 
 	public function register_routes(): void {
@@ -194,8 +194,8 @@ final class PreviewRestController {
 
 		if ( ! $this->service->revoke( $post_id, $token_hash ) ) {
 			return new WP_Error(
-				'live_previews_link_not_found',
-				__( 'No matching preview link to revoke.', 'live-previews' ),
+				'shareadraft_link_not_found',
+				__( 'No matching preview link to revoke.', 'shareadraft' ),
 				[ 'status' => 404 ]
 			);
 		}

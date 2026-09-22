@@ -2,11 +2,11 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests\Support;
+namespace Automattic\ShareADraft\Tests\Support;
 
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\Token;
-use Automattic\LivePreviews\TokenRepository;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\Token;
+use Automattic\ShareADraft\TokenRepository;
 
 /**
  * In-memory {@see TokenRepository} for unit tests. Mirrors the postmeta adapter's

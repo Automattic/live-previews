@@ -1,14 +1,14 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\BulkLinkRevoker;
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\PreviewLinkService;
+use Automattic\ShareADraft\BulkLinkRevoker;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\PreviewLinkService;
 use WP_CLI;
 
 /**
- * The `wp live-previews revoke` command.
+ * The `wp shareadraft revoke` command.
  *
  * Revokes through {@see PreviewLinkService::revoke()}, the same path as the
  * editor and the admin table, so a revoked link leaves the tombstone the gate
@@ -37,7 +37,7 @@ final class RevokeCommand {
 	 * : The post whose link to revoke. Omit for the site-wide scopes.
 	 *
 	 * [<link>]
-	 * : The link to revoke: a token hint as shown by `wp live-previews list`, or a full link id.
+	 * : The link to revoke: a token hint as shown by `wp shareadraft list`, or a full link id.
 	 *
 	 * [--created-by=<user>]
 	 * : Revoke every link this user (an ID, login, or email) created, across the whole site — e.g. when someone leaves.
@@ -51,19 +51,19 @@ final class RevokeCommand {
 	 * ## EXAMPLES
 	 *
 	 *     # Revoke the link whose token hint is "ab3f".
-	 *     $ wp live-previews revoke 123 ab3f
+	 *     $ wp shareadraft revoke 123 ab3f
 	 *     Success: Revoked 1 preview link.
 	 *
 	 *     # A preview URL leaked: kill every live link on the post.
-	 *     $ wp live-previews revoke 123 --all
+	 *     $ wp shareadraft revoke 123 --all
 	 *     Success: Revoked 2 preview links.
 	 *
 	 *     # Someone left: kill every link they created, site-wide.
-	 *     $ wp live-previews revoke --created-by=jane
+	 *     $ wp shareadraft revoke --created-by=jane
 	 *     Success: Revoked 4 preview links.
 	 *
 	 *     # Break glass: kill every live link on the site.
-	 *     $ wp live-previews revoke --all --yes
+	 *     $ wp shareadraft revoke --all --yes
 	 *     Success: Revoked 12 preview links.
 	 *
 	 * @when after_wp_load
@@ -154,7 +154,7 @@ final class RevokeCommand {
 	 * @param array<string, string|bool> $assoc_args Associative arguments.
 	 */
 	private function revoke_everything( array $assoc_args ): void {
-		WP_CLI::confirm( 'Revoke every live preview link on the site?', $assoc_args );
+		WP_CLI::confirm( 'Revoke every preview link on the site?', $assoc_args );
 
 		self::report( $this->revoker->revoke_all(), $this->revoker->has_pending_work() );
 	}

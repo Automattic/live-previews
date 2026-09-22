@@ -2,6 +2,6 @@ default:
   suites:
     default:
       contexts:
-        - Automattic\LivePreviews\Tests\Behat\FeatureContext
+        - Automattic\ShareADraft\Tests\Behat\FeatureContext
       paths:
         - features

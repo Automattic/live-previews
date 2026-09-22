@@ -2,7 +2,7 @@
 
 | Path                       | Purpose                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------- |
-| `live-previews.php`  | Plugin entry file: header, guards, constants, autoloader, start. Kept intentionally small.    |
+| `shareadraft.php`  | Plugin entry file: header, guards, constants, autoloader, start. Kept intentionally small.    |
 | `inc/`                     | The integration's WordPress runtime code (autoloaded at runtime by `inc/autoload.php`).       |
 | `src/`                     | Block-editor JavaScript, compiled into `build/` by `npm run build`.                           |
 | `languages/`               | Translation catalogues shipped with the plugin (regenerate with `composer i18n`).             |

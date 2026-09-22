@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Query;
 use WP_UnitTestCase;
@@ -11,7 +11,7 @@ use WP_UnitTestCase;
  * draft for a request carrying it, counts distinct human viewers against a cap,
  * and leaves it locked otherwise.
  *
- * @covers \Automattic\LivePreviews\PreviewGate
+ * @covers \Automattic\ShareADraft\PreviewGate
  */
 class PreviewGateTest extends WP_UnitTestCase {
 	private PreviewLinkService $service;
@@ -105,7 +105,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		// A visitor controls their own cookie names, and one ending in `[]` makes
 		// PHP hand back an array where a string is expected.
-		$_COOKIE = [ 'lp_viewer_' . substr( $token->hash(), 0, 20 ) => [ 'not', 'a', 'string' ] ];
+		$_COOKIE = [ 'shareadraft_viewer_' . substr( $token->hash(), 0, 20 ) => [ 'not', 'a', 'string' ] ];
 
 		static::assertSame( 'publish', $this->visit( $post_id, $token ) );
 		static::assertSame( 1, $this->repository->all_for_post( $post_id )[0]->use_count() );
@@ -117,7 +117,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		$this->visit( $post_id, $token, true );
 
-		$cookie = 'lp_viewer_' . substr( $token->hash(), 0, 20 );
+		$cookie = 'shareadraft_viewer_' . substr( $token->hash(), 0, 20 );
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Reading back the value the gate itself just set, in a test.
 		$issued = isset( $_COOKIE[ $cookie ] ) ? (string) $_COOKIE[ $cookie ] : '';
 
@@ -188,7 +188,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// A second viewer forges the marker. Everything here is derivable from
 		// the shared URL, which is exactly what the old scheme got wrong.
 		$_COOKIE = [
-			'lp_viewer_' . substr( $token->hash(), 0, 20 ) => substr( hash( 'sha256', $token->value() ), 0, 32 ),
+			'shareadraft_viewer_' . substr( $token->hash(), 0, 20 ) => substr( hash( 'sha256', $token->value() ), 0, 32 ),
 		];
 
 		static::assertSame( 'draft', $this->visit( $post_id, $token ) );
@@ -204,7 +204,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		$token   = $this->service->mint( $post_id, HOUR_IN_SECONDS, 5, 1 );
 
 		$_COOKIE = [
-			'lp_viewer_' . substr( $token->hash(), 0, 20 ) => str_repeat( 'a', 32 ),
+			'shareadraft_viewer_' . substr( $token->hash(), 0, 20 ) => str_repeat( 'a', 32 ),
 		];
 
 		// A cookie the link never issued makes this a new viewer, not a free one.
@@ -252,7 +252,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 
 		// A host behind its own proxy supplies the trusted address by filter.
 		$_SERVER['REMOTE_ADDR'] = '10.0.0.1';
-		add_filter( 'live_previews_client_ip', static fn (): string => '203.0.113.7' );
+		add_filter( 'shareadraft_client_ip', static fn (): string => '203.0.113.7' );
 
 		static::assertSame( 'publish', $this->visit( $post_id, $token, true ) );
 	}
@@ -292,7 +292,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		);
 
 		// An operator who prefers not to name the reason turns disclosure off.
-		add_filter( 'live_previews_disclose_denial_reason', '__return_false' );
+		add_filter( 'shareadraft_disclose_denial_reason', '__return_false' );
 
 		$gate = $this->denied_main_query( $post_id, $token );
 
@@ -310,7 +310,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// Reveal every reason except revocation, which the callback singles out
 		// using the reason passed alongside the default.
 		add_filter(
-			'live_previews_disclose_denial_reason',
+			'shareadraft_disclose_denial_reason',
 			static fn ( bool $disclose, string $reason ): bool => AccessDecision::REASON_REVOKED !== $reason,
 			10,
 			2
@@ -385,7 +385,7 @@ class PreviewGateTest extends WP_UnitTestCase {
 		// Everything below is derivable from the shared URL except the HMAC,
 		// which is what actually keeps strangers out.
 		$_COOKIE = [
-			'lp_recipient_' . substr( $token->hash(), 0, 20 ) => ( time() + DAY_IN_SECONDS ) . '.' . rtrim( strtr( base64_encode( 'legal@example.com' ), '+/', '-_' ), '=' ) . '.' . str_repeat( 'a', 64 ),
+			'shareadraft_recipient_' . substr( $token->hash(), 0, 20 ) => ( time() + DAY_IN_SECONDS ) . '.' . rtrim( strtr( base64_encode( 'legal@example.com' ), '+/', '-_' ), '=' ) . '.' . str_repeat( 'a', 64 ),
 		];
 
 		static::assertSame( 'draft', $this->visit( $post_id, $token ) );

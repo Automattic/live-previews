@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
@@ -10,7 +10,7 @@ use WP_UnitTestCase;
  * The bulk-revoke sweeps: break-glass revoke-all, revoke-by-creator, and the
  * user-lifecycle hooks that drive offboarding.
  *
- * @covers \Automattic\LivePreviews\BulkLinkRevoker
+ * @covers \Automattic\ShareADraft\BulkLinkRevoker
  */
 class BulkLinkRevokerTest extends WP_UnitTestCase {
 	private PostMetaTokenRepository $repository;

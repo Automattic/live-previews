@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Application service: the one entry point the WordPress adapters call.
@@ -115,7 +115,7 @@ final class PreviewLinkService {
 	 *
 	 * Dead links (already revoked or expired) are left alone: there is nothing
 	 * usable to kill, and keeping their state untouched preserves what the gate
-	 * tells a returning visitor. Shared by `wp live-previews revoke --all` and
+	 * tells a returning visitor. Shared by `wp shareadraft revoke --all` and
 	 * the revoke-preview-link ability.
 	 */
 	public function revoke_active_links_for_post( int $post_id ): int {
@@ -141,7 +141,7 @@ final class PreviewLinkService {
 	 * A hint is only a few characters, so two links can share one; every match
 	 * is returned and the caller decides what ambiguity means. Pure, so the
 	 * resolution rules are pinned by a unit test without WordPress. Shared by
-	 * `wp live-previews revoke` and the revoke-preview-link ability.
+	 * `wp shareadraft revoke` and the revoke-preview-link ability.
 	 *
 	 * @param list<PreviewLink> $links      Every link issued for the post.
 	 * @param string            $identifier A token hint or a full token hash.
@@ -314,7 +314,7 @@ final class PreviewLinkService {
 	 * Every link on the site, newest first, walked page by page so an unbounded
 	 * listing never turns into one unbounded query — optionally only the links
 	 * a given user created, mirroring the admin table's creator filter. Shared
-	 * by `wp live-previews list` and the list-preview-links ability.
+	 * by `wp shareadraft list` and the list-preview-links ability.
 	 *
 	 * @return list<PreviewLink>
 	 */

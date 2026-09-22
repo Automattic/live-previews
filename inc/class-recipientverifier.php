@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Proves a preview visitor controls one of a link's recipient addresses, via a
@@ -46,9 +46,9 @@ final class RecipientVerifier {
 	 */
 	private const COOKIE_TTL = WEEK_IN_SECONDS;
 
-	private const COOKIE_PREFIX    = 'lp_recipient_';
-	private const CHALLENGE_PREFIX = 'live_previews_otp_';
-	private const REQUESTS_PREFIX  = 'live_previews_otp_req_';
+	private const COOKIE_PREFIX    = 'shareadraft_recipient_';
+	private const CHALLENGE_PREFIX = 'shareadraft_otp_';
+	private const REQUESTS_PREFIX  = 'shareadraft_otp_req_';
 
 	/**
 	 * Email a fresh code for this link to the address, replacing any code still
@@ -115,7 +115,7 @@ final class RecipientVerifier {
 
 		$subject = sprintf(
 			/* translators: 1: site name, 2: the verification code. */
-			__( '[%1$s] %2$s is your preview access code', 'live-previews' ),
+			__( '[%1$s] %2$s is your preview access code', 'shareadraft' ),
 			wp_specialchars_decode( (string) get_option( 'blogname' ), ENT_QUOTES ),
 			$code
 		);
@@ -129,7 +129,7 @@ final class RecipientVerifier {
 				'Enter this code on %2$s to open the preview you were invited to review: %1$s
 
 The code is valid for %3$d minutes and only works on the page where you requested it. Never share it with anyone — nobody legitimate will ask you for it. If you were not expecting this email, you can ignore it.',
-				'live-previews'
+				'shareadraft'
 			),
 			$code,
 			(string) wp_parse_url( home_url(), PHP_URL_HOST ),
@@ -148,7 +148,7 @@ The code is valid for %3$d minutes and only works on the page where you requeste
 		 */
 		/** @var mixed $mail */
 		$mail = apply_filters(
-			'live_previews_verification_email',
+			'shareadraft_verification_email',
 			[
 				'subject' => $subject,
 				'message' => $message,

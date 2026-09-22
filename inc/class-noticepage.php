@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Renders the standalone pages the gate shows instead of a draft: the
@@ -44,7 +44,7 @@ final class NoticePage {
 		 */
 		/** @var mixed $filtered */
 		$filtered = apply_filters(
-			'live_previews_notice_content',
+			'shareadraft_notice_content',
 			$content,
 			[
 				'title'  => $title,
@@ -57,15 +57,15 @@ final class NoticePage {
 		$icon_url = get_site_icon_url( 128 );
 
 		$identity = sprintf(
-			'%s<p class="lp-site-name">%s</p>',
+			'%s<p class="shareadraft-site-name">%s</p>',
 			'' === $icon_url
 				? ''
-				: sprintf( '<img class="lp-site-icon" src="%s" alt="" width="64" height="64" />', esc_url( $icon_url ) ),
+				: sprintf( '<img class="shareadraft-site-icon" src="%s" alt="" width="64" height="64" />', esc_url( $icon_url ) ),
 			esc_html( get_bloginfo( 'name', 'display' ) )
 		);
 
 		$html = self::styles() . sprintf(
-			'<div class="lp-notice">%s<h1>%s</h1>%s</div>',
+			'<div class="shareadraft-notice">%s<h1>%s</h1>%s</div>',
 			$identity,
 			esc_html( $title ),
 			$content
@@ -95,13 +95,13 @@ final class NoticePage {
 				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 				color: #1e1e1e;
 			}
-			.lp-site-icon { display: block; margin: 0 auto 1rem; border-radius: 25%; }
-			.lp-site-name { margin: 0 0 0.25rem; text-align: center; font-size: 0.875rem; color: #646970; }
-			.lp-notice h1 { margin: 0 0 1.25rem; text-align: center; font-size: 1.25rem; font-weight: 600; border: 0; padding: 0; color: inherit; }
-			.lp-notice p { margin: 0 0 1rem; font-size: 0.9375rem; line-height: 1.6; color: #3c434a; }
-			.lp-notice label { display: block; margin-bottom: 0.375rem; font-size: 0.8125rem; font-weight: 600; }
-			.lp-notice input[type="email"],
-			.lp-notice input[type="text"] {
+			.shareadraft-site-icon { display: block; margin: 0 auto 1rem; border-radius: 25%; }
+			.shareadraft-site-name { margin: 0 0 0.25rem; text-align: center; font-size: 0.875rem; color: #646970; }
+			.shareadraft-notice h1 { margin: 0 0 1.25rem; text-align: center; font-size: 1.25rem; font-weight: 600; border: 0; padding: 0; color: inherit; }
+			.shareadraft-notice p { margin: 0 0 1rem; font-size: 0.9375rem; line-height: 1.6; color: #3c434a; }
+			.shareadraft-notice label { display: block; margin-bottom: 0.375rem; font-size: 0.8125rem; font-weight: 600; }
+			.shareadraft-notice input[type="email"],
+			.shareadraft-notice input[type="text"] {
 				width: 100%;
 				box-sizing: border-box;
 				padding: 0.625rem 0.75rem;
@@ -111,9 +111,9 @@ final class NoticePage {
 				border: 1px solid #767676;
 				border-radius: 4px;
 			}
-			.lp-notice input.lp-code { text-align: center; letter-spacing: 0.375em; font-variant-numeric: tabular-nums; }
-			.lp-notice input:focus { border-color: #2271b1; outline: 2px solid #2271b1; outline-offset: 1px; }
-			.lp-notice .button-primary {
+			.shareadraft-notice input.shareadraft-code { text-align: center; letter-spacing: 0.375em; font-variant-numeric: tabular-nums; }
+			.shareadraft-notice input:focus { border-color: #2271b1; outline: 2px solid #2271b1; outline-offset: 1px; }
+			.shareadraft-notice .button-primary {
 				display: block;
 				width: 100%;
 				padding: 0.625rem 1rem;
@@ -125,16 +125,16 @@ final class NoticePage {
 				border-radius: 4px;
 				cursor: pointer;
 			}
-			.lp-notice .button-primary:hover { background: #135e96; }
-			.lp-notice .button-primary:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }
+			.shareadraft-notice .button-primary:hover { background: #135e96; }
+			.shareadraft-notice .button-primary:focus-visible { outline: 2px solid #2271b1; outline-offset: 2px; }
 			@media (prefers-color-scheme: dark) {
 				html { background: #1d2327; }
 				body#error-page { background: #2c3338; border-color: #3c434a; color: #f0f0f1; }
-				.lp-site-name { color: #a7aaad; }
-				.lp-notice p { color: #c3c4c7; }
-				.lp-notice input[type="email"],
-				.lp-notice input[type="text"] { background: #1d2327; border-color: #8c8f94; }
-				.lp-notice a { color: #72aee6; }
+				.shareadraft-site-name { color: #a7aaad; }
+				.shareadraft-notice p { color: #c3c4c7; }
+				.shareadraft-notice input[type="email"],
+				.shareadraft-notice input[type="text"] { background: #1d2327; border-color: #8c8f94; }
+				.shareadraft-notice a { color: #72aee6; }
 			}
 		</style>';
 	}

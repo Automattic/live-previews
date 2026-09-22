@@ -10,12 +10,12 @@
  * Nothing in it is required: defining the constant is the signal that matters,
  * and every value it can carry falls back to a built-in default.
  *
- * @package live-previews-wp-env
+ * @package shareadraft-wp-env
  */
 
-if ( ! defined( 'VIP_LIVE_PREVIEWS_CONFIG' ) ) {
+if ( ! defined( 'VIP_SHAREADRAFT_CONFIG' ) ) {
 	define(
-		'VIP_LIVE_PREVIEWS_CONFIG',
+		'VIP_SHAREADRAFT_CONFIG',
 		[
 			// 7 days, in seconds — not the 21-day default, so it is obvious when
 			// the injected value is the one in use.

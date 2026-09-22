@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Composition root: assembles the object graph and registers its hooks.
@@ -41,9 +41,9 @@ final class Plugin {
 		// editor script's JSON catalogues are pointed at the same directory in
 		// EditorAssets.
 		load_plugin_textdomain(
-			'live-previews',
+			'shareadraft',
 			false,
-			dirname( plugin_basename( VIP_LIVE_PREVIEWS_FILE ) ) . '/languages'
+			dirname( plugin_basename( VIP_SHAREADRAFT_FILE ) ) . '/languages'
 		);
 
 		// Central IP ranges from the VIP Dashboard, if any. Untrusted customer
@@ -84,7 +84,7 @@ final class Plugin {
 		( new PreviewLinksAdminPage( $service, $clock, $revoker, $toggle, $central_ip_ranges ) )->register();
 
 		// Expose link management to MCP, the AI Client, and the abilities REST
-		// runner, mirroring the `wp live-previews` commands. Shares the same
+		// runner, mirroring the `wp shareadraft` commands. Shares the same
 		// minter and service as the REST endpoint above.
 		( new PreviewAbilities( $service, $minter, $collector, $toggle, $revoker ) )->register();
 
@@ -92,7 +92,7 @@ final class Plugin {
 		// one part of the plugin that depends on cron firing.
 		( new SiteHealth( $clock ) )->register();
 
-		// The `wp live-previews` commands, sharing the same graph as every
+		// The `wp shareadraft` commands, sharing the same graph as every
 		// other surface. Loaded only under WP-CLI: the CLI classes are the one
 		// part of the plugin the flat first-party autoloader does not map.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {

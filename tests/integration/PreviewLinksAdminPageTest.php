@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
@@ -10,7 +10,7 @@ use WP_UnitTestCase;
  * The revoke actions behind the site-wide admin table: a nonce-checked row
  * action and a nonce-checked bulk action, both writing revocation to the link.
  *
- * @covers \Automattic\LivePreviews\PreviewLinksAdminPage
+ * @covers \Automattic\ShareADraft\PreviewLinksAdminPage
  */
 class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	private PostMetaTokenRepository $repository;
@@ -38,8 +38,8 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 			$_REQUEST['_wpnonce'],
 			$_POST['action'],
 			$_POST['links'],
-			$_POST['lp_enabled'],
-			$_POST['lp_all'],
+			$_POST['shareadraft_enabled'],
+			$_POST['shareadraft_all'],
 			$_POST['_wpnonce']
 		);
 
@@ -90,7 +90,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		$this->service->mint( $post_id, HOUR_IN_SECONDS, null, get_current_user_id() );
 		$hash = $this->repository->all_for_post( $post_id )[0]->token_hash();
 
-		$nonce                = wp_create_nonce( 'live_previews_revoke_' . $post_id . '_' . $hash );
+		$nonce                = wp_create_nonce( 'shareadraft_revoke_' . $post_id . '_' . $hash );
 		$_GET['action']       = 'revoke';
 		$_GET['post']         = (string) $post_id;
 		$_GET['token']        = $hash;
@@ -187,7 +187,7 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 		$_REQUEST['_wpnonce'] = $nonce;
 
 		if ( $select_all ) {
-			$_POST['lp_all'] = '1';
+			$_POST['shareadraft_all'] = '1';
 		}
 	}
 
@@ -225,15 +225,15 @@ class PreviewLinksAdminPageTest extends WP_UnitTestCase {
 	 * Simulate the toggle slider's form submission asking for the given state.
 	 */
 	private function submit_toggle( bool $enabled ): void {
-		$nonce                = wp_create_nonce( 'live_previews_toggle_links' );
+		$nonce                = wp_create_nonce( 'shareadraft_toggle_links' );
 		$_POST['action']      = 'toggle_links';
 		$_POST['_wpnonce']    = $nonce;
 		$_REQUEST['_wpnonce'] = $nonce;
 
 		if ( $enabled ) {
-			$_POST['lp_enabled'] = '1';
+			$_POST['shareadraft_enabled'] = '1';
 		} else {
-			unset( $_POST['lp_enabled'] );
+			unset( $_POST['shareadraft_enabled'] );
 		}
 	}
 }

@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests\Support;
+namespace Automattic\ShareADraft\Tests\Support;
 
-use Automattic\LivePreviews\Clock;
+use Automattic\ShareADraft\Clock;
 
 /**
  * A clock stuck at a fixed instant, so expiry rules can be tested deterministically.

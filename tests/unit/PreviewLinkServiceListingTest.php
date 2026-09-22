@@ -2,19 +2,19 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\AccessPolicy;
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\PreviewLinkService;
-use Automattic\LivePreviews\Tests\Support\FrozenClock;
-use Automattic\LivePreviews\Tests\Support\InMemoryTokenRepository;
+use Automattic\ShareADraft\AccessPolicy;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\PreviewLinkService;
+use Automattic\ShareADraft\Tests\Support\FrozenClock;
+use Automattic\ShareADraft\Tests\Support\InMemoryTokenRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The site-wide listing the admin table reads through the service.
  *
- * @covers \Automattic\LivePreviews\PreviewLinkService
+ * @covers \Automattic\ShareADraft\PreviewLinkService
  */
 final class PreviewLinkServiceListingTest extends TestCase {
 	private const NOW = 1000;

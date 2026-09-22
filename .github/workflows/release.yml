@@ -55,11 +55,11 @@ jobs:
 
           VERSION="${TAG#v}"
 
-          HEADER="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' live-previews.php | head -n1 | tr -d '[:space:]')"
-          CONSTANT="$(sed -n "s/.*VIP_LIVE_PREVIEWS_VERSION'[^']*'\([^']*\)'.*/\1/p" live-previews.php | head -n1)"
+          HEADER="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' shareadraft.php | head -n1 | tr -d '[:space:]')"
+          CONSTANT="$(sed -n "s/.*VIP_SHAREADRAFT_VERSION'[^']*'\([^']*\)'.*/\1/p" shareadraft.php | head -n1)"
 
           FAILED=0
-          for pair in "plugin header:${HEADER}" "VIP_LIVE_PREVIEWS_VERSION:${CONSTANT}"; do
+          for pair in "plugin header:${HEADER}" "VIP_SHAREADRAFT_VERSION:${CONSTANT}"; do
             if [ "${pair#*:}" != "$VERSION" ]; then
               echo "::error::${pair%%:*} is '${pair#*:}' but the tag is '${VERSION}'"
               FAILED=1
@@ -103,7 +103,7 @@ jobs:
 
           # Title carries the plugin name so the release reads with context
           # wherever it surfaces (Slack, email) rather than as a bare version.
-          PLUGIN_NAME="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Plugin Name:[[:space:]]*//p' live-previews.php | head -n1 | sed 's/[[:space:]]*$//')"
+          PLUGIN_NAME="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Plugin Name:[[:space:]]*//p' shareadraft.php | head -n1 | sed 's/[[:space:]]*$//')"
           echo "title=${PLUGIN_NAME} ${VERSION}" >> "$GITHUB_OUTPUT"
 
           # A hyphen marks a pre-release: 1.0.0-alpha, 1.1.0-rc.1.

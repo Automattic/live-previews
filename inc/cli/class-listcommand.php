@@ -1,18 +1,18 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\Features;
-use Automattic\LivePreviews\LinkToggle;
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\PreviewLinkPresenter;
-use Automattic\LivePreviews\PreviewLinkService;
+use Automattic\ShareADraft\Features;
+use Automattic\ShareADraft\LinkToggle;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\PreviewLinkPresenter;
+use Automattic\ShareADraft\PreviewLinkService;
 use WP_CLI;
 use WP_CLI\Formatter;
 use WP_Post;
 
 /**
- * The `wp live-previews list` command.
+ * The `wp shareadraft list` command.
  *
  * Reads through {@see PreviewLinkService} and shapes rows with
  * {@see PreviewLinkPresenter}, the same pair behind the REST listing and the
@@ -30,7 +30,7 @@ final class ListCommand {
 	}
 
 	/**
-	 * List live preview links, for one post or the whole site.
+	 * List preview links, for one post or the whole site.
 	 *
 	 * ## OPTIONS
 	 *
@@ -61,7 +61,7 @@ final class ListCommand {
 	 * ## EXAMPLES
 	 *
 	 *     # List a post's live links.
-	 *     $ wp live-previews list 123
+	 *     $ wp shareadraft list 123
 	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
 	 *     | token_hint | created_by | created_at          | expires_at          | expires_in | use_count | max_uses | allowed_ips |
 	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
@@ -69,15 +69,15 @@ final class ListCommand {
 	 *     +------------+------------+---------------------+---------------------+------------+-----------+----------+-------------+
 	 *
 	 *     # How many live links exist across the whole site.
-	 *     $ wp live-previews list --format=count
+	 *     $ wp shareadraft list --format=count
 	 *     3
 	 *
-	 *     # Just the token hint, e.g. to feed `wp live-previews revoke`.
-	 *     $ wp live-previews list 123 --field=token_hint
+	 *     # Just the token hint, e.g. to feed `wp shareadraft revoke`.
+	 *     $ wp shareadraft list 123 --field=token_hint
 	 *     c3d9
 	 *
 	 *     # Everything one user shared, e.g. before offboarding them.
-	 *     $ wp live-previews list --created-by=jane --format=count
+	 *     $ wp shareadraft list --created-by=jane --format=count
 	 *     4
 	 *
 	 * @when after_wp_load

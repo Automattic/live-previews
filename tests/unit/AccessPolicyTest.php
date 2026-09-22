@@ -2,20 +2,20 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\AccessDecision;
-use Automattic\LivePreviews\AccessPolicy;
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\Token;
+use Automattic\ShareADraft\AccessDecision;
+use Automattic\ShareADraft\AccessPolicy;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\Token;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The access rules, exhaustively. This is the class that grows a branch per
  * milestone, so its truth table is the feature's safety net.
  *
- * @covers \Automattic\LivePreviews\AccessPolicy
- * @covers \Automattic\LivePreviews\AccessDecision
+ * @covers \Automattic\ShareADraft\AccessPolicy
+ * @covers \Automattic\ShareADraft\AccessDecision
  */
 final class AccessPolicyTest extends TestCase {
 	private const NOW = 1000;

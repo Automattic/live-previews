@@ -2,14 +2,14 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\PreviewLink;
-use Automattic\LivePreviews\Token;
+use Automattic\ShareADraft\PreviewLink;
+use Automattic\ShareADraft\Token;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Automattic\LivePreviews\PreviewLink
+ * @covers \Automattic\ShareADraft\PreviewLink
  */
 final class PreviewLinkTest extends TestCase {
 	public function test_issue_stores_the_token_hash_not_the_plaintext(): void {

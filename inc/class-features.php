@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Code-level switches for the optional restriction features.
@@ -31,7 +31,7 @@ final class Features {
 		 *
 		 * @param bool $enabled Whether the feature is available. Default true.
 		 */
-		return (bool) apply_filters( 'live_previews_ip_allowlist_enabled', true );
+		return (bool) apply_filters( 'shareadraft_ip_allowlist_enabled', true );
 	}
 
 	/**
@@ -46,6 +46,6 @@ final class Features {
 		 *
 		 * @param bool $enabled Whether the feature is available. Default true.
 		 */
-		return (bool) apply_filters( 'live_previews_recipients_enabled', true );
+		return (bool) apply_filters( 'shareadraft_recipients_enabled', true );
 	}
 }

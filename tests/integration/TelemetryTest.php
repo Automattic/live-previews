@@ -1,13 +1,13 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use Automattic\VIP\Telemetry\Telemetry as VIP_Telemetry;
 use WP_UnitTestCase;
 
 /**
- * @covers \Automattic\LivePreviews\Telemetry
+ * @covers \Automattic\ShareADraft\Telemetry
  */
 class TelemetryTest extends WP_UnitTestCase {
 	public function test_record_event_forwards_to_the_vip_client(): void {
@@ -26,9 +26,9 @@ class TelemetryTest extends WP_UnitTestCase {
 
 		// The local dev-env (where the E2E suite runs) opts out via this filter,
 		// so no synthetic events reach production Tracks.
-		add_filter( 'livepreviews_record_telemetry', '__return_false' );
+		add_filter( 'shareadraft_record_telemetry', '__return_false' );
 		Telemetry::get_instance()->record_event( 'unit_test_event', [ 'foo' => 'bar' ] );
-		remove_filter( 'livepreviews_record_telemetry', '__return_false' );
+		remove_filter( 'shareadraft_record_telemetry', '__return_false' );
 
 		static::assertCount( 0, VIP_Telemetry::$events );
 	}
@@ -37,10 +37,10 @@ class TelemetryTest extends WP_UnitTestCase {
 		// The Tracks source (the token before the first underscore) must be a
 		// single lowercase word whitelisted in Automattic/nosara, or events are
 		// diverted to `prod_rejects`. Guard the exact value against regressions.
-		static::assertSame( 'livepreviews_', Telemetry::EVENT_PREFIX );
+		static::assertSame( 'shareadraft_', Telemetry::EVENT_PREFIX );
 
 		$source = strtok( Telemetry::EVENT_PREFIX, '_' );
-		static::assertSame( 'livepreviews', $source );
+		static::assertSame( 'shareadraft', $source );
 		static::assertMatchesRegularExpression( '/^[a-z]+$/', (string) $source, 'The Tracks source must be a single lowercase word with no underscores.' );
 	}
 
@@ -51,7 +51,7 @@ class TelemetryTest extends WP_UnitTestCase {
 	public function test_global_properties_always_carry_the_plugin_version(): void {
 		$properties = self::global_properties();
 
-		static::assertSame( VIP_LIVE_PREVIEWS_VERSION, $properties['plugin_version'] );
+		static::assertSame( VIP_SHAREADRAFT_VERSION, $properties['plugin_version'] );
 
 		// Off-platform (no VIP_GO_APP_ID) the app id is simply omitted rather
 		// than sent as a null or zero.

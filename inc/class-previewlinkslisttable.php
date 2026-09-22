@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_List_Table;
 
@@ -39,7 +39,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 	/**
 	 * The site-wide enable/disable slider, on the same line as the bulk
-	 * actions. The checkbox belongs to the small `lp-toggle` form the admin
+	 * actions. The checkbox belongs to the small `shareadraft-toggle` form the admin
 	 * page renders *outside* this table's own form (forms cannot nest), wired
 	 * up via the HTML `form` attribute.
 	 *
@@ -53,22 +53,22 @@ final class PreviewLinksListTable extends WP_List_Table {
 		$enabled = ! $this->toggle->is_disabled();
 
 		echo '<div class="alignleft actions">';
-		echo '<label class="lp-switch">';
+		echo '<label class="shareadraft-switch">';
 		printf(
-			'<input type="checkbox" name="lp_enabled" value="1" form="lp-toggle" %s onchange="document.getElementById(\'lp-toggle\').submit()" />',
+			'<input type="checkbox" name="shareadraft_enabled" value="1" form="shareadraft-toggle" %s onchange="document.getElementById(\'shareadraft-toggle\').submit()" />',
 			checked( $enabled, true, false )
 		);
-		echo '<span class="lp-track" aria-hidden="true"></span>';
+		echo '<span class="shareadraft-track" aria-hidden="true"></span>';
 		printf(
 			'<span>%s</span>',
 			$enabled
-				? esc_html__( 'Preview links are enabled', 'live-previews' )
-				: esc_html__( 'Preview links are disabled', 'live-previews' )
+				? esc_html__( 'Preview links are enabled', 'shareadraft' )
+				: esc_html__( 'Preview links are disabled', 'shareadraft' )
 		);
 		echo '</label>';
 		printf(
-			'<noscript><button type="submit" class="button" form="lp-toggle">%s</button></noscript>',
-			esc_html__( 'Apply', 'live-previews' )
+			'<noscript><button type="submit" class="button" form="shareadraft-toggle">%s</button></noscript>',
+			esc_html__( 'Apply', 'shareadraft' )
 		);
 		echo '</div>';
 	}
@@ -82,23 +82,23 @@ final class PreviewLinksListTable extends WP_List_Table {
 	public function get_columns(): array {
 		$columns = [
 			'cb'         => '<input type="checkbox" />',
-			'post'       => esc_html__( 'Post', 'live-previews' ),
-			'created_by' => esc_html__( 'Created by', 'live-previews' ),
-			'usage'      => esc_html__( 'Uses', 'live-previews' ),
+			'post'       => esc_html__( 'Post', 'shareadraft' ),
+			'created_by' => esc_html__( 'Created by', 'shareadraft' ),
+			'usage'      => esc_html__( 'Uses', 'shareadraft' ),
 		];
 
 		if ( Features::recipients_enabled() ) {
-			$columns['recipients'] = esc_html__( 'Reviewers', 'live-previews' );
+			$columns['recipients'] = esc_html__( 'Reviewers', 'shareadraft' );
 		}
 
 		if ( Features::ip_allowlist_enabled() ) {
-			$columns['ip_ranges'] = esc_html__( 'IP ranges', 'live-previews' );
+			$columns['ip_ranges'] = esc_html__( 'IP ranges', 'shareadraft' );
 		}
 
 		return $columns + [
-			'expiry' => esc_html__( 'Expires', 'live-previews' ),
-			'status' => esc_html__( 'Status', 'live-previews' ),
-			'token'  => esc_html__( 'Link', 'live-previews' ),
+			'expiry' => esc_html__( 'Expires', 'shareadraft' ),
+			'status' => esc_html__( 'Status', 'shareadraft' ),
+			'token'  => esc_html__( 'Link', 'shareadraft' ),
 		];
 	}
 
@@ -106,7 +106,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 	 * @return array<string, string>
 	 */
 	protected function get_bulk_actions(): array {
-		return [ 'revoke' => esc_html__( 'Revoke', 'live-previews' ) ];
+		return [ 'revoke' => esc_html__( 'Revoke', 'shareadraft' ) ];
 	}
 
 	protected function get_default_primary_column_name(): string {
@@ -114,7 +114,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 	}
 
 	public function no_items(): void {
-		esc_html_e( 'No preview links have been created yet.', 'live-previews' );
+		esc_html_e( 'No preview links have been created yet.', 'shareadraft' );
 	}
 
 	public function prepare_items(): void {
@@ -151,7 +151,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 		if ( '' === $title ) {
 			/* translators: %d: post ID */
-			$title = sprintf( __( '(post #%d)', 'live-previews' ), $post_id );
+			$title = sprintf( __( '(post #%d)', 'shareadraft' ), $post_id );
 		}
 
 		$edit_link = get_edit_post_link( $post_id );
@@ -171,7 +171,7 @@ final class PreviewLinksListTable extends WP_List_Table {
 		$user    = get_userdata( $user_id );
 
 		/* translators: %d: user ID */
-		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
+		$name = false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'shareadraft' ), $user_id );
 
 		// The name links to the creator-filtered view of this table, which is
 		// where the "revoke everything this user created" action lives.
@@ -246,10 +246,10 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 		if ( $item->is_expired( $this->now ) ) {
 			/* translators: %s: human-readable duration, e.g. "2 hours" */
-			$relative = sprintf( __( '%s ago', 'live-previews' ), human_time_diff( $expires, $this->now ) );
+			$relative = sprintf( __( '%s ago', 'shareadraft' ), human_time_diff( $expires, $this->now ) );
 		} else {
 			/* translators: %s: human-readable duration, e.g. "2 hours" */
-			$relative = sprintf( __( 'in %s', 'live-previews' ), human_time_diff( $this->now, $expires ) );
+			$relative = sprintf( __( 'in %s', 'shareadraft' ), human_time_diff( $this->now, $expires ) );
 		}
 
 		return sprintf(
@@ -261,13 +261,13 @@ final class PreviewLinksListTable extends WP_List_Table {
 
 	public function column_status( PreviewLink $item ): string {
 		if ( $item->is_revoked() ) {
-			$label = __( 'Revoked', 'live-previews' );
+			$label = __( 'Revoked', 'shareadraft' );
 		} elseif ( $item->is_expired( $this->now ) ) {
-			$label = __( 'Expired', 'live-previews' );
+			$label = __( 'Expired', 'shareadraft' );
 		} elseif ( $item->is_exhausted() ) {
-			$label = __( 'Exhausted', 'live-previews' );
+			$label = __( 'Exhausted', 'shareadraft' );
 		} else {
-			$label = __( 'Active', 'live-previews' );
+			$label = __( 'Active', 'shareadraft' );
 		}
 
 		return esc_html( $label );
@@ -298,14 +298,14 @@ final class PreviewLinksListTable extends WP_List_Table {
 				],
 				admin_url( 'admin.php' )
 			),
-			'live_previews_revoke_' . $item->post_id() . '_' . $item->token_hash()
+			'shareadraft_revoke_' . $item->post_id() . '_' . $item->token_hash()
 		);
 
 		return [
 			'revoke' => sprintf(
 				'<a href="%s" class="submitdelete">%s</a>',
 				esc_url( $url ),
-				esc_html__( 'Revoke', 'live-previews' )
+				esc_html__( 'Revoke', 'shareadraft' )
 			),
 		];
 	}

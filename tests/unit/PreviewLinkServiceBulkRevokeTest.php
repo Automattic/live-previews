@@ -2,19 +2,19 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\AccessPolicy;
-use Automattic\LivePreviews\PreviewLinkService;
-use Automattic\LivePreviews\Tests\Support\FrozenClock;
-use Automattic\LivePreviews\Tests\Support\InMemoryTokenRepository;
+use Automattic\ShareADraft\AccessPolicy;
+use Automattic\ShareADraft\PreviewLinkService;
+use Automattic\ShareADraft\Tests\Support\FrozenClock;
+use Automattic\ShareADraft\Tests\Support\InMemoryTokenRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The per-post bulk revokes the sweep drives, and the creator filter behind the
  * admin table.
  *
- * @covers \Automattic\LivePreviews\PreviewLinkService
+ * @covers \Automattic\ShareADraft\PreviewLinkService
  */
 final class PreviewLinkServiceBulkRevokeTest extends TestCase {
 	private const NOW = 1000;

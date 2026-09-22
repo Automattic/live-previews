@@ -1,12 +1,12 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\LinkGarbageCollector;
+use Automattic\ShareADraft\LinkGarbageCollector;
 use WP_CLI;
 
 /**
- * The `wp live-previews prune` command.
+ * The `wp shareadraft prune` command.
  *
  * A manual lever for the sweep {@see LinkGarbageCollector} runs on cron: the
  * same batched walk, on demand. `--grace=0` is the incident-cleanup form —
@@ -29,16 +29,16 @@ final class PruneCommand {
 	 * ## OPTIONS
 	 *
 	 * [--grace=<seconds>]
-	 * : Override the retention period for dead links, in seconds. `0` deletes every expired or revoked link immediately. Defaults to the configured grace period (21 days unless the platform sets `dead_link_grace_period` or the `live_previews_dead_link_grace_period` filter says otherwise).
+	 * : Override the retention period for dead links, in seconds. `0` deletes every expired or revoked link immediately. Defaults to the configured grace period (21 days unless the platform sets `dead_link_grace_period` or the `shareadraft_dead_link_grace_period` filter says otherwise).
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     # Prune with the configured retention period.
-	 *     $ wp live-previews prune
+	 *     $ wp shareadraft prune
 	 *     Success: Pruned 3 preview links.
 	 *
 	 *     # Delete every dead link immediately.
-	 *     $ wp live-previews prune --grace=0
+	 *     $ wp shareadraft prune --grace=0
 	 *     Success: Pruned 2 preview links.
 	 *
 	 * @when after_wp_load

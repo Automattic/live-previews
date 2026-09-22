@@ -1,23 +1,23 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
  * The enqueue of the block-editor script and, above all, the inline
- * `window.livePreviews` settings object it hands the editor. That object is
+ * `window.shareADraft` settings object it hands the editor. That object is
  * the contract src/index.js consumes, so its shape is pinned here.
  *
- * @covers \Automattic\LivePreviews\EditorAssets
+ * @covers \Automattic\ShareADraft\EditorAssets
  */
 class EditorAssetsTest extends WP_UnitTestCase {
 	/**
 	 * The script handle. Named as a literal on purpose: src/index.js is enqueued
 	 * and translated under this handle, so a rename should fail a test.
 	 */
-	private const HANDLE = 'live-previews-editor';
+	private const HANDLE = 'shareadraft-editor';
 
 	public function tear_down(): void {
 		wp_dequeue_script( self::HANDLE );
@@ -43,7 +43,7 @@ class EditorAssetsTest extends WP_UnitTestCase {
 
 		static::assertSame( $asset['dependencies'], $script->deps );
 		static::assertSame( $asset['version'], $script->ver );
-		static::assertSame( 'live-previews', $script->textdomain );
+		static::assertSame( 'shareadraft', $script->textdomain );
 	}
 
 	public function test_the_inline_settings_carry_the_endpoint_contract(): void {
@@ -78,7 +78,7 @@ class EditorAssetsTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Decode the `window.livePreviews` object from the script's before-data.
+	 * Decode the `window.shareADraft` object from the script's before-data.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -90,7 +90,7 @@ class EditorAssetsTest extends WP_UnitTestCase {
 
 		$js = implode( '', array_filter( $before, 'is_string' ) );
 
-		static::assertSame( 1, preg_match( '/window\.livePreviews = (?<json>.*);/s', $js, $matches ) );
+		static::assertSame( 1, preg_match( '/window\.shareADraft = (?<json>.*);/s', $js, $matches ) );
 
 		/** @var mixed $data */
 		$data = json_decode( $matches['json'], true );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Live Previews
+ * Plugin Name: Share a Draft
  * Plugin URI: https://wpvip.com
  * Description: Generate safe-to-share, time- and usage-limited preview links so reviewers without a WordPress account can review a draft. Hardens the existing Preview Links.
  * Version: 1.0.0
@@ -10,25 +10,25 @@
  * Author URI: https://wpvip.com
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: live-previews
+ * Text Domain: shareadraft
  * Domain Path: /languages
  */
 
-use Automattic\LivePreviews\BulkLinkRevoker;
-use Automattic\LivePreviews\LinkGarbageCollector;
-use Automattic\LivePreviews\Plugin;
+use Automattic\ShareADraft\BulkLinkRevoker;
+use Automattic\ShareADraft\LinkGarbageCollector;
+use Automattic\ShareADraft\Plugin;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( defined( 'VIP_LIVE_PREVIEWS_LOADED' ) ) {
+if ( defined( 'VIP_SHAREADRAFT_LOADED' ) ) {
 	return;
 }
 
-define( 'VIP_LIVE_PREVIEWS_LOADED', true );
-define( 'VIP_LIVE_PREVIEWS_VERSION', '1.0.0' );
-define( 'VIP_LIVE_PREVIEWS_FILE', __FILE__ );
+define( 'VIP_SHAREADRAFT_LOADED', true );
+define( 'VIP_SHAREADRAFT_VERSION', '1.0.0' );
+define( 'VIP_SHAREADRAFT_FILE', __FILE__ );
 
 require_once __DIR__ . '/inc/autoload.php';
 

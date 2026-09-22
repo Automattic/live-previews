@@ -1,6 +1,6 @@
 # VIP Integration
 
-Live Previews is a WordPress VIP integration. It follows the patterns WordPress
+Share a Draft is a WordPress VIP integration. It follows the patterns WordPress
 VIP requires of integrations: a single runtime config constant read through a
 central `Config` class, graceful degradation when that config is missing or
 unusable, and Tracks-only telemetry through the VIP Telemetry API. It is also an ordinary
@@ -37,10 +37,10 @@ suite needs neither WordPress nor a database.
 
 ## Runtime Config
 
-Config constant: `VIP_LIVE_PREVIEWS_CONFIG`
+Config constant: `VIP_SHAREADRAFT_CONFIG`
 
 The VIP platform defines the constant (a plain PHP associative array) before the
-plugin loads. All reads go through `Automattic\LivePreviews\Config`.
+plugin loads. All reads go through `Automattic\ShareADraft\Config`.
 
 **Nothing in the constant is required.** Defining it *at all* is the signal that
 matters: it is how the platform says this integration is enabled for the site.
@@ -52,7 +52,7 @@ Optional values:
 - `dead_link_grace_period`: how long an expired or revoked link is kept, in
   seconds, so a reviewer returning to a stale link is told why it stopped
   working rather than seeing a "not found" page. Defaults to 21 days when it is
-  absent or unusable, and the `live_previews_dead_link_grace_period` filter
+  absent or unusable, and the `shareadraft_dead_link_grace_period` filter
   still overrides whatever the platform sends.
 - `ip_allowlist`: IP addresses or CIDR ranges (IPv4 or IPv6, comma- or
   newline-separated) that every preview link accepts — a shared baseline of
@@ -66,7 +66,7 @@ Optional values:
 Example valid config:
 
 ```php
-define( 'VIP_LIVE_PREVIEWS_CONFIG', [
+define( 'VIP_SHAREADRAFT_CONFIG', [
 	'dead_link_grace_period' => 604800, // 7 days.
 	'ip_allowlist'           => '203.0.113.0/24, 2001:db8::/32',
 ] );
@@ -76,7 +76,7 @@ Example incomplete config (setup in progress — the customer has opened the fie
 but not filled it in, so it arrives blank):
 
 ```php
-define( 'VIP_LIVE_PREVIEWS_CONFIG', [
+define( 'VIP_SHAREADRAFT_CONFIG', [
 	'dead_link_grace_period' => '',
 ] );
 ```
@@ -103,11 +103,11 @@ box is a lie.
 
 ## Running off VIP
 
-Live Previews is an ordinary WordPress plugin and works on any host, so anything
+Share a Draft is an ordinary WordPress plugin and works on any host, so anything
 that only makes sense on VIP is gated behind
-`Automattic\LivePreviews\Platform::is_vip()` — which looks for
+`Automattic\ShareADraft\Platform::is_vip()` — which looks for
 `VIP_GO_APP_ENVIRONMENT` or `WPCOM_IS_VIP_ENV`, and is filterable through
-`live_previews_is_vip_platform`. Today that decides one thing: whether the
+`shareadraft_is_vip_platform`. Today that decides one thing: whether the
 contextual help on the Preview Links screen points at VIP documentation and
 support, or at the plugin's own support forum. Platform *APIs* are gated
 separately, by `class_exists()` / `function_exists()`, so an environment without
@@ -118,14 +118,14 @@ VIP MU plugins simply no-ops.
 Telemetry uses the helper in `inc/class-telemetry.php`, which wraps the VIP
 Telemetry API (Tracks events only, no Stats) behind a `class_exists` guard so
 environments without VIP MU plugins no-op. Event names are prefixed with
-`livepreviews_` — a single word with no underscores, because the leading token is
+`shareadraft_` — a single word with no underscores, because the leading token is
 the Tracks *source* and must be whitelisted in nosara (an underscore there would
 divert events to `prod_rejects`). Never include secrets, raw content, email
 addresses, or customer credentials in event properties.
 
 | Name                            | Type   | Trigger                              | Properties                                             | Notes                                             |
 | ------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------------- |
-| `livepreviews_link_created` | Tracks | A preview link is minted, via REST or the Abilities API. | `expiration`, `max_uses` (null = unlimited), `channel` (`rest` or `ability`), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
+| `shareadraft_link_created` | Tracks | A preview link is minted, via REST or the Abilities API. | `expiration`, `max_uses` (null = unlimited), `channel` (`rest` or `ability`), `plugin_version` (global) | Usage metadata only; never the token, content, or PII. |
 
 ## Translations
 
@@ -139,7 +139,7 @@ accident:
 - `EditorAssets` passes the plugin's `languages/` directory as the third
   argument to `wp_set_script_translations()`, for the same reason.
 
-`composer i18n` regenerates `languages/live-previews.pot` and splits any
+`composer i18n` regenerates `languages/shareadraft.pot` and splits any
 translated `.po` files into the JSON catalogues the editor script loads. It
 scans `build/`, not `src/`: WordPress derives each JSON filename from a hash of
 the *enqueued* script path, so the POT references have to point at
@@ -158,7 +158,7 @@ so internal test builds can be cut from a `release/*` branch without touching
 2. Update `CHANGELOG.md` — the workflow uses the entry matching the tag as the
    release notes, and falls back to auto-generated notes if it finds none.
 3. Bump the version in all four places: the `Version:` header and the
-   `VIP_LIVE_PREVIEWS_VERSION` constant in `live-previews.php`, `package.json`,
+   `VIP_SHAREADRAFT_VERSION` constant in `shareadraft.php`, `package.json`,
    and `release.plugin_version` in `vip-manifest.yaml`. The workflow fails the
    release if the first two disagree with the tag.
 4. Run `npm run build`, then `composer i18n`, and commit the results. This
@@ -168,9 +168,9 @@ so internal test builds can be cut from a `release/*` branch without touching
 5. Push the branch, then tag its head: `git tag -s 1.0.0-RC1 -m "1.0.0-RC1"`
    and `git push origin 1.0.0-RC1`.
 
-What ends up in the ZIP is controlled by `.distignore`: `live-previews.php`,
+What ends up in the ZIP is controlled by `.distignore`: `shareadraft.php`,
 `inc/`, `build/`, `languages/`, `vip-manifest.yaml`, `LICENSE`, `README.md`,
-and `CHANGELOG.md`, unpacked under a single `live-previews/` directory. There is no
+and `CHANGELOG.md`, unpacked under a single `shareadraft/` directory. There is no
 `vendor/` — `inc/autoload.php` resolves the plugin's own classes, and there are
 no runtime Composer dependencies. **Add a new development-only file to
 `.distignore` when you add it to the repo**, or it ships.

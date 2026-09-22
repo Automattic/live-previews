@@ -35,7 +35,7 @@ test.describe( 'Preview Links admin screen', () => {
 			expect( created.ok() ).toBeTruthy();
 			const { id } = ( await created.json() ) as { id: number };
 
-			const minted = await page.request.post( './wp-json/live-previews/v1/preview-links', {
+			const minted = await page.request.post( './wp-json/shareadraft/v1/preview-links', {
 				headers,
 				data: { post_id: id, expiration: 3600 },
 			} );
@@ -43,15 +43,15 @@ test.describe( 'Preview Links admin screen', () => {
 		}
 
 		// --- Two rows per page, so selecting across pages has a job to do ---
-		await page.goto( './wp-admin/admin.php?page=live-previews' );
+		await page.goto( './wp-admin/admin.php?page=shareadraft' );
 		await page.locator( '#show-settings-link' ).click();
-		await page.locator( '#live_previews_links_per_page' ).fill( '2' );
+		await page.locator( '#shareadraft_links_per_page' ).fill( '2' );
 		await page.locator( '#screen-options-apply' ).click();
 
 		await expect( page.locator( '#the-list tr' ) ).toHaveCount( 2 );
 
 		// Ticking the header checkbox surfaces the cross-page offer.
-		const banner = page.locator( '#lp-select-all' );
+		const banner = page.locator( '#shareadraft-select-all' );
 		await expect( banner ).toBeHidden();
 		await page.locator( '#cb-select-all-1' ).check();
 		await expect( banner.getByText( 'All links on this page are selected.' ) ).toBeVisible();
@@ -65,7 +65,7 @@ test.describe( 'Preview Links admin screen', () => {
 		await banner.getByRole( 'button', { name: /^Select all \d+ links across the whole site$/u } ).click();
 		await expect( banner.getByText( /^All \d+ links across the whole site are selected\./u ) ).toBeVisible();
 
-		// The ordinary bulk Revoke, upgraded by the hidden lp_all field.
+		// The ordinary bulk Revoke, upgraded by the hidden shareadraft_all field.
 		await page.locator( '#bulk-action-selector-top' ).selectOption( 'revoke' );
 		await page.locator( '#doaction' ).click();
 
@@ -77,10 +77,10 @@ test.describe( 'Preview Links admin screen', () => {
 	} );
 
 	test( 'the slider pauses preview links site-wide, reversibly', async ( { page } ) => {
-		await page.goto( './wp-admin/admin.php?page=live-previews' );
+		await page.goto( './wp-admin/admin.php?page=shareadraft' );
 
-		const slider = page.locator( '.lp-switch' );
-		const state = page.locator( 'input[name="lp_enabled"]' );
+		const slider = page.locator( '.shareadraft-switch' );
+		const state = page.locator( 'input[name="shareadraft_enabled"]' );
 		const warning = page.getByText( 'Preview links are disabled site-wide.' );
 
 		if ( ! ( await state.isChecked() ) ) {

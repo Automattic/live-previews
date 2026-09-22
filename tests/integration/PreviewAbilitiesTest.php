@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use Automattic\VIP\Telemetry\Telemetry as VIP_Telemetry;
 use WP_Ability;
@@ -13,7 +13,7 @@ use WP_UnitTestCase;
  * root: retrieving them from the registry runs the plugin's own registration
  * hooks, so these tests prove the wired ability, not a stand-in.
  *
- * @covers \Automattic\LivePreviews\PreviewAbilities
+ * @covers \Automattic\ShareADraft\PreviewAbilities
  */
 class PreviewAbilitiesTest extends WP_UnitTestCase {
 
@@ -287,7 +287,7 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 
 		$missing = $ability->execute( [ 'post_id' => $post_id ] );
 		static::assertInstanceOf( WP_Error::class, $missing );
-		static::assertSame( 'live_previews_revoke_missing_target', $missing->get_error_code() );
+		static::assertSame( 'shareadraft_revoke_missing_target', $missing->get_error_code() );
 
 		$conflicting = $ability->execute(
 			[
@@ -297,7 +297,7 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 			]
 		);
 		static::assertInstanceOf( WP_Error::class, $conflicting );
-		static::assertSame( 'live_previews_revoke_conflicting_input', $conflicting->get_error_code() );
+		static::assertSame( 'shareadraft_revoke_conflicting_input', $conflicting->get_error_code() );
 	}
 
 	public function test_an_editor_revokes_every_link_one_creator_made(): void {
@@ -546,7 +546,7 @@ class PreviewAbilitiesTest extends WP_UnitTestCase {
 			]
 		);
 		static::assertInstanceOf( WP_Error::class, $conflicting );
-		static::assertSame( 'live_previews_list_conflicting_input', $conflicting->get_error_code() );
+		static::assertSame( 'shareadraft_list_conflicting_input', $conflicting->get_error_code() );
 	}
 
 	public function test_an_author_reads_the_switch_state_without_flipping_it(): void {

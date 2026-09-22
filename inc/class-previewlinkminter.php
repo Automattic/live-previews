@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Error;
 use WP_Post;
@@ -46,8 +46,8 @@ final class PreviewLinkMinter {
 	public function mint( int $post_id, int $expiration, ?int $max_uses, string $channel, array $allowed_ips = [], array $recipients = [] ) {
 		if ( ! get_post( $post_id ) instanceof WP_Post ) {
 			return new WP_Error(
-				'live_previews_invalid_post',
-				__( 'The post could not be found.', 'live-previews' ),
+				'shareadraft_invalid_post',
+				__( 'The post could not be found.', 'shareadraft' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -60,16 +60,16 @@ final class PreviewLinkMinter {
 		// field is told no, rather than minting a restriction the UI cannot show.
 		if ( [] !== $allowed_ips && ! Features::ip_allowlist_enabled() ) {
 			return new WP_Error(
-				'live_previews_ip_allowlist_disabled',
-				__( 'Per-link IP allowlists are disabled on this site.', 'live-previews' ),
+				'shareadraft_ip_allowlist_disabled',
+				__( 'Per-link IP allowlists are disabled on this site.', 'shareadraft' ),
 				[ 'status' => 400 ]
 			);
 		}
 
 		if ( [] !== $recipients && ! Features::recipients_enabled() ) {
 			return new WP_Error(
-				'live_previews_recipients_disabled',
-				__( 'Recipient-bound preview links are disabled on this site.', 'live-previews' ),
+				'shareadraft_recipients_disabled',
+				__( 'Recipient-bound preview links are disabled on this site.', 'shareadraft' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -77,10 +77,10 @@ final class PreviewLinkMinter {
 		foreach ( $allowed_ips as $range ) {
 			if ( ! IpAllowlist::is_valid_range( $range ) ) {
 				return new WP_Error(
-					'live_previews_invalid_ip_range',
+					'shareadraft_invalid_ip_range',
 					sprintf(
 						/* translators: %s: the rejected input, e.g. "203.0.113.0/33" */
-						__( '"%s" is not a valid IP address or CIDR range.', 'live-previews' ),
+						__( '"%s" is not a valid IP address or CIDR range.', 'shareadraft' ),
 						$range
 					),
 					[ 'status' => 400 ]
@@ -91,10 +91,10 @@ final class PreviewLinkMinter {
 		foreach ( $recipients as $recipient ) {
 			if ( false === is_email( $recipient ) ) {
 				return new WP_Error(
-					'live_previews_invalid_recipient',
+					'shareadraft_invalid_recipient',
 					sprintf(
 						/* translators: %s: the rejected input. */
-						__( '"%s" is not a valid email address.', 'live-previews' ),
+						__( '"%s" is not a valid email address.', 'shareadraft' ),
 						$recipient
 					),
 					[ 'status' => 400 ]
@@ -109,7 +109,7 @@ final class PreviewLinkMinter {
 		$url = get_preview_post_link( $post_id, [ PreviewGate::TOKEN_QUERY_VAR => $token->value() ] );
 
 		// Usage metadata only — never the token, content, or PII.
-		// Prefixed to `livepreviews_link_created` by the Telemetry client.
+		// Prefixed to `shareadraft_link_created` by the Telemetry client.
 		// `is_capped` keeps `max_uses` a clean integer: an uncapped link reports
 		// is_capped=false with max_uses=0 rather than a null that Tracks would
 		// coerce to the string "null".

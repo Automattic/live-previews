@@ -1,12 +1,12 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
- * @covers \Automattic\LivePreviews\Config
+ * @covers \Automattic\ShareADraft\Config
  */
 class ConfigTest extends WP_UnitTestCase {
 	private const FIXTURES_DIR = __DIR__ . '/../../fixtures';

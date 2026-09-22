@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Error;
 
@@ -12,7 +12,7 @@ use WP_Error;
  * The driving use case is drafting with a local agent — the agent can mint a
  * shareable preview, see what it has already shared, and revoke what should no
  * longer be shared, without a human switching to the block editor. The ability
- * set mirrors the `wp live-previews` commands (plus the admin page's site-wide
+ * set mirrors the `wp shareadraft` commands (plus the admin page's site-wide
  * switch), and both are sibling adapters to {@see PreviewRestController}: they
  * reuse the same {@see PreviewLinkMinter}, {@see PreviewLinkPresenter}, and
  * {@see PreviewLinkService}, so a given surface cannot diverge from REST.
@@ -21,25 +21,25 @@ use WP_Error;
  */
 final class PreviewAbilities {
 	/** Ability category slug grouping this plugin's abilities. */
-	public const CATEGORY = 'live-previews';
+	public const CATEGORY = 'shareadraft';
 
 	/** Fully-qualified name of the create-link ability. */
-	public const CREATE_LINK = 'live-previews/create-preview-link';
+	public const CREATE_LINK = 'shareadraft/create-preview-link';
 
 	/** Fully-qualified name of the list-links ability. */
-	public const LIST_LINKS = 'live-previews/list-preview-links';
+	public const LIST_LINKS = 'shareadraft/list-preview-links';
 
 	/** Fully-qualified name of the revoke-link ability. */
-	public const REVOKE_LINK = 'live-previews/revoke-preview-link';
+	public const REVOKE_LINK = 'shareadraft/revoke-preview-link';
 
 	/** Fully-qualified name of the prune-links ability. */
-	public const PRUNE_LINKS = 'live-previews/prune-preview-links';
+	public const PRUNE_LINKS = 'shareadraft/prune-preview-links';
 
 	/** Fully-qualified name of the site-wide enable/disable ability. */
-	public const SET_ENABLED = 'live-previews/set-preview-links-enabled';
+	public const SET_ENABLED = 'shareadraft/set-preview-links-enabled';
 
 	/** Fully-qualified name of the switch-state read ability. */
-	public const GET_STATUS = 'live-previews/get-preview-links-status';
+	public const GET_STATUS = 'shareadraft/get-preview-links-status';
 
 	private PreviewLinkService $service;
 	private PreviewLinkMinter $minter;
@@ -75,8 +75,8 @@ final class PreviewAbilities {
 		wp_register_ability_category(
 			self::CATEGORY,
 			[
-				'label'       => __( 'Live Previews', 'live-previews' ),
-				'description' => __( 'Create and manage pre-publish preview links.', 'live-previews' ),
+				'label'       => __( 'Share a Draft', 'shareadraft' ),
+				'description' => __( 'Create and manage pre-publish preview links.', 'shareadraft' ),
 			]
 		);
 	}
@@ -85,7 +85,7 @@ final class PreviewAbilities {
 		$create_properties = [
 			'post_id'    => [
 				'type'        => 'integer',
-				'description' => __( 'ID of the draft to generate a preview link for.', 'live-previews' ),
+				'description' => __( 'ID of the draft to generate a preview link for.', 'shareadraft' ),
 			],
 			'expiration' => [
 				'type'        => 'integer',
@@ -93,14 +93,14 @@ final class PreviewAbilities {
 				// channels honour the same (filterable) set.
 				'enum'        => PreviewRestController::allowed_expirations(),
 				'default'     => PreviewRestController::default_expiration(),
-				'description' => __( 'How long the link stays valid, in seconds.', 'live-previews' ),
+				'description' => __( 'How long the link stays valid, in seconds.', 'shareadraft' ),
 			],
 			'max_uses'   => [
 				'type'        => [ 'integer', 'null' ],
 				'default'     => null,
 				'minimum'     => 1,
 				'maximum'     => PreviewRestController::MAX_USES_LIMIT,
-				'description' => __( 'Maximum number of distinct viewers, or null for unlimited.', 'live-previews' ),
+				'description' => __( 'Maximum number of distinct viewers, or null for unlimited.', 'shareadraft' ),
 			],
 		];
 
@@ -112,7 +112,7 @@ final class PreviewAbilities {
 				'type'        => 'array',
 				'items'       => [ 'type' => 'string' ],
 				'default'     => [],
-				'description' => __( 'IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Empty means no IP restriction.', 'live-previews' ),
+				'description' => __( 'IP addresses or CIDR ranges (IPv4 or IPv6) the link may be opened from. Empty means no IP restriction.', 'shareadraft' ),
 			];
 		}
 
@@ -121,15 +121,15 @@ final class PreviewAbilities {
 				'type'        => 'array',
 				'items'       => [ 'type' => 'string' ],
 				'default'     => [],
-				'description' => __( 'Email addresses of the named reviewers the link is bound to. Each reviewer must verify their address with an emailed code before viewing. Empty means anyone with the link can view.', 'live-previews' ),
+				'description' => __( 'Email addresses of the named reviewers the link is bound to. Each reviewer must verify their address with an emailed code before viewing. Empty means anyone with the link can view.', 'shareadraft' ),
 			];
 		}
 
 		wp_register_ability(
 			self::CREATE_LINK,
 			[
-				'label'               => __( 'Create preview link', 'live-previews' ),
-				'description'         => __( 'Issues a shareable link that lets a logged-out reviewer view a draft before it is published. Returns the preview URL and the timestamp it expires. The URL contains a secret token, so treat the result as sensitive.', 'live-previews' ),
+				'label'               => __( 'Create preview link', 'shareadraft' ),
+				'description'         => __( 'Issues a shareable link that lets a logged-out reviewer view a draft before it is published. Returns the preview URL and the timestamp it expires. The URL contains a secret token, so treat the result as sensitive.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
@@ -141,11 +141,11 @@ final class PreviewAbilities {
 					'properties' => [
 						'url'        => [
 							'type'        => 'string',
-							'description' => __( 'The shareable preview URL, carrying the secret token.', 'live-previews' ),
+							'description' => __( 'The shareable preview URL, carrying the secret token.', 'shareadraft' ),
 						],
 						'expires_at' => [
 							'type'        => 'integer',
-							'description' => __( 'Unix timestamp when the link expires.', 'live-previews' ),
+							'description' => __( 'Unix timestamp when the link expires.', 'shareadraft' ),
 						],
 					],
 				],
@@ -172,19 +172,19 @@ final class PreviewAbilities {
 		wp_register_ability(
 			self::LIST_LINKS,
 			[
-				'label'               => __( 'List preview links', 'live-previews' ),
-				'description'         => __( 'Lists the active preview links — their usage, expiry, and a short token hint — so an existing link can be reused instead of minting a duplicate. Pass a post ID to list one post\'s links, or omit it to list every live link on the site (which needs broader permissions). The shareable URL is not returned (only a hint), because the token itself is never stored.', 'live-previews' ),
+				'label'               => __( 'List preview links', 'shareadraft' ),
+				'description'         => __( 'Lists the active preview links — their usage, expiry, and a short token hint — so an existing link can be reused instead of minting a duplicate. Pass a post ID to list one post\'s links, or omit it to list every live link on the site (which needs broader permissions). The shareable URL is not returned (only a hint), because the token itself is never stored.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
 					'properties' => [
 						'post_id'    => [
 							'type'        => 'integer',
-							'description' => __( 'ID of the post whose preview links to list. Omit to list every live link on the site.', 'live-previews' ),
+							'description' => __( 'ID of the post whose preview links to list. Omit to list every live link on the site.', 'shareadraft' ),
 						],
 						'created_by' => [
 							'type'        => 'integer',
-							'description' => __( 'Only the links this user created — the site-wide listing\'s creator filter, so it cannot be combined with post_id.', 'live-previews' ),
+							'description' => __( 'Only the links this user created — the site-wide listing\'s creator filter, so it cannot be combined with post_id.', 'shareadraft' ),
 						],
 					],
 				],
@@ -195,15 +195,15 @@ final class PreviewAbilities {
 						'properties' => [
 							'post_id'     => [
 								'type'        => 'integer',
-								'description' => __( 'ID of the post the link previews.', 'live-previews' ),
+								'description' => __( 'ID of the post the link previews.', 'shareadraft' ),
 							],
 							'id'          => [
 								'type'        => 'string',
-								'description' => __( 'Token hash identifying the link.', 'live-previews' ),
+								'description' => __( 'Token hash identifying the link.', 'shareadraft' ),
 							],
 							'token_hint'  => [
 								'type'        => 'string',
-								'description' => __( 'Last few characters of the token, to recognise the link.', 'live-previews' ),
+								'description' => __( 'Last few characters of the token, to recognise the link.', 'shareadraft' ),
 							],
 							'created_at'  => [ 'type' => 'integer' ],
 							'expires_at'  => [ 'type' => 'integer' ],
@@ -213,12 +213,12 @@ final class PreviewAbilities {
 							'allowed_ips' => [
 								'type'        => 'array',
 								'items'       => [ 'type' => 'string' ],
-								'description' => __( 'IP ranges the link is restricted to; empty means no per-link restriction.', 'live-previews' ),
+								'description' => __( 'IP ranges the link is restricted to; empty means no per-link restriction.', 'shareadraft' ),
 							],
 							'recipients'  => [
 								'type'        => 'array',
 								'items'       => [ 'type' => 'string' ],
-								'description' => __( 'Emails of the named reviewers the link is bound to; empty means anyone with the link can view.', 'live-previews' ),
+								'description' => __( 'Emails of the named reviewers the link is bound to; empty means anyone with the link can view.', 'shareadraft' ),
 							],
 						],
 					],
@@ -241,28 +241,28 @@ final class PreviewAbilities {
 		wp_register_ability(
 			self::REVOKE_LINK,
 			[
-				'label'               => __( 'Revoke preview link', 'live-previews' ),
-				'description'         => __( 'Revokes preview links at one of four scopes, mirroring the admin page\'s tools: one of a post\'s links (a token hint or link id from list-preview-links), every live link on a post, every link a given user created (the offboarding sweep), or every live link on the site (the break-glass switch — needs administrator rights). A revoked link stops working immediately; a visitor opening it is told it was revoked.', 'live-previews' ),
+				'label'               => __( 'Revoke preview link', 'shareadraft' ),
+				'description'         => __( 'Revokes preview links at one of four scopes, mirroring the admin page\'s tools: one of a post\'s links (a token hint or link id from list-preview-links), every live link on a post, every link a given user created (the offboarding sweep), or every live link on the site (the break-glass switch — needs administrator rights). A revoked link stops working immediately; a visitor opening it is told it was revoked.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
 					'properties' => [
 						'post_id'    => [
 							'type'        => 'integer',
-							'description' => __( 'ID of the post whose preview link to revoke. Omit for the site-wide scopes.', 'live-previews' ),
+							'description' => __( 'ID of the post whose preview link to revoke. Omit for the site-wide scopes.', 'shareadraft' ),
 						],
 						'link'       => [
 							'type'        => 'string',
-							'description' => __( 'The link to revoke: a token hint or a full link id, as returned by list-preview-links. Needs post_id; omit when revoking a wider scope.', 'live-previews' ),
+							'description' => __( 'The link to revoke: a token hint or a full link id, as returned by list-preview-links. Needs post_id; omit when revoking a wider scope.', 'shareadraft' ),
 						],
 						'created_by' => [
 							'type'        => 'integer',
-							'description' => __( 'Revoke every link this user created, across the whole site — e.g. when someone leaves.', 'live-previews' ),
+							'description' => __( 'Revoke every link this user created, across the whole site — e.g. when someone leaves.', 'shareadraft' ),
 						],
 						'all'        => [
 							'type'        => 'boolean',
 							'default'     => false,
-							'description' => __( 'With post_id, revoke every live link on the post; on its own, revoke every live link on the site.', 'live-previews' ),
+							'description' => __( 'With post_id, revoke every live link on the post; on its own, revoke every live link on the site.', 'shareadraft' ),
 						],
 					],
 				],
@@ -271,11 +271,11 @@ final class PreviewAbilities {
 					'properties' => [
 						'revoked' => [
 							'type'        => 'integer',
-							'description' => __( 'How many links were revoked in this run.', 'live-previews' ),
+							'description' => __( 'How many links were revoked in this run.', 'shareadraft' ),
 						],
 						'pending' => [
 							'type'        => 'boolean',
-							'description' => __( 'True when a site-wide sweep was too large for one run; the rest are being revoked in the background.', 'live-previews' ),
+							'description' => __( 'True when a site-wide sweep was too large for one run; the rest are being revoked in the background.', 'shareadraft' ),
 						],
 					],
 				],
@@ -298,8 +298,8 @@ final class PreviewAbilities {
 		wp_register_ability(
 			self::PRUNE_LINKS,
 			[
-				'label'               => __( 'Prune preview links', 'live-previews' ),
-				'description'         => __( 'Deletes expired and revoked preview links past their retention period, site-wide. The scheduled sweep does this daily; run it when waiting is not acceptable. Until a dead link is pruned, a visitor opening it is told why it stopped working; after, they see a plain 404.', 'live-previews' ),
+				'label'               => __( 'Prune preview links', 'shareadraft' ),
+				'description'         => __( 'Deletes expired and revoked preview links past their retention period, site-wide. The scheduled sweep does this daily; run it when waiting is not acceptable. Until a dead link is pruned, a visitor opening it is told why it stopped working; after, they see a plain 404.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
@@ -307,7 +307,7 @@ final class PreviewAbilities {
 						'grace' => [
 							'type'        => 'integer',
 							'minimum'     => 0,
-							'description' => __( 'Override the retention period for dead links, in seconds. 0 deletes every expired or revoked link immediately. Omit to use the configured grace period.', 'live-previews' ),
+							'description' => __( 'Override the retention period for dead links, in seconds. 0 deletes every expired or revoked link immediately. Omit to use the configured grace period.', 'shareadraft' ),
 						],
 					],
 				],
@@ -316,7 +316,7 @@ final class PreviewAbilities {
 					'properties' => [
 						'pruned' => [
 							'type'        => 'integer',
-							'description' => __( 'How many dead links were deleted.', 'live-previews' ),
+							'description' => __( 'How many dead links were deleted.', 'shareadraft' ),
 						],
 					],
 				],
@@ -339,8 +339,8 @@ final class PreviewAbilities {
 		wp_register_ability(
 			self::SET_ENABLED,
 			[
-				'label'               => __( 'Enable or disable preview links', 'live-previews' ),
-				'description'         => __( 'Turns preview links on or off site-wide. Disabling is a reversible pause, not a revocation: every link keeps its own state and simply stops working until links are re-enabled, which makes it the first response to a suspected leak. Returns the resulting state, including who disabled links and when.', 'live-previews' ),
+				'label'               => __( 'Enable or disable preview links', 'shareadraft' ),
+				'description'         => __( 'Turns preview links on or off site-wide. Disabling is a reversible pause, not a revocation: every link keeps its own state and simply stops working until links are re-enabled, which makes it the first response to a suspected leak. Returns the resulting state, including who disabled links and when.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
@@ -348,7 +348,7 @@ final class PreviewAbilities {
 					'properties' => [
 						'enabled' => [
 							'type'        => 'boolean',
-							'description' => __( 'Whether preview links should work: false pauses every link on the site, true lets them work again.', 'live-previews' ),
+							'description' => __( 'Whether preview links should work: false pauses every link on the site, true lets them work again.', 'shareadraft' ),
 						],
 					],
 				],
@@ -357,15 +357,15 @@ final class PreviewAbilities {
 					'properties' => [
 						'enabled'     => [
 							'type'        => 'boolean',
-							'description' => __( 'Whether preview links now work.', 'live-previews' ),
+							'description' => __( 'Whether preview links now work.', 'shareadraft' ),
 						],
 						'disabled_at' => [
 							'type'        => [ 'integer', 'null' ],
-							'description' => __( 'Unix timestamp links were disabled, or null while enabled.', 'live-previews' ),
+							'description' => __( 'Unix timestamp links were disabled, or null while enabled.', 'shareadraft' ),
 						],
 						'disabled_by' => [
 							'type'        => [ 'integer', 'null' ],
-							'description' => __( 'ID of the user who disabled links (0 when unknown), or null while enabled.', 'live-previews' ),
+							'description' => __( 'ID of the user who disabled links (0 when unknown), or null while enabled.', 'shareadraft' ),
 						],
 					],
 				],
@@ -389,8 +389,8 @@ final class PreviewAbilities {
 		wp_register_ability(
 			self::GET_STATUS,
 			[
-				'label'               => __( 'Get preview links status', 'live-previews' ),
-				'description'         => __( 'Reports whether preview links currently work site-wide, and — while they are disabled — who paused them and when. Check this before minting or sharing: a link created while links are disabled will not work until they are re-enabled.', 'live-previews' ),
+				'label'               => __( 'Get preview links status', 'shareadraft' ),
+				'description'         => __( 'Reports whether preview links currently work site-wide, and — while they are disabled — who paused them and when. Check this before minting or sharing: a link created while links are disabled will not work until they are re-enabled.', 'shareadraft' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => [
 					'type'       => 'object',
@@ -401,15 +401,15 @@ final class PreviewAbilities {
 					'properties' => [
 						'enabled'     => [
 							'type'        => 'boolean',
-							'description' => __( 'Whether preview links currently work.', 'live-previews' ),
+							'description' => __( 'Whether preview links currently work.', 'shareadraft' ),
 						],
 						'disabled_at' => [
 							'type'        => [ 'integer', 'null' ],
-							'description' => __( 'Unix timestamp links were disabled, or null while enabled.', 'live-previews' ),
+							'description' => __( 'Unix timestamp links were disabled, or null while enabled.', 'shareadraft' ),
 						],
 						'disabled_by' => [
 							'type'        => [ 'integer', 'null' ],
-							'description' => __( 'ID of the user who disabled links (0 when unknown), or null while enabled.', 'live-previews' ),
+							'description' => __( 'ID of the user who disabled links (0 when unknown), or null while enabled.', 'shareadraft' ),
 						],
 					],
 				],
@@ -506,8 +506,8 @@ final class PreviewAbilities {
 
 		if ( $post_id > 0 && $created_by > 0 ) {
 			return new WP_Error(
-				'live_previews_list_conflicting_input',
-				__( 'The created_by filter belongs to the site-wide listing; specify it without post_id.', 'live-previews' )
+				'shareadraft_list_conflicting_input',
+				__( 'The created_by filter belongs to the site-wide listing; specify it without post_id.', 'shareadraft' )
 			);
 		}
 
@@ -583,8 +583,8 @@ final class PreviewAbilities {
 
 		if ( $targets > 1 ) {
 			return new WP_Error(
-				'live_previews_revoke_conflicting_input',
-				__( 'Specify exactly one of link, created_by, or all.', 'live-previews' )
+				'shareadraft_revoke_conflicting_input',
+				__( 'Specify exactly one of link, created_by, or all.', 'shareadraft' )
 			);
 		}
 
@@ -611,8 +611,8 @@ final class PreviewAbilities {
 
 		if ( '' === $identifier || 0 === $post_id ) {
 			return new WP_Error(
-				'live_previews_revoke_missing_target',
-				__( 'Specify a post_id and the link to revoke (a token hint or full id), a created_by user, or all.', 'live-previews' )
+				'shareadraft_revoke_missing_target',
+				__( 'Specify a post_id and the link to revoke (a token hint or full id), a created_by user, or all.', 'shareadraft' )
 			);
 		}
 
@@ -620,10 +620,10 @@ final class PreviewAbilities {
 
 		if ( [] === $matches ) {
 			return new WP_Error(
-				'live_previews_link_not_found',
+				'shareadraft_link_not_found',
 				sprintf(
 					/* translators: %s: the token hint or link id the caller supplied. */
-					__( 'No preview link matches "%s".', 'live-previews' ),
+					__( 'No preview link matches "%s".', 'shareadraft' ),
 					$identifier
 				)
 			);
@@ -631,10 +631,10 @@ final class PreviewAbilities {
 
 		if ( count( $matches ) > 1 ) {
 			return new WP_Error(
-				'live_previews_link_ambiguous',
+				'shareadraft_link_ambiguous',
 				sprintf(
 					/* translators: 1: the token hint the caller supplied, 2: comma-separated list of full link ids. */
-					__( '"%1$s" matches more than one link; use one of these full ids instead: %2$s.', 'live-previews' ),
+					__( '"%1$s" matches more than one link; use one of these full ids instead: %2$s.', 'shareadraft' ),
 					$identifier,
 					implode( ', ', array_map( static fn ( PreviewLink $link ): string => $link->token_hash(), $matches ) )
 				)

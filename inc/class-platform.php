@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Tells VIP-hosted installs apart from everywhere else.
@@ -33,6 +33,6 @@ final class Platform {
 		 *
 		 * @param bool $is_vip Whether a VIP platform constant was detected.
 		 */
-		return (bool) apply_filters( 'live_previews_is_vip_platform', $is_vip );
+		return (bool) apply_filters( 'shareadraft_is_vip_platform', $is_vip );
 	}
 }

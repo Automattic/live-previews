@@ -11,7 +11,7 @@
     xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
 >
     <projectFiles>
-        <file name="live-previews.php"/>
+        <file name="shareadraft.php"/>
         <directory name="inc"/>
         <directory name="tests/unit"/>
         <directory name="tests/integration"/>

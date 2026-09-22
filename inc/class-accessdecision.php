@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * The outcome of {@see AccessPolicy::decide()}: allow or deny, plus a machine

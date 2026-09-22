@@ -1,10 +1,10 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Centralized reader for the runtime configuration the VIP platform injects
- * as the VIP_LIVE_PREVIEWS_CONFIG PHP constant (a plain associative
+ * as the VIP_SHAREADRAFT_CONFIG PHP constant (a plain associative
  * array, defined before the plugin is loaded).
  *
  * The constant carries no data today. Defining it at all is the signal that
@@ -17,7 +17,7 @@ namespace Automattic\LivePreviews;
  * check is_ready() and disable the affected behavior instead.
  */
 final class Config {
-	public const CONSTANT_NAME = 'VIP_LIVE_PREVIEWS_CONFIG';
+	public const CONSTANT_NAME = 'VIP_SHAREADRAFT_CONFIG';
 
 	/**
 	 * Fields the plugin cannot work without. Empty: nothing is required yet.

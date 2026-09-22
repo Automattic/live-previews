@@ -7,12 +7,12 @@ Feature: Preview links can be revoked from the command line
 	`--all` as the break-glass revoke-everything.
 
 	Background:
-		Given a WP installation with the Live Previews plugin
+		Given a WP installation with the Share a Draft plugin
 
 	Scenario: A link or --all must be given
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews revoke {POST_ID}`
+		When I try `wp shareadraft revoke {POST_ID}`
 		Then STDERR should be:
 			"""
 			Error: Specify the link to revoke (a token hint or full id), or --all.
@@ -21,7 +21,7 @@ Feature: Preview links can be revoked from the command line
 	Scenario: A link and --all cannot be combined
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews revoke {POST_ID} abcd --all`
+		When I try `wp shareadraft revoke {POST_ID} abcd --all`
 		Then STDERR should be:
 			"""
 			Error: Specify either a link or --all, not both.
@@ -30,7 +30,7 @@ Feature: Preview links can be revoked from the command line
 	Scenario: Error when nothing matches
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews revoke {POST_ID} zzzz`
+		When I try `wp shareadraft revoke {POST_ID} zzzz`
 		Then STDERR should be:
 			"""
 			Error: No preview link matches "zzzz".
@@ -39,15 +39,15 @@ Feature: Preview links can be revoked from the command line
 	Scenario: Revoke a link by the token hint the list shows
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		And I run `wp live-previews create {POST_ID} --porcelain`
-		And I run `wp live-previews list {POST_ID} --field=token_hint`
+		And I run `wp shareadraft create {POST_ID} --porcelain`
+		And I run `wp shareadraft list {POST_ID} --field=token_hint`
 		And save STDOUT as {HINT}
-		When I run `wp live-previews revoke {POST_ID} {HINT}`
+		When I run `wp shareadraft revoke {POST_ID} {HINT}`
 		Then STDOUT should be:
 			"""
 			Success: Revoked 1 preview link.
 			"""
-		When I run `wp live-previews list {POST_ID} --format=count`
+		When I run `wp shareadraft list {POST_ID} --format=count`
 		Then STDOUT should be:
 			"""
 			0
@@ -56,21 +56,21 @@ Feature: Preview links can be revoked from the command line
 	Scenario: Revoke every live link on the post at once
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		And I run `wp live-previews create {POST_ID} --porcelain`
-		And I run `wp live-previews create {POST_ID} --porcelain`
-		When I run `wp live-previews revoke {POST_ID} --all`
+		And I run `wp shareadraft create {POST_ID} --porcelain`
+		And I run `wp shareadraft create {POST_ID} --porcelain`
+		When I run `wp shareadraft revoke {POST_ID} --all`
 		Then STDOUT should be:
 			"""
 			Success: Revoked 2 preview links.
 			"""
-		When I run `wp live-previews list {POST_ID} --format=count`
+		When I run `wp shareadraft list {POST_ID} --format=count`
 		Then STDOUT should be:
 			"""
 			0
 			"""
 
 	Scenario: A scope must be given
-		When I try `wp live-previews revoke`
+		When I try `wp shareadraft revoke`
 		Then STDERR should be:
 			"""
 			Error: Specify a post ID, --created-by, or --all.
@@ -79,7 +79,7 @@ Feature: Preview links can be revoked from the command line
 	Scenario: The creator sweep stands alone
 		When I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		When I try `wp live-previews revoke {POST_ID} --created-by=admin`
+		When I try `wp shareadraft revoke {POST_ID} --created-by=admin`
 		Then STDERR should be:
 			"""
 			Error: Specify --created-by on its own, without a post ID or --all.
@@ -90,14 +90,14 @@ Feature: Preview links can be revoked from the command line
 		And save STDOUT as {USER_ID}
 		And I run `wp post create --post_status=draft --post_title="A draft" --porcelain`
 		And save STDOUT as {POST_ID}
-		And I run `wp live-previews create {POST_ID} --user=reviewer --porcelain`
-		And I run `wp live-previews create {POST_ID} --user=admin --porcelain`
-		When I run `wp live-previews revoke --created-by=reviewer`
+		And I run `wp shareadraft create {POST_ID} --user=reviewer --porcelain`
+		And I run `wp shareadraft create {POST_ID} --user=admin --porcelain`
+		When I run `wp shareadraft revoke --created-by=reviewer`
 		Then STDOUT should be:
 			"""
 			Success: Revoked 1 preview link.
 			"""
-		When I run `wp live-previews list {POST_ID} --format=count`
+		When I run `wp shareadraft list {POST_ID} --format=count`
 		Then STDOUT should be:
 			"""
 			1
@@ -106,16 +106,16 @@ Feature: Preview links can be revoked from the command line
 	Scenario: Break glass and revoke every live link on the site
 		When I run `wp post create --post_status=draft --post_title="First draft" --porcelain`
 		And save STDOUT as {FIRST_ID}
-		And I run `wp live-previews create {FIRST_ID} --porcelain`
+		And I run `wp shareadraft create {FIRST_ID} --porcelain`
 		And I run `wp post create --post_status=draft --post_title="Second draft" --porcelain`
 		And save STDOUT as {SECOND_ID}
-		And I run `wp live-previews create {SECOND_ID} --porcelain`
-		When I run `wp live-previews revoke --all --yes`
+		And I run `wp shareadraft create {SECOND_ID} --porcelain`
+		When I run `wp shareadraft revoke --all --yes`
 		Then STDOUT should be:
 			"""
 			Success: Revoked 2 preview links.
 			"""
-		When I run `wp live-previews list --format=count`
+		When I run `wp shareadraft list --format=count`
 		Then STDOUT should be:
 			"""
 			0

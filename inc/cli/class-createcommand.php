@@ -1,15 +1,15 @@
 <?php
 
-namespace Automattic\LivePreviews\Cli;
+namespace Automattic\ShareADraft\Cli;
 
-use Automattic\LivePreviews\LinkToggle;
-use Automattic\LivePreviews\PreviewLinkMinter;
-use Automattic\LivePreviews\PreviewRestController;
+use Automattic\ShareADraft\LinkToggle;
+use Automattic\ShareADraft\PreviewLinkMinter;
+use Automattic\ShareADraft\PreviewRestController;
 use WP_CLI;
 use WP_Error;
 
 /**
- * The `wp live-previews create` command.
+ * The `wp shareadraft create` command.
  *
  * A thin adapter over {@see PreviewLinkMinter}, the same orchestration behind
  * the REST endpoint and the create-preview-link ability, so a link minted from
@@ -38,7 +38,7 @@ final class CreateCommand {
 	 * : The post to create a preview link for.
 	 *
 	 * [--expiration=<seconds>]
-	 * : How long the link stays valid, in seconds. Must be one of the allowed lifetimes (3600, 28800, 86400, or 604800 unless the site filters `live_previews_expiration_options`). Defaults to the site's default lifetime (8 hours unless filtered).
+	 * : How long the link stays valid, in seconds. Must be one of the allowed lifetimes (3600, 28800, 86400, or 604800 unless the site filters `shareadraft_expiration_options`). Defaults to the site's default lifetime (8 hours unless filtered).
 	 *
 	 * [--max-uses=<count>]
 	 * : Maximum number of distinct viewers, between 1 and 1000. Defaults to unlimited.
@@ -55,17 +55,17 @@ final class CreateCommand {
 	 * ## EXAMPLES
 	 *
 	 *     # Create a link with the default lifetime.
-	 *     $ wp live-previews create 123
-	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *     $ wp shareadraft create 123
+	 *     https://example.com/?p=123&preview=true&shareadraft-token=4f7a1b9c…20e3c3d9
 	 *     Success: Link expires 2026-09-09 09:30:00 UTC.
 	 *
 	 *     # A single-viewer link that lasts an hour, printing only the URL for a script.
-	 *     $ wp live-previews create 123 --expiration=3600 --max-uses=1 --porcelain
-	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *     $ wp shareadraft create 123 --expiration=3600 --max-uses=1 --porcelain
+	 *     https://example.com/?p=123&preview=true&shareadraft-token=4f7a1b9c…20e3c3d9
 	 *
 	 *     # Restrict the link to an office network.
-	 *     $ wp live-previews create 123 --allowed-ips=203.0.113.0/24
-	 *     https://example.com/?p=123&preview=true&lp-token=4f7a1b9c…20e3c3d9
+	 *     $ wp shareadraft create 123 --allowed-ips=203.0.113.0/24
+	 *     https://example.com/?p=123&preview=true&shareadraft-token=4f7a1b9c…20e3c3d9
 	 *     Success: Link expires 2026-09-09 09:30:00 UTC.
 	 *
 	 * @when after_wp_load

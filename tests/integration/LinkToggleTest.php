@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Query;
 use WP_UnitTestCase;
@@ -11,7 +11,7 @@ use WP_UnitTestCase;
  * The site-wide enable/disable switch: a reversible pause the gate honours,
  * without touching any link's own state.
  *
- * @covers \Automattic\LivePreviews\LinkToggle
+ * @covers \Automattic\ShareADraft\LinkToggle
  */
 class LinkToggleTest extends WP_UnitTestCase {
 	private PreviewLinkService $service;
@@ -69,7 +69,7 @@ class LinkToggleTest extends WP_UnitTestCase {
 	}
 
 	public function test_a_corrupt_option_reads_as_enabled(): void {
-		update_option( 'live_previews_disabled', 'yes please' );
+		update_option( 'shareadraft_disabled', 'yes please' );
 
 		static::assertFalse( $this->toggle->is_disabled() );
 	}

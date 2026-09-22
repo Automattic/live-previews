@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=./vip-manifest.schema.json
 #
-# Handoff manifest for Live Previews.
+# Handoff manifest for Share a Draft.
 #
 # This is the single file WordPress VIP reads to register and load the
 # integration — VIP never sees the repo. Keep it in sync with the plugin, then
@@ -13,8 +13,8 @@ manifest_version: 1
 manifest_kind: vip-integration-handoff
 
 integration:
-  slug: live-previews
-  display_name: Live Previews
+  slug: shareadraft
+  display_name: Share a Draft
   summary: Safe-to-share, time- and usage-limited preview links that let reviewers without a WordPress account view a draft.
   partner:
     name: Automattic
@@ -26,9 +26,9 @@ documentation:
 
 runtime:
   wordpress_plugin:
-    folder: live-previews
-    entry_file: live-previews.php
-    php_namespace: 'Automattic\LivePreviews'
+    folder: shareadraft
+    entry_file: shareadraft.php
+    php_namespace: 'Automattic\ShareADraft'
     scope: site
 
 runtime_config:
@@ -36,7 +36,7 @@ runtime_config:
   # integration is enabled for the site, and the plugin works with nothing in it.
   # The schema requires at least one field to be declared, so the one below is
   # optional and read through Config — never declare a field nothing reads.
-  constant_name: VIP_LIVE_PREVIEWS_CONFIG
+  constant_name: VIP_SHAREADRAFT_CONFIG
   fields:
     - key: dead_link_grace_period
       label: Expired link retention
@@ -62,12 +62,12 @@ runtime_config:
 
 telemetry:
   # Single word, no underscores: the leading token is the Tracks source and must
-  # be whitelisted in nosara. `live_previews_` would divert events to prod_rejects.
-  prefix: livepreviews_
+  # be whitelisted in nosara. `share_a_draft_` would divert events to prod_rejects.
+  prefix: shareadraft_
   default_properties:
     - plugin_version
   events:
-    - name: livepreviews_link_created
+    - name: shareadraft_link_created
       type: tracks
       trigger: A preview link is minted, via REST, WP-CLI, or the Abilities API.
       properties:

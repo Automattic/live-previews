@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_Post;
 use WP_Query;
@@ -9,7 +9,7 @@ use WP_Query;
  * Enforces preview access at request time.
  *
  * A shareable link reuses WordPress's own preview URL (e.g. `?p=13&preview=true`)
- * with an extra `lp-token` parameter. Rather than render a post page from scratch
+ * with an extra `shareadraft-token` parameter. Rather than render a post page from scratch
  * on a bespoke endpoint, we hook `posts_results` — which fires after WP_Query has
  * loaded a post but *before* it drops non-public posts for logged-out visitors —
  * and, for a valid token, mark that one post public for the current query. Every
@@ -28,9 +28,9 @@ use WP_Query;
  * made worthless to abuse: spoofing a crawler gets you less, not more.
  */
 final class PreviewGate {
-	public const TOKEN_QUERY_VAR = 'lp-token';
+	public const TOKEN_QUERY_VAR = 'shareadraft-token';
 
-	private const COOKIE_PREFIX = 'lp_viewer_';
+	private const COOKIE_PREFIX = 'shareadraft_viewer_';
 
 	/** Marks a request that was withheld because the client looks automated. */
 	private const REASON_AUTOMATED = 'automated_client';
@@ -225,8 +225,8 @@ final class PreviewGate {
 			// A neutral 200 so a chat unfurl renders a tidy card, with none of
 			// the draft's title, excerpt, or image in it.
 			NoticePage::render(
-				__( 'Private preview link', 'live-previews' ),
-				sprintf( '<p>%s</p>', esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'live-previews' ) ),
+				__( 'Private preview link', 'shareadraft' ),
+				sprintf( '<p>%s</p>', esc_html__( 'This is a private preview link. Open it in a browser to view the draft.', 'shareadraft' ) ),
 				200
 			);
 		}
@@ -235,13 +235,13 @@ final class PreviewGate {
 			$this->handle_verification();
 		}
 
-		$generic = __( 'This preview link is no longer available.', 'live-previews' );
+		$generic = __( 'This preview link is no longer available.', 'shareadraft' );
 
 		$specific = [
-			AccessDecision::REASON_EXPIRED   => __( 'This preview link has expired.', 'live-previews' ),
-			AccessDecision::REASON_REVOKED   => __( 'This preview link has been revoked.', 'live-previews' ),
-			AccessDecision::REASON_EXHAUSTED => __( 'This preview link has reached its viewing limit.', 'live-previews' ),
-			self::REASON_DISABLED            => __( 'Preview links are temporarily disabled on this site.', 'live-previews' ),
+			AccessDecision::REASON_EXPIRED   => __( 'This preview link has expired.', 'shareadraft' ),
+			AccessDecision::REASON_REVOKED   => __( 'This preview link has been revoked.', 'shareadraft' ),
+			AccessDecision::REASON_EXHAUSTED => __( 'This preview link has reached its viewing limit.', 'shareadraft' ),
+			self::REASON_DISABLED            => __( 'Preview links are temporarily disabled on this site.', 'shareadraft' ),
 		];
 
 		/**
@@ -260,7 +260,7 @@ final class PreviewGate {
 		 * @param string $reason   Machine reason, one of AccessDecision::REASON_EXPIRED,
 		 *                         REASON_REVOKED, REASON_EXHAUSTED, or 'links_disabled'.
 		 */
-		$disclose = (bool) apply_filters( 'live_previews_disclose_denial_reason', true, $this->denial_reason );
+		$disclose = (bool) apply_filters( 'shareadraft_disclose_denial_reason', true, $this->denial_reason );
 
 		$message = $disclose
 			? ( $specific[ $this->denial_reason ] ?? $generic )
@@ -269,11 +269,11 @@ final class PreviewGate {
 		// While the site-wide switch is off, a fresh link would not work either,
 		// so "ask for a new link" would send the visitor on a pointless errand.
 		$advice = $disclose && self::REASON_DISABLED === $this->denial_reason
-			? __( 'Please try again later.', 'live-previews' )
-			: __( 'Ask the author to share a new preview link.', 'live-previews' );
+			? __( 'Please try again later.', 'shareadraft' )
+			: __( 'Ask the author to share a new preview link.', 'shareadraft' );
 
 		NoticePage::render(
-			__( 'Preview unavailable', 'live-previews' ),
+			__( 'Preview unavailable', 'shareadraft' ),
 			sprintf(
 				'<p>%s</p><p>%s</p>',
 				esc_html( $message ),
@@ -305,14 +305,14 @@ final class PreviewGate {
 		$token = Token::from_string( (string) $token_value );
 
 		$nonce_ok = isset( $_POST['_wpnonce'] ) && is_string( $_POST['_wpnonce'] )
-			&& false !== wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ), 'live_previews_verify' );
+			&& false !== wp_verify_nonce( sanitize_key( wp_unslash( $_POST['_wpnonce'] ) ), 'shareadraft_verify' );
 
-		$action = isset( $_POST['lp-verify-action'] ) && is_string( $_POST['lp-verify-action'] )
-			? sanitize_key( wp_unslash( $_POST['lp-verify-action'] ) )
+		$action = isset( $_POST['shareadraft-verify-action'] ) && is_string( $_POST['shareadraft-verify-action'] )
+			? sanitize_key( wp_unslash( $_POST['shareadraft-verify-action'] ) )
 			: '';
 
-		$email = isset( $_POST['lp-email'] ) && is_string( $_POST['lp-email'] )
-			? sanitize_email( wp_unslash( $_POST['lp-email'] ) )
+		$email = isset( $_POST['shareadraft-email'] ) && is_string( $_POST['shareadraft-email'] )
+			? sanitize_email( wp_unslash( $_POST['shareadraft-email'] ) )
 			: '';
 
 		if ( $nonce_ok && 'request-code' === $action && false !== is_email( $email ) ) {
@@ -327,8 +327,8 @@ final class PreviewGate {
 		}
 
 		if ( $nonce_ok && 'verify-code' === $action ) {
-			$code = isset( $_POST['lp-code'] ) && is_string( $_POST['lp-code'] )
-				? sanitize_text_field( wp_unslash( $_POST['lp-code'] ) )
+			$code = isset( $_POST['shareadraft-code'] ) && is_string( $_POST['shareadraft-code'] )
+				? sanitize_text_field( wp_unslash( $_POST['shareadraft-code'] ) )
 				: '';
 
 			if ( '' !== $email && '' !== $code && $this->verifier->verify_code( $token, $email, $code ) ) {
@@ -353,7 +353,7 @@ final class PreviewGate {
 
 			$this->render_code_form(
 				$email,
-				__( 'That code did not match or has expired. Check it, or reload this page to request a new one.', 'live-previews' )
+				__( 'That code did not match or has expired. Check it, or reload this page to request a new one.', 'shareadraft' )
 			);
 		}
 
@@ -366,14 +366,14 @@ final class PreviewGate {
 	 */
 	private function render_email_form(): void {
 		$html = sprintf(
-			'<p>%s</p><form method="post">%s<input type="hidden" name="lp-verify-action" value="request-code" /><p><label for="lp-email">%s</label><input type="email" name="lp-email" id="lp-email" required autocomplete="email" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
-			esc_html__( 'This preview is for named reviewers. Enter your email address and, if it is on the reviewer list, we will send you a verification code.', 'live-previews' ),
-			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
-			esc_html__( 'Email address', 'live-previews' ),
-			esc_html__( 'Email me a code', 'live-previews' )
+			'<p>%s</p><form method="post">%s<input type="hidden" name="shareadraft-verify-action" value="request-code" /><p><label for="shareadraft-email">%s</label><input type="email" name="shareadraft-email" id="shareadraft-email" required autocomplete="email" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
+			esc_html__( 'This preview is for named reviewers. Enter your email address and, if it is on the reviewer list, we will send you a verification code.', 'shareadraft' ),
+			wp_nonce_field( 'shareadraft_verify', '_wpnonce', false, false ),
+			esc_html__( 'Email address', 'shareadraft' ),
+			esc_html__( 'Email me a code', 'shareadraft' )
 		);
 
-		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
+		NoticePage::render( __( 'Verify your email', 'shareadraft' ), $html, 200 );
 	}
 
 	/**
@@ -383,16 +383,16 @@ final class PreviewGate {
 	 */
 	private function render_code_form( string $email, string $error = '' ): void {
 		$html = sprintf(
-			'<p>%s</p>%s<form method="post">%s<input type="hidden" name="lp-verify-action" value="verify-code" /><input type="hidden" name="lp-email" value="%s" /><p><label for="lp-code">%s</label><input type="text" name="lp-code" id="lp-code" class="lp-code" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
-			esc_html__( 'If that address is on the reviewer list, we have emailed it a verification code. Enter the code below.', 'live-previews' ),
+			'<p>%s</p>%s<form method="post">%s<input type="hidden" name="shareadraft-verify-action" value="verify-code" /><input type="hidden" name="shareadraft-email" value="%s" /><p><label for="shareadraft-code">%s</label><input type="text" name="shareadraft-code" id="shareadraft-code" class="shareadraft-code" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" /></p><p><button type="submit" class="button-primary">%s</button></p></form>',
+			esc_html__( 'If that address is on the reviewer list, we have emailed it a verification code. Enter the code below.', 'shareadraft' ),
 			'' === $error ? '' : sprintf( '<p role="alert"><strong>%s</strong></p>', esc_html( $error ) ),
-			wp_nonce_field( 'live_previews_verify', '_wpnonce', false, false ),
+			wp_nonce_field( 'shareadraft_verify', '_wpnonce', false, false ),
 			esc_attr( $email ),
-			esc_html__( 'Verification code', 'live-previews' ),
-			esc_html__( 'Verify', 'live-previews' )
+			esc_html__( 'Verification code', 'shareadraft' ),
+			esc_html__( 'Verify', 'shareadraft' )
 		);
 
-		NoticePage::render( __( 'Verify your email', 'live-previews' ), $html, 200 );
+		NoticePage::render( __( 'Verify your email', 'shareadraft' ), $html, 200 );
 	}
 
 	/**
@@ -467,7 +467,7 @@ final class PreviewGate {
 		 *
 		 * @param string $remote_addr The client IP, or '' if unknown.
 		 */
-		$ip = apply_filters( 'live_previews_client_ip', $remote_addr );
+		$ip = apply_filters( 'shareadraft_client_ip', $remote_addr );
 
 		if ( ! is_string( $ip ) || false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			return null;
@@ -569,7 +569,7 @@ final class PreviewGate {
 		 *
 		 * @param string $default_pattern Regular expression tested against the UA string.
 		 */
-		$pattern = apply_filters( 'live_previews_bot_user_agent_pattern', $default_pattern );
+		$pattern = apply_filters( 'shareadraft_bot_user_agent_pattern', $default_pattern );
 
 		if ( ! is_string( $pattern ) || '' === $pattern ) {
 			return false;

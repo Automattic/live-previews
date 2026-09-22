@@ -1,14 +1,14 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
  * The Site Health test that reports whether the cleanup sweep is running.
  *
- * @covers \Automattic\LivePreviews\SiteHealth
+ * @covers \Automattic\ShareADraft\SiteHealth
  */
 class SiteHealthTest extends WP_UnitTestCase {
 	/**
@@ -16,7 +16,7 @@ class SiteHealthTest extends WP_UnitTestCase {
 	 * literal on purpose: Site Health reads it across a class boundary, so the
 	 * name is part of the contract and a rename should fail a test.
 	 */
-	private const LAST_RUN_OPTION = 'live_previews_gc_last_run';
+	private const LAST_RUN_OPTION = 'shareadraft_gc_last_run';
 
 	private SiteHealth $health;
 
@@ -38,7 +38,7 @@ class SiteHealthTest extends WP_UnitTestCase {
 
 	public function test_it_registers_a_direct_test(): void {
 		static::assertArrayHasKey(
-			'live_previews_link_cleanup',
+			'shareadraft_link_cleanup',
 			$this->direct_tests( [
 				'direct' => [],
 				'async'  => [],
@@ -51,7 +51,7 @@ class SiteHealthTest extends WP_UnitTestCase {
 	 */
 	public function test_it_tolerates_a_mangled_tests_array(): void {
 		static::assertSame( 'not-an-array', $this->health->add_test( 'not-an-array' ) );
-		static::assertArrayHasKey( 'live_previews_link_cleanup', $this->direct_tests( [] ) );
+		static::assertArrayHasKey( 'shareadraft_link_cleanup', $this->direct_tests( [] ) );
 	}
 
 	/**
@@ -136,6 +136,6 @@ class SiteHealthTest extends WP_UnitTestCase {
 		$result = $this->health->run_test();
 
 		static::assertStringStartsWith( '<p>', $result['description'] );
-		static::assertSame( 'live_previews_link_cleanup', $result['test'] );
+		static::assertSame( 'shareadraft_link_cleanup', $result['test'] );
 	}
 }

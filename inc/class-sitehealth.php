@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * Reports on the preview-link cleanup sweep through Site Health.
@@ -17,7 +17,7 @@ namespace Automattic\LivePreviews;
  * standalone site whose system cron is silently broken.
  */
 final class SiteHealth {
-	private const TEST_ID = 'live_previews_link_cleanup';
+	private const TEST_ID = 'shareadraft_link_cleanup';
 
 	/**
 	 * How far past its due time the daily sweep may drift before we call it
@@ -52,7 +52,7 @@ final class SiteHealth {
 		}
 
 		$tests['direct'][ self::TEST_ID ] = [
-			'label' => __( 'Preview link cleanup', 'live-previews' ),
+			'label' => __( 'Preview link cleanup', 'shareadraft' ),
 			'test'  => [ $this, 'run_test' ],
 		];
 
@@ -70,8 +70,8 @@ final class SiteHealth {
 		if ( false === $next ) {
 			return $this->result(
 				'recommended',
-				__( 'Expired preview links are not being cleaned up', 'live-previews' ),
-				__( 'The daily sweep that removes expired and revoked preview links is not scheduled, so they will accumulate in the database. Deactivating and reactivating Live Previews will schedule it again.', 'live-previews' )
+				__( 'Expired preview links are not being cleaned up', 'shareadraft' ),
+				__( 'The daily sweep that removes expired and revoked preview links is not scheduled, so they will accumulate in the database. Deactivating and reactivating Share a Draft will schedule it again.', 'shareadraft' )
 			);
 		}
 
@@ -81,10 +81,10 @@ final class SiteHealth {
 		if ( $overdue || $stalled ) {
 			return $this->result(
 				'recommended',
-				__( 'The preview link cleanup sweep is running late', 'live-previews' ),
+				__( 'The preview link cleanup sweep is running late', 'shareadraft' ),
 				sprintf(
 					/* translators: %s: human-readable time difference, e.g. "4 days". */
-					__( 'The cleanup sweep was last due %s ago but has not run. Scheduled events on this site may not be firing, which means expired and revoked preview links will accumulate in the database. Preview links themselves are unaffected: expiry is checked when a link is opened, not by this sweep.', 'live-previews' ),
+					__( 'The cleanup sweep was last due %s ago but has not run. Scheduled events on this site may not be firing, which means expired and revoked preview links will accumulate in the database. Preview links themselves are unaffected: expiry is checked when a link is opened, not by this sweep.', 'shareadraft' ),
 					human_time_diff( (int) $next, $now )
 				)
 			);
@@ -92,16 +92,16 @@ final class SiteHealth {
 
 		return $this->result(
 			'good',
-			__( 'Expired preview links are being cleaned up', 'live-previews' ),
+			__( 'Expired preview links are being cleaned up', 'shareadraft' ),
 			null === $last_run
 				? sprintf(
 					/* translators: %s: human-readable time difference, e.g. "6 hours". */
-					__( 'The daily sweep that removes expired and revoked preview links is scheduled and due to run in %s.', 'live-previews' ),
+					__( 'The daily sweep that removes expired and revoked preview links is scheduled and due to run in %s.', 'shareadraft' ),
 					human_time_diff( $now, (int) $next )
 				)
 				: sprintf(
 					/* translators: 1: human-readable time difference since the last run, 2: human-readable time difference until the next run. */
-					__( 'The daily sweep that removes expired and revoked preview links last ran %1$s ago, and is due again in %2$s.', 'live-previews' ),
+					__( 'The daily sweep that removes expired and revoked preview links last ran %1$s ago, and is due again in %2$s.', 'shareadraft' ),
 					human_time_diff( $last_run, $now ),
 					human_time_diff( $now, (int) $next )
 				)
@@ -116,7 +116,7 @@ final class SiteHealth {
 			'label'       => $label,
 			'status'      => $status,
 			'badge'       => [
-				'label' => __( 'Performance', 'live-previews' ),
+				'label' => __( 'Performance', 'shareadraft' ),
 				'color' => 'blue',
 			],
 			'description' => '<p>' . esc_html( $description ) . '</p>',

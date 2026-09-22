@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews\Tests;
+namespace Automattic\ShareADraft\Tests;
 
-use Automattic\LivePreviews\IpAllowlist;
+use Automattic\ShareADraft\IpAllowlist;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * the security boundary — an off-by-one in the prefix mask is either a bypass
  * or a lockout — so both families and the byte-boundary edges are pinned down.
  *
- * @covers \Automattic\LivePreviews\IpAllowlist
+ * @covers \Automattic\ShareADraft\IpAllowlist
  */
 final class IpAllowlistTest extends TestCase {
 	/**

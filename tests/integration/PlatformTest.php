@@ -1,16 +1,16 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
- * @covers \Automattic\LivePreviews\Platform
+ * @covers \Automattic\ShareADraft\Platform
  */
 class PlatformTest extends WP_UnitTestCase {
 	public function tear_down(): void {
-		remove_all_filters( 'live_previews_is_vip_platform' );
+		remove_all_filters( 'shareadraft_is_vip_platform' );
 		parent::tear_down();
 	}
 
@@ -23,12 +23,12 @@ class PlatformTest extends WP_UnitTestCase {
 	}
 
 	public function test_the_verdict_is_filterable(): void {
-		add_filter( 'live_previews_is_vip_platform', '__return_true' );
+		add_filter( 'shareadraft_is_vip_platform', '__return_true' );
 		static::assertTrue( Platform::is_vip() );
 
-		remove_all_filters( 'live_previews_is_vip_platform' );
+		remove_all_filters( 'shareadraft_is_vip_platform' );
 
-		add_filter( 'live_previews_is_vip_platform', '__return_false' );
+		add_filter( 'shareadraft_is_vip_platform', '__return_false' );
 		static::assertFalse( Platform::is_vip() );
 	}
 
@@ -37,7 +37,7 @@ class PlatformTest extends WP_UnitTestCase {
 	 * branch on it directly.
 	 */
 	public function test_a_non_boolean_filter_return_is_cast(): void {
-		add_filter( 'live_previews_is_vip_platform', static fn (): string => 'yes' );
+		add_filter( 'shareadraft_is_vip_platform', static fn (): string => 'yes' );
 
 		static::assertTrue( Platform::is_vip() );
 	}

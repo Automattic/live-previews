@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use Automattic\VIP\Telemetry\Telemetry as VIP_Telemetry;
 use Spy_REST_Server;
@@ -10,7 +10,7 @@ use WP_REST_Server;
 use WP_Test_REST_TestCase;
 
 /**
- * @covers \Automattic\LivePreviews\PreviewRestController
+ * @covers \Automattic\ShareADraft\PreviewRestController
  */
 class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 	private const ROUTE = '/' . PreviewRestController::NAMESPACE . PreviewRestController::ROUTE;
@@ -76,8 +76,8 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		static::assertCount( 1, VIP_Telemetry::$events );
 		$event = VIP_Telemetry::$events[0];
 
-		// Source token + event name resolve to `livepreviews_link_created`.
-		static::assertSame( 'livepreviews_', $event['prefix'] );
+		// Source token + event name resolve to `shareadraft_link_created`.
+		static::assertSame( 'shareadraft_', $event['prefix'] );
 		static::assertSame( 'link_created', $event['event'] );
 
 		// Usage metadata only — never the token, content, or PII.
@@ -197,18 +197,18 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 				'label'   => 'Custom',
 			],
 		];
-		add_filter( 'live_previews_expiration_options', $callback );
+		add_filter( 'shareadraft_expiration_options', $callback );
 		$options  = PreviewRestController::expiration_options();
-		remove_filter( 'live_previews_expiration_options', $callback );
+		remove_filter( 'shareadraft_expiration_options', $callback );
 
 		static::assertSame( 123, $options[0]['seconds'] );
 	}
 
 	public function test_default_expiration_is_filterable(): void {
 		$callback = static fn (): int => 42;
-		add_filter( 'live_previews_default_expiration', $callback );
+		add_filter( 'shareadraft_default_expiration', $callback );
 		$default  = PreviewRestController::default_expiration();
-		remove_filter( 'live_previews_default_expiration', $callback );
+		remove_filter( 'shareadraft_default_expiration', $callback );
 
 		static::assertSame( 42, $default );
 	}
@@ -295,14 +295,14 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
-		add_filter( 'live_previews_recipients_enabled', '__return_false' );
+		add_filter( 'shareadraft_recipients_enabled', '__return_false' );
 
 		try {
 			// Even with the argument gone from the schema, a hand-built request
 			// can still smuggle the parameter in; the minter must say no.
 			$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [], [ 'legal@example.com' ] );
 		} finally {
-			remove_filter( 'live_previews_recipients_enabled', '__return_false' );
+			remove_filter( 'shareadraft_recipients_enabled', '__return_false' );
 		}
 
 		static::assertSame( 400, $response->get_status() );
@@ -313,12 +313,12 @@ class PreviewRestControllerTest extends WP_Test_REST_TestCase {
 		$post_id = self::factory()->post->create( [ 'post_status' => 'draft' ] );
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
-		add_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+		add_filter( 'shareadraft_ip_allowlist_enabled', '__return_false' );
 
 		try {
 			$response = $this->create_link( $post_id, 8 * HOUR_IN_SECONDS, null, [ '203.0.113.0/24' ] );
 		} finally {
-			remove_filter( 'live_previews_ip_allowlist_enabled', '__return_false' );
+			remove_filter( 'shareadraft_ip_allowlist_enabled', '__return_false' );
 		}
 
 		static::assertSame( 400, $response->get_status() );

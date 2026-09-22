@@ -2,14 +2,14 @@
 
 declare(strict_types = 1);
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 use WP_UnitTestCase;
 
 /**
  * The cross-post listing queries that back the site-wide admin table.
  *
- * @covers \Automattic\LivePreviews\PostMetaTokenRepository
+ * @covers \Automattic\ShareADraft\PostMetaTokenRepository
  */
 class PostMetaTokenRepositoryTest extends WP_UnitTestCase {
 	private PostMetaTokenRepository $repository;

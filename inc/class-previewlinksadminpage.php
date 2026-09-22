@@ -1,6 +1,6 @@
 <?php
 
-namespace Automattic\LivePreviews;
+namespace Automattic\ShareADraft;
 
 /**
  * The site-wide "Preview Links" admin screen: registers the menu, renders the
@@ -13,13 +13,13 @@ namespace Automattic\LivePreviews;
  */
 final class PreviewLinksAdminPage {
 	/** Menu slug; also the `page` query var. Referenced by the list table's row actions. */
-	public const SLUG = 'live-previews';
+	public const SLUG = 'shareadraft';
 
 	/** Screen ID core derives from the slug, so other classes can spot this screen. */
 	public const SCREEN_ID = 'toplevel_page_' . self::SLUG;
 
 	/** Per-user "links per page" screen option; the `_page` suffix is core convention. */
-	public const PER_PAGE_OPTION = 'live_previews_links_per_page';
+	public const PER_PAGE_OPTION = 'shareadraft_links_per_page';
 
 	/** Rows per page until the screen option overrides it. */
 	public const DEFAULT_PER_PAGE = 20;
@@ -87,8 +87,8 @@ final class PreviewLinksAdminPage {
 
 	public function add_menu(): void {
 		$hook = add_menu_page(
-			esc_html__( 'Preview Links', 'live-previews' ),
-			esc_html__( 'Preview Links', 'live-previews' ),
+			esc_html__( 'Preview Links', 'shareadraft' ),
+			esc_html__( 'Preview Links', 'shareadraft' ),
 			self::CAPABILITY,
 			self::SLUG,
 			[ $this, 'render' ],
@@ -116,7 +116,7 @@ final class PreviewLinksAdminPage {
 			return;
 		}
 
-		$asset_file = plugin_dir_path( VIP_LIVE_PREVIEWS_FILE ) . 'build/admin.asset.php';
+		$asset_file = plugin_dir_path( VIP_SHAREADRAFT_FILE ) . 'build/admin.asset.php';
 
 		if ( ! file_exists( $asset_file ) ) {
 			return;
@@ -137,11 +137,11 @@ final class PreviewLinksAdminPage {
 			: [];
 		$version      = isset( $asset['version'] ) && is_string( $asset['version'] )
 			? $asset['version']
-			: VIP_LIVE_PREVIEWS_VERSION;
+			: VIP_SHAREADRAFT_VERSION;
 
 		wp_enqueue_script(
-			'live-previews-admin',
-			plugins_url( 'build/admin.js', VIP_LIVE_PREVIEWS_FILE ),
+			'shareadraft-admin',
+			plugins_url( 'build/admin.js', VIP_SHAREADRAFT_FILE ),
 			$dependencies,
 			$version,
 			true
@@ -168,12 +168,12 @@ final class PreviewLinksAdminPage {
 			return;
 		}
 
-		$args = [ 'lp_revoked' => $revoked ];
+		$args = [ 'shareadraft_revoked' => $revoked ];
 
 		if ( $this->revoker->has_pending_work() ) {
 			// A sweep overflowed this run and continues on cron; say so rather
 			// than implying the count above was everything.
-			$args['lp_pending'] = 1;
+			$args['shareadraft_pending'] = 1;
 		}
 
 		wp_safe_redirect( add_query_arg( $args, $this->page_url() ) );
@@ -196,14 +196,14 @@ final class PreviewLinksAdminPage {
 			return null;
 		}
 
-		check_admin_referer( 'live_previews_toggle_links' );
+		check_admin_referer( 'shareadraft_toggle_links' );
 
 		if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
-			wp_die( esc_html__( 'You are not allowed to change whether preview links work on this site.', 'live-previews' ) );
+			wp_die( esc_html__( 'You are not allowed to change whether preview links work on this site.', 'shareadraft' ) );
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above; the checkbox's presence is the requested state.
-		if ( isset( $_POST['lp_enabled'] ) ) {
+		if ( isset( $_POST['shareadraft_enabled'] ) ) {
 			$this->toggle->enable();
 
 			return 'enabled';
@@ -230,7 +230,7 @@ final class PreviewLinksAdminPage {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
 			$token = isset( $_GET['token'] ) && is_string( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
 
-			check_admin_referer( 'live_previews_revoke_' . $post_id . '_' . $token );
+			check_admin_referer( 'shareadraft_revoke_' . $post_id . '_' . $token );
 
 			return $this->service->revoke( $post_id, $token ) ? 1 : 0;
 		}
@@ -241,7 +241,7 @@ final class PreviewLinksAdminPage {
 			// "Select all across pages" upgrades the bulk revoke from the ticked
 			// rows to the whole filtered set, the way Gmail's select-all does.
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above.
-			if ( isset( $_POST['lp_all'] ) && '' !== $_POST['lp_all'] ) {
+			if ( isset( $_POST['shareadraft_all'] ) && '' !== $_POST['shareadraft_all'] ) {
 				$creator = self::requested_creator();
 
 				if ( null !== $creator ) {
@@ -251,7 +251,7 @@ final class PreviewLinksAdminPage {
 				// Unfiltered select-all is the break-glass "revoke everything",
 				// whose blast radius warrants more than the table's own gate.
 				if ( ! current_user_can( self::REVOKE_ALL_CAPABILITY ) ) {
-					wp_die( esc_html__( 'You are not allowed to revoke all preview links.', 'live-previews' ) );
+					wp_die( esc_html__( 'You are not allowed to revoke all preview links.', 'shareadraft' ) );
 				}
 
 				return $this->revoker->revoke_all();
@@ -265,14 +265,14 @@ final class PreviewLinksAdminPage {
 
 	public function render(): void {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
-			wp_die( esc_html__( 'You are not allowed to manage preview links.', 'live-previews' ) );
+			wp_die( esc_html__( 'You are not allowed to manage preview links.', 'shareadraft' ) );
 		}
 
 		$table = $this->table();
 		$table->prepare_items();
 
 		echo '<div class="wrap">';
-		printf( '<h1>%s</h1>', esc_html__( 'Preview Links', 'live-previews' ) );
+		printf( '<h1>%s</h1>', esc_html__( 'Preview Links', 'shareadraft' ) );
 
 		$this->render_toggle_form();
 		$this->maybe_render_disabled_banner();
@@ -280,9 +280,9 @@ final class PreviewLinksAdminPage {
 		$this->maybe_render_notice();
 		$this->maybe_render_creator_filter();
 
-		echo '<form method="post" id="lp-links">';
+		echo '<form method="post" id="shareadraft-links">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( self::SLUG ) );
-		echo '<input type="hidden" name="lp_all" value="" id="lp-all" />';
+		echo '<input type="hidden" name="shareadraft_all" value="" id="shareadraft-all" />';
 		$this->maybe_render_select_all( $table );
 		$table->display();
 		echo '</form>';
@@ -303,18 +303,18 @@ final class PreviewLinksAdminPage {
 		}
 
 		echo '<style>
-			.lp-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 24px; }
-			.lp-switch input[type="checkbox"] { position: absolute; opacity: 0; width: 36px; height: 20px; margin: 0; cursor: pointer; }
-			.lp-switch .lp-track { box-sizing: border-box; width: 36px; height: 20px; border-radius: 10px; background: #8c8f94; position: relative; transition: background 0.15s ease; }
-			.lp-switch .lp-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
-			.lp-switch input:checked ~ .lp-track { background: #2271b1; }
-			.lp-switch input:checked ~ .lp-track::before { transform: translateX(16px); }
-			.lp-switch input:focus-visible ~ .lp-track { outline: 2px solid #2271b1; outline-offset: 2px; }
-			#lp-select-all { background: #f6f7f7; border: 1px solid #c3c4c7; padding: 8px 12px; margin: 4px 0 8px; }
+			.shareadraft-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 24px; }
+			.shareadraft-switch input[type="checkbox"] { position: absolute; opacity: 0; width: 36px; height: 20px; margin: 0; cursor: pointer; }
+			.shareadraft-switch .shareadraft-track { box-sizing: border-box; width: 36px; height: 20px; border-radius: 10px; background: #8c8f94; position: relative; transition: background 0.15s ease; }
+			.shareadraft-switch .shareadraft-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+			.shareadraft-switch input:checked ~ .shareadraft-track { background: #2271b1; }
+			.shareadraft-switch input:checked ~ .shareadraft-track::before { transform: translateX(16px); }
+			.shareadraft-switch input:focus-visible ~ .shareadraft-track { outline: 2px solid #2271b1; outline-offset: 2px; }
+			#shareadraft-select-all { background: #f6f7f7; border: 1px solid #c3c4c7; padding: 8px 12px; margin: 4px 0 8px; }
 		</style>';
 
-		echo '<form method="post" id="lp-toggle" action="' . esc_url( $this->page_url() ) . '">';
-		wp_nonce_field( 'live_previews_toggle_links' );
+		echo '<form method="post" id="shareadraft-toggle" action="' . esc_url( $this->page_url() ) . '">';
+		wp_nonce_field( 'shareadraft_toggle_links' );
 		echo '<input type="hidden" name="action" value="toggle_links" /></form>';
 	}
 
@@ -345,25 +345,25 @@ final class PreviewLinksAdminPage {
 
 		if ( null !== $creator ) {
 			/* translators: 1: number of links, 2: user display name */
-			$offer = sprintf( __( 'Select all %1$d links created by %2$s', 'live-previews' ), $total, $this->creator_name( $creator ) );
+			$offer = sprintf( __( 'Select all %1$d links created by %2$s', 'shareadraft' ), $total, $this->creator_name( $creator ) );
 			/* translators: 1: number of links, 2: user display name */
-			$active = sprintf( __( 'All %1$d links created by %2$s are selected.', 'live-previews' ), $total, $this->creator_name( $creator ) );
+			$active = sprintf( __( 'All %1$d links created by %2$s are selected.', 'shareadraft' ), $total, $this->creator_name( $creator ) );
 		} else {
 			/* translators: %d: number of links */
-			$offer = sprintf( __( 'Select all %d links across the whole site', 'live-previews' ), $total );
+			$offer = sprintf( __( 'Select all %d links across the whole site', 'shareadraft' ), $total );
 			/* translators: %d: number of links */
-			$active = sprintf( __( 'All %d links across the whole site are selected.', 'live-previews' ), $total );
+			$active = sprintf( __( 'All %d links across the whole site are selected.', 'shareadraft' ), $total );
 		}
 
 		printf(
-			'<div id="lp-select-all" hidden>
-				<span id="lp-select-all-offer">%s <button type="button" class="button-link" id="lp-select-all-btn">%s</button></span>
-				<span id="lp-select-all-active" hidden>%s <button type="button" class="button-link" id="lp-clear-selection-btn">%s</button></span>
+			'<div id="shareadraft-select-all" hidden>
+				<span id="shareadraft-select-all-offer">%s <button type="button" class="button-link" id="shareadraft-select-all-btn">%s</button></span>
+				<span id="shareadraft-select-all-active" hidden>%s <button type="button" class="button-link" id="shareadraft-clear-selection-btn">%s</button></span>
 			</div>',
-			esc_html__( 'All links on this page are selected.', 'live-previews' ),
+			esc_html__( 'All links on this page are selected.', 'shareadraft' ),
 			esc_html( $offer ),
 			esc_html( $active ),
-			esc_html__( 'Clear selection', 'live-previews' )
+			esc_html__( 'Clear selection', 'shareadraft' )
 		);
 
 		// The wiring that binds this banner to the table's checkboxes lives in
@@ -375,7 +375,7 @@ final class PreviewLinksAdminPage {
 		$user = get_userdata( $user_id );
 
 		/* translators: %d: user ID */
-		return false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'live-previews' ), $user_id );
+		return false !== $user ? $user->display_name : sprintf( __( 'User #%d', 'shareadraft' ), $user_id );
 	}
 
 	/**
@@ -403,18 +403,18 @@ final class PreviewLinksAdminPage {
 
 		if ( null !== $who && false !== $when ) {
 			/* translators: 1: user display name, 2: date and time */
-			$detail = sprintf( __( 'Disabled by %1$s on %2$s.', 'live-previews' ), $who, $when );
+			$detail = sprintf( __( 'Disabled by %1$s on %2$s.', 'shareadraft' ), $who, $when );
 		} elseif ( false !== $when ) {
 			/* translators: %s: date and time */
-			$detail = sprintf( __( 'Disabled on %s.', 'live-previews' ), $when );
+			$detail = sprintf( __( 'Disabled on %s.', 'shareadraft' ), $when );
 		} else {
 			$detail = '';
 		}
 
 		printf(
 			'<div class="notice notice-warning"><p><strong>%s</strong> %s %s</p></div>',
-			esc_html__( 'Preview links are disabled site-wide.', 'live-previews' ),
-			esc_html__( 'No preview link works while this is off — including newly generated ones. Each link keeps its own expiry and usage, and links that are still valid start working again when re-enabled.', 'live-previews' ),
+			esc_html__( 'Preview links are disabled site-wide.', 'shareadraft' ),
+			esc_html__( 'No preview link works while this is off — including newly generated ones. Each link keeps its own expiry and usage, and links that are still valid start working again when re-enabled.', 'shareadraft' ),
 			esc_html( $detail )
 		);
 	}
@@ -436,10 +436,10 @@ final class PreviewLinksAdminPage {
 			'<p>%s <a href="%s">%s</a></p>',
 			esc_html(
 				/* translators: %s: user display name */
-				sprintf( __( 'Showing links created by %s.', 'live-previews' ), $this->creator_name( $creator ) )
+				sprintf( __( 'Showing links created by %s.', 'shareadraft' ), $this->creator_name( $creator ) )
 			),
 			esc_url( $this->page_url() ),
-			esc_html__( 'Show all creators', 'live-previews' )
+			esc_html__( 'Show all creators', 'shareadraft' )
 		);
 	}
 
@@ -510,29 +510,29 @@ final class PreviewLinksAdminPage {
 
 		printf(
 			'<p>%s %s</p>',
-			esc_html__( 'IP ranges set in the VIP Dashboard apply to every link, in addition to any ranges shown per link below:', 'live-previews' ),
+			esc_html__( 'IP ranges set in the VIP Dashboard apply to every link, in addition to any ranges shown per link below:', 'shareadraft' ),
 			$ranges // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Each range is passed through esc_html() above; the only markup is static <code> tags.
 		);
 	}
 
 	private function maybe_render_notice(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read only to render a result notice after our own post-revoke redirect; no action is taken here.
-		if ( ! isset( $_GET['lp_revoked'] ) ) {
+		if ( ! isset( $_GET['shareadraft_revoked'] ) ) {
 			return;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
-		$count = is_scalar( $_GET['lp_revoked'] ) ? (int) $_GET['lp_revoked'] : 0;
+		$count = is_scalar( $_GET['shareadraft_revoked'] ) ? (int) $_GET['shareadraft_revoked'] : 0;
 
 		$message = sprintf(
 			/* translators: %d: number of preview links revoked */
-			_n( '%d preview link revoked.', '%d preview links revoked.', $count, 'live-previews' ),
+			_n( '%d preview link revoked.', '%d preview links revoked.', $count, 'shareadraft' ),
 			$count
 		);
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Set by our own post-revoke redirect; read only to phrase the notice.
-		if ( isset( $_GET['lp_pending'] ) ) {
-			$message .= ' ' . __( 'The remaining links are being revoked in the background.', 'live-previews' );
+		if ( isset( $_GET['shareadraft_pending'] ) ) {
+			$message .= ' ' . __( 'The remaining links are being revoked in the background.', 'shareadraft' );
 		}
 
 		printf(
@@ -555,7 +555,7 @@ final class PreviewLinksAdminPage {
 		add_screen_option(
 			'per_page',
 			[
-				'label'   => __( 'Links per page', 'live-previews' ),
+				'label'   => __( 'Links per page', 'shareadraft' ),
 				'default' => self::DEFAULT_PER_PAGE,
 				'option'  => self::PER_PAGE_OPTION,
 			]
@@ -593,54 +593,54 @@ final class PreviewLinksAdminPage {
 	private function add_help( \WP_Screen $screen ): void {
 		$screen->add_help_tab(
 			[
-				'id'      => 'live-previews-overview',
-				'title'   => __( 'Overview', 'live-previews' ),
-				'content' => '<p>' . esc_html__( 'This screen lists every preview link across the site, so you can see at a glance which drafts are shared, how far each link has been used, and when it expires. It is read-only apart from revoking, and is shown to editors because they can already view the drafts these links point at.', 'live-previews' ) . '</p>',
+				'id'      => 'shareadraft-overview',
+				'title'   => __( 'Overview', 'shareadraft' ),
+				'content' => '<p>' . esc_html__( 'This screen lists every preview link across the site, so you can see at a glance which drafts are shared, how far each link has been used, and when it expires. It is read-only apart from revoking, and is shown to editors because they can already view the drafts these links point at.', 'shareadraft' ) . '</p>',
 			]
 		);
 
-		$reading  = '<p>' . esc_html__( 'The table identifies a link by the last four characters of its token and can revoke it, but it never shows or re-copies the shareable URL: only a hash of the token is stored, never the token itself. If a link is lost, revoke it and generate a fresh one from the post editor.', 'live-previews' ) . '</p>';
-		$reading .= '<p><strong>' . esc_html__( 'Status', 'live-previews' ) . '</strong></p><ul>';
-		$reading .= '<li>' . esc_html__( 'Active: the link works.', 'live-previews' ) . '</li>';
-		$reading .= '<li>' . esc_html__( 'Expired: past its expiry time.', 'live-previews' ) . '</li>';
-		$reading .= '<li>' . esc_html__( 'Exhausted: reached its limit on distinct viewers.', 'live-previews' ) . '</li>';
-		$reading .= '<li>' . esc_html__( 'Revoked: switched off by hand.', 'live-previews' ) . '</li>';
-		$reading .= '</ul><p>' . esc_html__( 'Uses counts distinct viewers against the cap; an infinity sign means no cap.', 'live-previews' ) . '</p>';
+		$reading  = '<p>' . esc_html__( 'The table identifies a link by the last four characters of its token and can revoke it, but it never shows or re-copies the shareable URL: only a hash of the token is stored, never the token itself. If a link is lost, revoke it and generate a fresh one from the post editor.', 'shareadraft' ) . '</p>';
+		$reading .= '<p><strong>' . esc_html__( 'Status', 'shareadraft' ) . '</strong></p><ul>';
+		$reading .= '<li>' . esc_html__( 'Active: the link works.', 'shareadraft' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Expired: past its expiry time.', 'shareadraft' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Exhausted: reached its limit on distinct viewers.', 'shareadraft' ) . '</li>';
+		$reading .= '<li>' . esc_html__( 'Revoked: switched off by hand.', 'shareadraft' ) . '</li>';
+		$reading .= '</ul><p>' . esc_html__( 'Uses counts distinct viewers against the cap; an infinity sign means no cap.', 'shareadraft' ) . '</p>';
 
 		// The optional restriction columns only exist while their feature is
 		// enabled, so their explanations come and go with them.
 		if ( Features::recipients_enabled() ) {
-			$reading .= '<p>' . esc_html__( 'Reviewers shows the email addresses a link is bound to. Each reviewer proves control of their address with an emailed code before the draft opens, so the link works for the people it names rather than for anyone it gets forwarded to. A dash means anyone with the link can view. To change the reviewer list, revoke the link and generate a new one.', 'live-previews' ) . '</p>';
+			$reading .= '<p>' . esc_html__( 'Reviewers shows the email addresses a link is bound to. Each reviewer proves control of their address with an emailed code before the draft opens, so the link works for the people it names rather than for anyone it gets forwarded to. A dash means anyone with the link can view. To change the reviewer list, revoke the link and generate a new one.', 'shareadraft' ) . '</p>';
 		}
 
 		if ( Features::ip_allowlist_enabled() ) {
-			$reading .= '<p>' . esc_html__( 'IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one.', 'live-previews' ) . '</p>';
+			$reading .= '<p>' . esc_html__( 'IP ranges shows the addresses a link is restricted to, on top of any ranges configured centrally in the VIP Dashboard. A dash means the link adds no restriction of its own. A link cannot be edited once shared: to change its ranges, revoke it and generate a new one.', 'shareadraft' ) . '</p>';
 		}
 
 		$screen->add_help_tab(
 			[
-				'id'      => 'live-previews-reading',
-				'title'   => __( 'Reading a row', 'live-previews' ),
+				'id'      => 'shareadraft-reading',
+				'title'   => __( 'Reading a row', 'shareadraft' ),
 				'content' => $reading,
 			]
 		);
 
 		$screen->add_help_tab(
 			[
-				'id'      => 'live-previews-revoking',
-				'title'   => __( 'Revoking', 'live-previews' ),
-				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'live-previews' ) . '</p>'
-					. '<p>' . esc_html__( 'To revoke at scale, tick the checkbox in the table header. If more links exist than the page shows, you are offered "Select all" across every page — covering the whole site, or, if you first clicked a name in the Created by column, everything that person created (useful when someone leaves). Then apply the Revoke bulk action as usual. Selecting every link site-wide is limited to administrators. When a user account is deleted, their links are revoked automatically.', 'live-previews' ) . '</p>'
-					. '<p>' . esc_html__( 'Not sure yet whether to revoke? Preview links can also be paused site-wide — see the Pausing all links tab.', 'live-previews' ) . '</p>',
+				'id'      => 'shareadraft-revoking',
+				'title'   => __( 'Revoking', 'shareadraft' ),
+				'content' => '<p>' . esc_html__( 'Revoking a link stops it working immediately. For a short period the visitor sees a "no longer available" notice, and after that a plain "not found" page. Revoking cannot be undone: generate a new link to restore access. Use the row action to revoke one link, or tick several and choose the Revoke bulk action.', 'shareadraft' ) . '</p>'
+					. '<p>' . esc_html__( 'To revoke at scale, tick the checkbox in the table header. If more links exist than the page shows, you are offered "Select all" across every page — covering the whole site, or, if you first clicked a name in the Created by column, everything that person created (useful when someone leaves). Then apply the Revoke bulk action as usual. Selecting every link site-wide is limited to administrators. When a user account is deleted, their links are revoked automatically.', 'shareadraft' ) . '</p>'
+					. '<p>' . esc_html__( 'Not sure yet whether to revoke? Preview links can also be paused site-wide — see the Pausing all links tab.', 'shareadraft' ) . '</p>',
 			]
 		);
 
 		$screen->add_help_tab(
 			[
-				'id'      => 'live-previews-pausing',
-				'title'   => __( 'Pausing all links', 'live-previews' ),
-				'content' => '<p>' . esc_html__( 'The toggle next to the bulk actions switches every preview link off at once — the first response when links may be leaking but you are not yet sure. It is a reversible pause, not a revocation: nothing is deleted, each link keeps its own expiry and usage, and links that are still valid resume working the moment an administrator re-enables them.', 'live-previews' ) . '</p>'
-					. '<p>' . esc_html__( 'While links are paused, this screen banners who paused them and when, the editor warns authors that new and existing links will not work, and visitors opening a link see a "temporarily disabled" notice. Only administrators can flip the switch.', 'live-previews' ) . '</p>',
+				'id'      => 'shareadraft-pausing',
+				'title'   => __( 'Pausing all links', 'shareadraft' ),
+				'content' => '<p>' . esc_html__( 'The toggle next to the bulk actions switches every preview link off at once — the first response when links may be leaking but you are not yet sure. It is a reversible pause, not a revocation: nothing is deleted, each link keeps its own expiry and usage, and links that are still valid resume working the moment an administrator re-enables them.', 'shareadraft' ) . '</p>'
+					. '<p>' . esc_html__( 'While links are paused, this screen banners who paused them and when, the editor warns authors that new and existing links will not work, and visitors opening a link see a "temporarily disabled" notice. Only administrators can flip the switch.', 'shareadraft' ) . '</p>',
 			]
 		);
 
@@ -658,14 +658,14 @@ final class PreviewLinksAdminPage {
 	private function help_sidebar(): string {
 		$links = Platform::is_vip()
 			? [
-				'https://docs.wpvip.com/'  => __( 'WordPress VIP documentation', 'live-previews' ),
-				'mailto:support@wpvip.com' => __( 'Contact VIP support', 'live-previews' ),
+				'https://docs.wpvip.com/'  => __( 'WordPress VIP documentation', 'shareadraft' ),
+				'mailto:support@wpvip.com' => __( 'Contact VIP support', 'shareadraft' ),
 			]
 			: [
-				'https://wordpress.org/support/plugin/live-previews/' => __( 'Support forum', 'live-previews' ),
+				'https://wordpress.org/support/plugin/shareadraft/' => __( 'Support forum', 'shareadraft' ),
 			];
 
-		$sidebar = '<p><strong>' . esc_html__( 'For more information', 'live-previews' ) . '</strong></p>';
+		$sidebar = '<p><strong>' . esc_html__( 'For more information', 'shareadraft' ) . '</strong></p>';
 
 		foreach ( $links as $url => $label ) {
 			$sidebar .= '<p><a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a></p>';
