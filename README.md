@@ -1,5 +1,10 @@
 # Live Previews
 
+> [!IMPORTANT]
+> **This repository is archived and no longer maintained.** Live Previews has been merged into [Share a Draft](https://github.com/Automattic/shareadraft), where development continues towards Share a Draft 2.0. Please open new issues and pull requests there.
+>
+> The README below describes Live Previews as it stood when it was archived. In Share a Draft, the `live-previews` / `live_previews_` prefixes have become `shareadraft` / `shareadraft_` (for example, `wp live-previews` is now `wp shareadraft`).
+
 Live Previews generates safe-to-share, time- and usage-limited preview links so reviewers without a WordPress account can review a draft. It hardens the existing Preview Links.
 
 Live Previews is an ordinary WordPress plugin and works on any host, with nothing to configure. It is also packaged as a WordPress VIP integration: on VIP it reads optional settings from a VIP-provided constant, records Tracks telemetry, and is registered with the VIP Integrations Center through the [handoff manifest](/docs/manifest.md). Each of those is gated behind a platform check (`Automattic\LivePreviews\Platform::is_vip()`) or a `class_exists()` guard, so off VIP they are simply absent — no notices, no fatals, and no VIP branding on the site. See [/docs/vip-integration.md](/docs/vip-integration.md) for the operational details, and check conformance with the [`vip-integration`](https://github.com/Automattic/integration) CLI (`npx @automattic/vip-integration validate`).
